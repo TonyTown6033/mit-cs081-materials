@@ -3,3 +3,7 @@
 .translate-ai-cache*.json
 .gitrepo-metadata/
 __pycache__/
+.DS_Store
+.playwright-cli/
+tmp/
+output/

@@ -12,6 +12,7 @@ Downloaded on 2026-04-09 into this folder for offline study.
 ## Key PDFs
 
 - xv6 book, 2020 rev1: [readings/xv6-book-2020-rev1.pdf](readings/xv6-book-2020-rev1.pdf)
+- xv6 book, 2020 Chinese PDF: [readings/xv6-book-2020-zh-cn.pdf](readings/xv6-book-2020-zh-cn.pdf)
 - xv6 book, 2025 rev5: [readings/xv6-book-2025-rev5.pdf](readings/xv6-book-2025-rev5.pdf)
 - xv6 source booklet, 2025 rev5: [readings/xv6-src-booklet-2025-rev5.pdf](readings/xv6-src-booklet-2025-rev5.pdf)
 - RISC-V calling convention: [readings/riscv-calling-convention.pdf](readings/riscv-calling-convention.pdf)
