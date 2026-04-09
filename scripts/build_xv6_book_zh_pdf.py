@@ -16,11 +16,14 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PDF = ROOT / "official-pages/6.S081-2020/xv6/book-riscv-rev1.pdf"
 TMP_DIR = ROOT / "tmp/pdfs"
+FIGURE_DIR = TMP_DIR / "figures"
 FINAL_DIR = ROOT / "readings"
 RAW_TEXT_PATH = TMP_DIR / "xv6-book-2020-en.txt"
 MARKDOWN_PATH = FINAL_DIR / "xv6-book-2020-zh.md"
 CACHE_PATH = TMP_DIR / "xv6-book-2020-zh-cache.json"
 OUTPUT_PDF = FINAL_DIR / "xv6-book-2020-zh-cn.pdf"
+FIGURE_MARKER_RE = re.compile(r"^\[\[FIGURE (\d+\.\d+)\]\]$")
+FIGURE_GAP_MAX = 38.0
 
 CODE_TRIGGERS = (
     "int ",
@@ -127,6 +130,24 @@ def is_section_heading(line: str) -> bool:
     return bool(re.fullmatch(r"\d+\.\d+\s+.+", line.strip()))
 
 
+def parse_figure_number(line: str) -> str | None:
+    match = re.match(r"^Figure\s*(\d+\.\d+)\s*:", line.strip())
+    if match:
+        return match.group(1)
+    return None
+
+
+def normalize_figure_caption(line: str) -> str:
+    stripped = line.strip()
+    match = re.match(r"^Figure\s*(\d+\.\d+)\s*:\s*(.*)$", stripped)
+    if not match:
+        return stripped
+    number, rest = match.groups()
+    if rest:
+        return f"Figure {number}: {rest.strip()}"
+    return f"Figure {number}:"
+
+
 def has_code_syntax(plain: str) -> bool:
     if plain.startswith(CODE_TRIGGERS):
         return True
@@ -197,25 +218,90 @@ def format_body_as_markdown(body: str) -> str:
             out.append("")
         code = []
 
-    for raw in lines:
+    def is_figure_label_block(block: list[str]) -> bool:
+        if not block:
+            return False
+        if block[0].strip() == "```" or block[-1].strip() == "```":
+            return False
+        text = " ".join(line.strip() for line in block if line.strip())
+        if not text:
+            return False
+        punctuation_text = re.sub(r"\.+", "", text)
+        if re.search(r"[!?;:]", punctuation_text):
+            return False
+        if "." in punctuation_text:
+            return False
+        words = text.split()
+        return 1 <= len(words) <= 40 and len(text) <= 260
+
+    def drop_trailing_figure_block() -> None:
+        removed = False
+        while True:
+            while out and not out[-1].strip():
+                out.pop()
+            if not out:
+                break
+            end = len(out)
+            start = end - 1
+            while start > 0 and out[start - 1].strip():
+                start -= 1
+            block = out[start:end]
+            if not is_figure_label_block(block):
+                break
+            del out[start:end]
+            removed = True
+        if removed:
+            while out and not out[-1].strip():
+                out.pop()
+
+    index = 0
+    while index < len(lines):
+        raw = lines[index]
         line = raw.rstrip()
         stripped = line.strip()
         if not stripped:
             flush_para()
             flush_code()
+            index += 1
+            continue
+        figure_number = parse_figure_number(stripped)
+        if figure_number:
+            para = []
+            code = []
+            drop_trailing_figure_block()
+            caption_lines = [normalize_figure_caption(stripped)]
+            index += 1
+            while index < len(lines):
+                continuation = lines[index].rstrip()
+                continuation_stripped = continuation.strip()
+                if not continuation_stripped:
+                    break
+                if is_section_heading(continuation):
+                    break
+                if parse_figure_number(continuation_stripped):
+                    break
+                caption_lines.append(continuation_stripped)
+                index += 1
+            out.append(f"[[FIGURE {figure_number}]]")
+            out.append("")
+            out.append(normalize_paragraph(caption_lines))
+            out.append("")
             continue
         if is_section_heading(line):
             flush_para()
             flush_code()
             out.append("## " + stripped)
             out.append("")
+            index += 1
             continue
         if is_code_line(line):
             flush_para()
             code.append(line)
+            index += 1
             continue
         flush_code()
         para.append(line)
+        index += 1
 
     flush_para()
     flush_code()
@@ -312,6 +398,7 @@ def translate_markdown(markdown_text: str, cache: dict[str, str], model: str) ->
 3. 技术术语尽量统一，例如 operating system=操作系统，kernel=内核，process=进程，page table=页表，trap=陷阱，file descriptor=文件描述符，scheduler=调度器。
 4. 不要省略，不要总结，不要添加前言、结语或注释。
 5. 图号、引用编号、URL、章节编号保留原样。
+6. 占位标记如 [[FIGURE 1.1]] 必须原样保留，不翻译，不改格式。
 
 只输出翻译后的 Markdown。
 
@@ -344,7 +431,60 @@ def inline_markup(text: str) -> str:
     return escaped
 
 
-def markdown_to_story(markdown_text: str):
+def looks_like_body_line(line: dict[str, float | str], page_width: float) -> bool:
+    text = str(line["text"])
+    width = float(line["x1"]) - float(line["x0"])
+    return float(line["x0"]) <= 95 and width >= page_width * 0.72 and text.count(" ") >= 6
+
+
+def extract_figure_images(pdf_path: Path) -> dict[str, Path]:
+    import pdfplumber
+
+    FIGURE_DIR.mkdir(parents=True, exist_ok=True)
+    figure_paths: dict[str, Path] = {}
+
+    with pdfplumber.open(str(pdf_path)) as pdf:
+        for page_no, page in enumerate(pdf.pages, start=1):
+            lines = page.extract_text_lines(layout=False, strip=False, return_chars=False)
+            if not lines:
+                continue
+            for idx, line in enumerate(lines):
+                figure_number = parse_figure_number(str(line["text"]))
+                if not figure_number:
+                    continue
+
+                figure_lines: list[dict[str, float | str]] = []
+                next_top = float(line["top"])
+                cursor = idx - 1
+                while cursor >= 0:
+                    candidate = lines[cursor]
+                    gap = next_top - float(candidate["bottom"])
+                    if gap > FIGURE_GAP_MAX:
+                        break
+                    if looks_like_body_line(candidate, page.width):
+                        break
+                    figure_lines.insert(0, candidate)
+                    next_top = float(candidate["top"])
+                    cursor -= 1
+
+                if not figure_lines:
+                    continue
+
+                top = max(24.0, min(float(item["top"]) for item in figure_lines) - 18.0)
+                bottom = min(page.height - 24.0, float(line["top"]) - 8.0)
+                left = max(24.0, min(float(item["x0"]) for item in figure_lines) - 48.0)
+                right = min(page.width - 24.0, max(float(item["x1"]) for item in figure_lines) + 48.0)
+                if bottom <= top or right <= left:
+                    continue
+
+                target = FIGURE_DIR / f"figure-{figure_number.replace('.', '-')}.png"
+                page.crop((left, top, right, bottom)).to_image(resolution=170).save(str(target), format="PNG")
+                figure_paths[figure_number] = target
+
+    return figure_paths
+
+
+def markdown_to_story(markdown_text: str, figure_images: dict[str, Path]):
     from reportlab.lib.colors import HexColor
     from reportlab.lib.enums import TA_CENTER
     from reportlab.lib.pagesizes import letter
@@ -352,7 +492,7 @@ def markdown_to_story(markdown_text: str):
     from reportlab.lib.units import inch
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.pdfbase.pdfmetrics import registerFont
-    from reportlab.platypus import PageBreak, Paragraph, Preformatted, SimpleDocTemplate, Spacer
+    from reportlab.platypus import Image, PageBreak, Paragraph, Preformatted, SimpleDocTemplate, Spacer
 
     registerFont(UnicodeCIDFont("STSong-Light"))
 
@@ -404,6 +544,15 @@ def markdown_to_story(markdown_text: str):
         leftIndent=18,
         firstLineIndent=-10,
     )
+    figure_caption = ParagraphStyle(
+        "CJKFigureCaption",
+        parent=base,
+        alignment=TA_CENTER,
+        fontSize=9.2,
+        leading=12,
+        textColor=HexColor("#5f5148"),
+        spaceAfter=12,
+    )
     code_style = ParagraphStyle(
         "CJKCode",
         parent=styles["Code"],
@@ -438,19 +587,27 @@ def markdown_to_story(markdown_text: str):
     pending_title_page = True
     title_page_mode = False
     skip_next_h1_break = False
+    pending_figure_number: str | None = None
 
     def flush_para() -> None:
-        nonlocal pending_para, skip_next_h1_break, title_page_mode
+        nonlocal pending_para, pending_figure_number, skip_next_h1_break, title_page_mode
         if not pending_para:
             return
         text = " ".join(line.strip() for line in pending_para if line.strip())
         if text:
-            style = meta if title_page_mode else base
+            if title_page_mode:
+                style = meta
+            elif pending_figure_number:
+                style = figure_caption
+            else:
+                style = base
             story.append(Paragraph(inline_markup(text), style))
             if title_page_mode:
                 story.append(PageBreak())
                 title_page_mode = False
                 skip_next_h1_break = True
+            elif pending_figure_number:
+                pending_figure_number = None
         pending_para = []
 
     def flush_code() -> None:
@@ -479,6 +636,21 @@ def markdown_to_story(markdown_text: str):
 
         if code_mode:
             code_lines.append(line)
+            continue
+
+        figure_marker = FIGURE_MARKER_RE.match(line.strip())
+        if figure_marker:
+            flush_para()
+            flush_code()
+            figure_no = figure_marker.group(1)
+            image_path = figure_images.get(figure_no)
+            if image_path and image_path.exists():
+                flowable = Image(str(image_path))
+                flowable._restrictSize(6.4 * inch, 5.6 * inch)
+                flowable.hAlign = "CENTER"
+                story.append(flowable)
+                story.append(Spacer(1, 0.08 * inch))
+            pending_figure_number = figure_no
             continue
 
         if line.startswith("# "):
@@ -533,8 +705,9 @@ def markdown_to_story(markdown_text: str):
     return doc, story, add_page_number
 
 
-def build_pdf(markdown_text: str) -> None:
-    doc, story, add_page_number = markdown_to_story(markdown_text)
+def build_pdf(markdown_text: str, pdf_path: Path) -> None:
+    figure_images = extract_figure_images(pdf_path)
+    doc, story, add_page_number = markdown_to_story(markdown_text, figure_images)
     doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
 
 
@@ -566,7 +739,7 @@ def main() -> None:
         MARKDOWN_PATH.write_text(markdown_text, encoding="utf-8")
         save_cache(CACHE_PATH, cache)
 
-    build_pdf(markdown_text)
+    build_pdf(markdown_text, args.pdf)
     print(OUTPUT_PDF)
 
 

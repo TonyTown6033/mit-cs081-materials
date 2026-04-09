@@ -13,6 +13,7 @@
 
 - xv6 书，2020 rev1 英文版: [readings/xv6-book-2020-rev1.pdf](readings/xv6-book-2020-rev1.pdf)
 - xv6 书，2020 中文 PDF: [readings/xv6-book-2020-zh-cn.pdf](readings/xv6-book-2020-zh-cn.pdf)
+- xv6 书，2020 中文 Markdown: [readings/xv6-book-2020-zh.md](readings/xv6-book-2020-zh.md)
 - xv6 书，2025 rev5 英文版: [readings/xv6-book-2025-rev5.pdf](readings/xv6-book-2025-rev5.pdf)
 - xv6 源码小册子，2025 rev5: [readings/xv6-src-booklet-2025-rev5.pdf](readings/xv6-src-booklet-2025-rev5.pdf)
 - RISC-V 调用约定: [readings/riscv-calling-convention.pdf](readings/riscv-calling-convention.pdf)
@@ -30,6 +31,7 @@
 ## 说明
 
 - `official-pages/6.S081-2020` 和 `official-pages/6.1810-2025` 中的大部分 `HTML/TXT` 页面已经做过汉化。
+- `readings/xv6-book-2020-zh-cn.pdf` 与 `readings/xv6-book-2020-zh.md` 由 `scripts/build_xv6_book_zh_pdf.py` 生成；PDF 已回填原书中的图示。
 - 2020 镜像包含实验、讲义、作业页面、阅读材料和关联 PDF。
 - 2025 镜像包含实验、讲义、作业页面、小测 PDF、阅读材料和 xv6 PDF。
 - MIT 站点部分相对链接原本就是坏的，抓取时会出现少量 `404`，但核心资料已经下载完成。
