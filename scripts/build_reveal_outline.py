@@ -271,7 +271,7 @@ def render_list(items: list[tuple[int, str]]) -> str:
             first = False
         if not first:
             parts.append("</li>")
-        parts.append(f'<li class="fragment">{content}')
+        parts.append(f"<li>{content}")
         first = False
     while current_level > 0:
         parts.append("</li></ul>")
@@ -296,7 +296,7 @@ def render_blocks(blocks: list[Block]) -> str:
             url = html.escape(block.value or "")
             rendered.append(f'<p class="resource-link"><a href="{url}">{url}</a></p>')
         elif block.kind == "paragraph":
-            rendered.append(f'<p class="slide-text fragment">{block.value or ""}</p>')
+            rendered.append(f'<p class="slide-text">{block.value or ""}</p>')
     return "\n".join(rendered)
 
 
@@ -551,7 +551,8 @@ def render_html(deck_title: str, slides: list[Slide], source_path: Path, output_
       width: 1360,
       height: 768,
       margin: 0.06,
-      transition: "slide",
+      transition: "none",
+      backgroundTransition: "none",
       navigationMode: "linear"
     }});
   </script>
