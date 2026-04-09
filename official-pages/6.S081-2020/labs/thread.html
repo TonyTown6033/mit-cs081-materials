@@ -5,30 +5,30 @@
 <script src="https://pdos.csail.mit.edu/6.S081/2020/labs/js/jquery-1.10.2.min.js"></script>
 <script src="guidance.js"></script>
 </head>
-<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <h1>实验：多线程</h1>
-<p>本实验将使您熟悉多线程。您将在用户级线程包中实现线程之间的切换，使用多个线程来加速程序，并实现屏障。
+<p>本实验将使你熟悉多线程编程。你将在一个用户级线程包中实现线程间的切换，使用多线程来加速程序，并实现一个屏障（barrier）。
 
 <div class="prereq">
-<p>在编写代码之前，您应该确保您已经阅读了“第 7 章：调度” <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a> 并研究了相应的代码。
+<p>在编写代码之前，你应该确保已阅读 xv6 书中的"第 7 章：调度"以及 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a> 并研究了相应的代码。
 </p></div>
-<p>要开始实验，请切换到线程分支：
+<p>要开始本实验，请切换到 thread 分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout thread</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-<h2>uthread：线程间切换 <script>g("moderate")</script></h2>
-<p>在本练习中，您将为用户级线程系统设计上下文切换机制，然后实现它。为了帮助您入门，您的 xv6 有两个文件 user/uthread.c 和 user/uthread_switch.S，以及 Makefile 中用于构建 uthread 程序的规则。 uthread.c 包含大部分用户级线程包以及三个简单测试线程的代码。线程包缺少一些创建线程和在线程之间切换的代码。
+<h2>Uthread：线程间切换 <script>g("moderate")</script></h2>
+<p>在本练习中，你将为用户级线程系统设计上下文切换机制，并加以实现。为帮助你入门，你的 xv6 中提供了两个文件 user/uthread.c 和 user/uthread_switch.S，以及 Makefile 中用于构建 uthread 程序的相关规则。uthread.c 包含用户级线程包的大部分代码，以及三个简单测试线程的代码。该线程包缺少一些用于创建线程和在线程间切换的代码。
 
   <div class="required">
 <p>
-您的工作是制定一个计划来创建线程并保存/恢复寄存器以在线程之间切换，并实施该计划。当你完成后，
-<tt>make grade</tt> 应该说你的解决方案通过了
-<tt>uthread</tt> test.
+您的任务是制定一个方案，用于创建线程并保存/恢复寄存器以在线程之间切换，然后实现该方案。完成后，
+<tt>make grade</tt> 应显示您的解决方案通过了
+<tt>uthread</tt> 测试。
 </p></div>
 
-完成后，运行时您应该会看到以下输出 <tt>uthread</tt> 在 xv6 上（三个线程可能以不同的顺序启动）：
+完成后，当你运行时，你应该看到以下输出 <tt>uthread</tt> 在 xv6 上（三个线程的启动顺序可能不同）：
 
 <pre>
 $ <kbd>make qemu</kbd>
@@ -54,21 +54,21 @@ thread_schedule: no runnable threads
 $
 </pre>
 <p>
-此输出来自三个测试线程，每个测试线程都有一个循环，用于打印一行，然后将 CPU 交给其他线程。
+这段输出来自三个测试线程，每个线程都有一个循环，先打印一行，然后将 CPU 让出给其他线程。
 <p>
 <p>
-然而，此时，由于没有上下文切换代码，您将看不到任何输出。
+但是，此时由于没有上下文切换代码，你将看不到任何输出。
 <p>
-<p>您需要添加代码 <tt>thread_create()</tt> 和
-   <tt>thread_schedule()</tt> 在 <tt>user/uthread.c</tt>, 和 <tt>thread_switch</tt> 在 <tt>user/uthread_switch.S</tt>。目标之一是确保当 <tt>thread_schedule()</tt> 第一次运行给定线程，该线程执行传递给的函数 <tt>thread_create()</tt>，在其自己的堆栈上。另一个目标是确保 <tt>thread_switch</tt> 保存被切换出的线程的寄存器，恢复被切换到的线程的寄存器，并返回到后一个线程的指令中最后离开的点。您必须决定在哪里保存/恢复寄存器；修改
-  <tt>struct thread</tt> 持有寄存器是一个好计划。您需要添加一个调用 <tt>thread_switch</tt> 在 <tt>thread_schedule</tt>;你可以传递任何你需要的参数 <tt>thread_switch</tt>，但目的是从线程切换 <tt>t</tt> 到
+<p>您需要在 <tt>thread_create()</tt> 和
+   <tt>thread_schedule()</tt> 中 <tt>user/uthread.c</tt>，以及 <tt>thread_switch</tt> 中 <tt>user/uthread_switch.S</tt>一个目标是确保当 <tt>thread_schedule()</tt> 第一次运行某个线程时，该线程执行传递给 <tt>thread_create()</tt>，在其自己的栈上。另一个目标是确保 <tt>thread_switch</tt> 保存正在切换离开的线程的寄存器，恢复正在切换到的线程的寄存器，并返回到后者线程上次离开时的指令位置。你需要决定在哪里保存/恢复寄存器；修改
+  <tt>struct thread</tt> 保存寄存器是个好计划。你需要添加一个调用 <tt>thread_switch</tt> 中 <tt>thread_schedule</tt>；你可以传递任何所需的参数 <tt>thread_switch</tt>，但其目的是从线程 <tt>t</tt> 添加到
   <tt>next_thread</tt>.
 
 <p>一些提示：
   <ul>
-<li> <tt>thread_switch</tt> 仅需要保存/恢复被调用者保存寄存器。为什么？
-    <li> 你可以在user/uthread.asm中看到uthread的汇编代码，这可能会方便调试。
-<li>要测试您的代码，单步执行您的代码可能会有所帮助
+<li> <tt>thread_switch</tt> 只需保存/恢复被调用者保存寄存器（callee-save registers）。为什么？
+    <li> 你可以在 user/uthread.asm 中查看 uthread 的汇编代码，这可能对调试有所帮助。
+<li>为了测试你的代码，单步调试你的
 <tt>thread_switch</tt> 使用 <tt>riscv64-linux-gnu-gdb</tt>。您可以通过以下方式开始：
 
 <pre>
@@ -77,47 +77,47 @@ Reading symbols from user/_uthread...
 (gdb) b uthread.c:60
 
 </pre>
-<p>这在第 60 行设置了一个断点 <tt>uthread.c</tt>。在运行之前，断点可能（也可能不会）被触发
-<tt>uthread</tt>。怎么会发生这种事？
+<p>这在以下文件的第 60 行设置了一个断点： <tt>uthread.c</tt>。断点可能（也可能不会）在你运行之前就被触发
+<tt>uthread</tt>这是怎么发生的？
 
-<p>一旦你的 xv6 shell 运行，输入“uthread”，gdb 将在第 60 行中断。现在你可以输入如下命令来检查 <tt>uthread</tt>:
+<p>一旦你的 xv6 shell 运行起来，输入 "uthread"，gdb 将在第 60 行中断。现在你可以输入如下命令来检查 <tt>uthread</tt>:
 
 <pre>
   (gdb) p/x *next_thread
 </pre>
 
-使用“x”，您可以检查内存位置的内容：
+使用 "x"，你可以查看某个内存地址的内容：
 <pre>
   (gdb) x/x next_thread-&gt;stack
 </pre>
-<p>您可以跳到开头 <tt>thread_switch</tt> thus:
+<p>您可以跳转至开头 <tt>thread_switch</tt> thus:
 <pre>
    (gdb) b thread_switch
    (gdb) c
 </pre>
-<p>您可以使用以下方法单步组装说明：
+<p>您可以使用以下方式单步执行汇编指令：
 <pre>
    (gdb) si
 </pre>
-<p>gdb 的在线文档是 <a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">这里</a>.
+<p>在线 gdb 文档位于 <a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">这里</a>.
 
 </p></p></p></p></p></li></li></li></ul>
-<h2>使用线程  <script>g("moderate")</script></h2>
-<p>在本作业中，您将使用哈希表探索线程和锁的并行编程。您应该在具有多个内核的真实 Linux 或 MacOS 计算机（不是 xv6，不是 qemu）上执行此作业。大多数最新的笔记本电脑都配备多核处理器。
+<h2># 使用线程  <script>g("moderate")</script></h2>
+<p>在本作业中，你将使用哈希表探索基于线程和锁的并行编程。你应该在一台真实的 Linux 或 MacOS 计算机（而非 xv6，也非 qemu）上完成本作业，该计算机需具备多核处理器。目前大多数笔记本电脑均配备了多核处理器。
 
 <p>
-此作业使用 UNIX <tt>pthread</tt> 线程库。您可以从手册页找到有关它的信息，
-<tt>man pthreads</tt>，你可以在网上看看，例如
+本作业使用 UNIX <tt>pthread</tt> 线程库。你可以通过以下手册页找到相关信息：
+<tt>man pthreads</tt>，你也可以在网上查阅相关资料，例如
 <a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_lock.html">这里</a>,
-<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_init.html">这里</a>, 和
+<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_init.html">这里</a>，以及
 <a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_create.html">这里</a>.
 
-<p>该文件 <tt>notxv6/ph.c</tt> 包含一个简单的哈希表，如果从单个线程使用，该哈希表是正确的，但从多个线程使用时，该哈希表是错误的。在你的主 xv6 目录中（也许 <tt>~/xv6-labs-2020</tt>），输入：
+<p>该文件 <tt>notxv6/ph.c</tt> 包含一个简单的哈希表，在单线程使用时是正确的，但在多线程使用时则不正确。在你的 xv6 主目录中（也许是 <tt>~/xv6-labs-2020</tt>），请输入：
 <pre>
 $ make ph
 $ ./ph 1
 </pre>
-请注意，要构建 <tt>ph</tt> Makefile 使用操作系统的 gcc，而不是 6.S081 工具。论点为 <tt>ph</tt> 指定对哈希表执行 put 和 get 操作的线程数。跑了一会儿之后， <tt>ph 1</tt> 将产生与此类似的输出：
+注意，构建时需要 <tt>ph</tt> Makefile 使用的是你操作系统的 gcc，而非 6.S081 的工具链。传递给 <tt>ph</tt> 指定在哈希表上执行 put 和 get 操作的线程数量。运行一段时间后， <tt>ph 1</tt> 将产生类似如下的输出：
 
 <pre>
 100000 puts, 3.991 seconds, 25056 puts/second
@@ -125,13 +125,13 @@ $ ./ph 1
 100000 gets, 3.981 seconds, 25118 gets/second
 </pre>
 <p>
-您看到的数字可能与此示例输出相差两倍或更多，具体取决于您的计算机的速度、是否具有多个内核以及是否忙于执行其他操作。
+您看到的数字可能与此示例输出相差两倍或更多，这取决于您的计算机速度、是否具有多个核心，以及是否正在忙于处理其他任务。
 
 <p>
-<tt>ph</tt> 运行两个基准测试。首先，它通过调用向哈希表添加大量键 <tt>put()</tt>，并打印每秒实现的速率。它从哈希表中获取键 <tt>get()</tt>。它打印因放置而应在哈希表中但丢失的数字键（在本例中为零），并打印每秒实现的获取数。
+<tt>ph</tt> 运行两个基准测试。首先，通过调用 <tt>put()</tt>，并打印每秒 puts 操作的实际速率。然后它从哈希表中获取键，使用 <tt>get()</tt>。它打印出因 puts 操作而本应存在于哈希表中但却丢失的键的数量（此处为零），并打印出每秒完成的 gets 操作数量。
 
 <p>
-你可以告诉 <tt>ph</tt> 通过给它一个大于 1 的参数来同时从多个线程使用它的哈希表。尝试一下 <tt>ph 2</tt>:
+您可以看出 <tt>ph</tt> 通过给定大于一的参数，使多个线程同时使用其哈希表。试试 <tt>ph 2</tt>:
 
 <pre>
 $ ./ph 2
@@ -141,19 +141,19 @@ $ ./ph 2
 200000 gets, 4.322 seconds, 46274 gets/second
 </pre>
 <pp>
-这个的第一行 <tt>ph 2</tt> 输出表明，当两个线程同时向哈希表添加条目时，它们达到每秒 53,044 次插入的总速率。这大约是单线程运行速度的两倍
-<tt>ph 1</tt>。这是大约 2 倍的出色“并行加速”，正如人们所希望的那样（即每单位时间的核心数量是两倍，工作量是两倍）。
+这段文字的第一行是 <tt>ph 2</tt> 输出表明，当两个线程并发地向哈希表中添加条目时，它们的总插入速率达到每秒 53,044 次。这大约是运行单线程时速率的两倍
+<tt>ph 1</tt>。这是一个出色的"并行加速"效果，约达 2 倍，这也是所能期望的最大值（即两倍的核心数带来每单位时间两倍的工作量）。
 
 <p>
-然而，这两行说 <tt>16579 keys missing</tt> 表明哈希表中应该存在的大量键不存在。也就是说，puts 应该将这些键添加到哈希表中，但是出了问题。看看 <tt>notxv6/ph.c</tt>，特别是在 <tt>put()</tt>
+然而，这两行写道 <tt>16579 keys missing</tt> 表明哈希表中应该存在的大量键实际上并不在其中。也就是说，put 操作本应将这些键添加到哈希表中，但出现了问题。请查看 <tt>notxv6/ph.c</tt>，尤其是在 <tt>put()</tt>
 和 <tt>insert()</tt>.
 
 <div class="question">
-为什么 2 线程会丢失键，而 1 线程则不会？识别具有 2 个线程的可能导致密钥丢失的事件序列。在answers-thread.txt 中提交您的序列并附上简短说明
+为什么使用 2 个线程时会出现键缺失的情况，而使用 1 个线程时不会？请找出一个使用 2 个线程时可能导致键缺失的事件序列，并将你的事件序列及简短说明提交至 answers-thread.txt
 </div>
 <div class="required">
-<p>为了避免发生这一系列事件，请在以下位置插入锁定和解锁语句：
-<tt>put</tt> 和 <tt>get</tt> 在 <tt>notxv6/ph.c</tt> 这样两个线程中丢失的键数始终为 0。相关的 pthread 调用是：
+<p>为了避免这一系列事件的发生，请在以下位置插入加锁和解锁语句：
+<tt>put</tt> 和 <tt>get</tt> 中 <tt>notxv6/ph.c</tt> 这样在使用两个线程时，缺失的键的数量始终为 0。相关的 pthread 调用如下：
 
 <pre>
 pthread_mutex_t lock;            // declare a lock
@@ -162,78 +162,78 @@ pthread_mutex_lock(&amp;lock);       // acquire lock
 pthread_mutex_unlock(&amp;lock);     // release lock
 </pre>
 <p>
-当你完成时 <tt>make grade</tt> 说你的代码通过了 <tt>ph_safe</tt> 测试，这需要两个线程的零缺失键。此时失败是可以的 <tt>ph_fast</tt> test.
+你已完成当 <tt>make grade</tt> 表示你的代码通过了 <tt>ph_safe</tt> 测试，该测试要求在使用两个线程时零缺失键。此时未通过 <tt>ph_fast</tt> 测试。
 </p></p></div>
 <p>
-别忘了打电话 <tt>pthread_mutex_init()</tt>。首先使用 1 个线程测试代码，然后使用 2 个线程测试代码。它是否正确（即您是否消除了丢失的钥匙？）？相对于单线程版本，双线程版本是否实现了并行加速（即每单位时间的总工作量更多）？
+不要忘记调用 <tt>pthread_mutex_init()</tt>. 首先用 1 个线程测试你的代码，然后用 2 个线程测试。结果是否正确（即你是否消除了键丢失的问题）？双线程版本相对于单线程版本是否实现了并行加速（即单位时间内完成更多的总工作量）？
 
 <p>
-存在并发的情况 <tt>put()</tt>它们在哈希表中读取或写入的内存没有重叠，因此不需要锁来防止彼此。你能改变吗 <tt>ph.c</tt> 利用这种情况来获得某些并行加速 <tt>put()</tt>是？提示：每个哈希桶加一个锁怎么样？
+在某些情况下，并发 <tt>put()</tt>s在哈希表中读写的内存没有重叠，因此不需要用锁来相互保护。你能否修改 <tt>ph.c</tt> 以利用这类情况，从而在某些 <tt>put()</tt>每个哈希桶一个锁如何？
 
 <div class="required">
-<p>修改你的代码，以便一些 <tt>put</tt> 操作并行运行，同时保持正确性。当你完成时 <tt>make grade</tt> 说你的代码通过了 <tt>ph_safe</tt> 和 <tt>ph_fast</tt> 测试。的 <tt>ph_fast</tt> 测试要求两个线程每秒产生的放入数至少是一个线程的 1.25 倍。
+<p>修改你的代码，使得某些 <tt>put</tt> 操作在保持正确性的同时并行运行。完成后， <tt>make grade</tt> 表示您的代码通过了这两项 <tt>ph_safe</tt> 和 <tt>ph_fast</tt> 测试。该 <tt>ph_fast</tt> 该测试要求两个线程每秒的 put 次数至少是单个线程的 1.25 倍。
 </p></div>
 <h2>屏障<script>g("moderate")</script></h2>
-<p>在此作业中，您将实现一个 <a href="http://en.wikipedia.org/wiki/Barrier_(computer_science)">屏障</a>：应用程序中的一个点，所有参与线程都必须等待，直到所有其他参与线程也到达该点。您将使用 pthread 条件变量，这是一种类似于 xv6 的睡眠和唤醒的序列协调技术。
+<p>在本次作业中，你将实现一个 <a href="http://en.wikipedia.org/wiki/Barrier_(computer_science)">屏障</a>：应用程序中的一个点，所有参与的线程必须在此等待，直到其他所有参与的线程也到达该点。你将使用 pthread 条件变量，这是一种类似于 xv6 的 sleep 和 wakeup 的序列协调技术。
 
-<p>您应该在真实的计算机（不是 xv6，不是 qemu）上执行此作业。
+<p>你应该在真实计算机上完成本作业（不是 xv6，不是 qemu）。
 
-<p>该文件 <tt>notxv6/barrier.c</tt> 包含破碎的屏障。
+<p>该文件 <tt>notxv6/barrier.c</tt> 包含一个存在缺陷的屏障。
 <pre>
 $ make barrier
 $ ./barrier 2
 barrier: notxv6/barrier.c:42: thread: Assertion `i == t' failed.
 </pre>
 
-2 指定在屏障上同步的线程数（
-<tt>nthread</tt> 在 <tt>barrier.c</tt>）。每个线程执行一个循环。在每次循环迭代中，线程调用 <tt>barrier()</tt> 然后休眠随机的微秒数。断言会触发，因为一个线程在另一个线程到达屏障之前离开屏障。期望的行为是每个线程阻塞在 <tt>barrier()</tt> 直到所有 <tt>nthreads</tt> 他们中的一些人已经打电话
+2 指定了在屏障处同步的线程数量（
+<tt>nthread</tt> 中 <tt>barrier.c</tt>）。每个线程执行一个循环。在每次循环迭代中，线程调用 <tt>barrier()</tt> 然后随机休眠若干微秒。由于一个线程在另一个线程到达屏障之前就已离开屏障，断言被触发。期望的行为是每个线程在 <tt>barrier()</tt> 直到所有 <tt>nthreads</tt> 它们都已调用了
 <tt>barrier()</tt>.
 
 <div class="required">
-<p>您的目标是实现所需的障碍行为。除了您在 中看到的锁原语之外 <tt>ph</tt> 分配时，您将需要以下新的 pthread 原语；看看
+<p>您的目标是实现所需的屏障行为。除了您在 <tt>ph</tt> 在本作业中，您将需要以下新的 pthread 原语；请查阅
 <a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_wait.html">这里</a> 和
 <a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_broadcast.html">这里</a>
-了解详情。
+详情请参阅。
 
 <pre>
 pthread_cond_wait(&amp;cond, &amp;mutex);  // go to sleep on cond, releasing lock mutex, acquiring upon wake up
 pthread_cond_broadcast(&amp;cond);     // wake up every thread sleeping on cond
 </pre>
 <p>
-确保您的解决方案通过 <tt>make grade</tt>的 <tt>barrier</tt> test.
+确保你的解决方案通过 <tt>make grade</tt>的 <tt>barrier</tt> 测试。
 </p></p></div>
-<tt>pthread_cond_wait</tt> 释放 <tt>mutex</tt> 当被调用时，并重新获取 <tt>mutex</tt> 返回之前。
+<tt>pthread_cond_wait</tt> 释放 <tt>mutex</tt> 当被调用时，并重新获取 <tt>mutex</tt> 在返回之前。
 
-<p>我们已经给了你 <tt>barrier_init()</tt>。你的工作是实施
-<tt>barrier()</tt> 以免发生恐慌。我们已经定义了 <tt>struct barrier</tt> 为你；它的字段供您使用。
+<p>我们已为你提供了 <tt>barrier_init()</tt>。你的任务是实现
+<tt>barrier()</tt> 以使 panic 不会发生。我们已经定义了 <tt>struct barrier</tt> 供你使用；其字段供你自行使用。
 
-<p>有两个问题使您的任务变得复杂：
+<p>有两个问题会使你的任务变得复杂：
 
 <ul>
-<li> 你必须处理一系列的障碍调用，我们将每个调用称为一轮。
-  <tt>bstate.round</tt> 记录当前回合。你应该增加 <tt>bstate.round</tt> 每次所有线程都到达屏障时。
+<li> 你需要处理一系列连续的 barrier 调用，我们将每次调用称为一轮。
+  <tt>bstate.round</tt> 记录当前轮次。你应该递增 <tt>bstate.round</tt> 每当所有线程都到达 barrier 时执行一次。
 
-<li> 您必须处理这样一种情况：一个线程在其他线程退出屏障之前围绕循环进行竞争。特别是，您正在重复使用 <tt>bstate.nthread</tt> 从一轮到下一轮的变量。确保离开屏障并围绕循环竞争的线程不会增加 <tt>bstate.nthread</tt>
-而上一轮仍在使用它。
+<li> 你需要处理这种情况：一个线程在其他线程尚未退出 barrier 之前就抢先绕回循环。特别地，你在不同轮次中重复使用了 <tt>bstate.nthread</tt> 变量。请确保一个已离开 barrier 并抢先绕回循环的线程不会增加 <tt>bstate.nthread</tt>
+而此时上一轮仍在使用它。
 
 </li></li></ul>
-<p>使用一个、两个和两个以上线程测试您的代码。
+<p>分别使用一个、两个以及两个以上的线程测试你的代码。
 
 
 <p><a name="submit">
-<h2>提交实验室</h2>
-<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
+<h2>提交实验</h2>
+<p><b>本实验至此完成。</b> 确保你通过了所有 make grade 测试。如果本实验包含问题，不要忘记将答案写入 answers-<i>lab-name</i>.txt。提交你的更改（包括添加 answers-<i>lab-name</i>.txt），并在实验目录中运行 make handin 以提交实验。
 
-<h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
-<tt>git commit</tt> 文件。
+<h3>所用时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中填入一个整数，表示你在本实验上花费的小时数。不要忘记 <tt>git add</tt> 和
+<tt>git commit</tt> 该文件。
 
 <h3>提交</h3>
 
-您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
+你将通过 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。在提交任何作业或实验之前，您需要先从提交网站申请一个 API 密钥。
 </p>
-<p>将最终更改提交到实验室后，输入 <kbd>make
-handin</kbd> 提交您的实验室。
+<p>在将实验的最终更改提交（commit）后，输入 <kbd>make
+handin</kbd> 以提交您的实验。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -248,39 +248,39 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
-再次生成它（<i>myapi.key</i> 不得包含换行符）。
+<kbd>make handin</kbd> 将把您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+重新生成（<i>myapi.key</i> 不得包含换行符）。
 </p>
 <p>
-如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+如果您运行 <kbd>make handin</kbd> 时存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <kbd>??</kbd>开头的行中。您可以让 <tt>git</tt> 以追踪你使用以下命令创建的新文件
 <tt>git add filename</tt>.
 </p>
 <p>
-如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用 curl 或 Git 命令修复该问题。或者你可以运行 <kbd>make tarball</kbd>。这将为你生成一个 tar 文件，你可以通过我们的 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网页界面</a>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请运行“makegrade”以确保您的代码通过所有测试</li>
-<li>在运行“make handin”之前提交任何修改的源代码</li>
-<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行 `make grade` 以确保你的代码通过所有测试</li>
+<li>在运行 `make handin` 之前，请先提交所有已修改的源代码</li>
+<li>你可以在以下地址查看提交状态并下载已提交的代码 <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
 <h2>uthread 的可选挑战</h2>
-<p>用户级线程包在几个方面与操作系统交互不良。例如，如果一个用户级线程在系统调用中阻塞，则另一个用户级线程将不会运行，因为用户级线程调度程序不知道其线程之一已被 xv6 调度程序取消调度。另一个例子，两个用户级线程不会在不同的内核上同时运行，因为 xv6 调度程序不知道有多个线程可以并行运行。请注意，如果两个用户级线程真正并行运行，则由于多个竞争，此实现将无法工作（例如，不同处理器上的两个线程可能会调用 <tt>thread_schedule</tt>
-同时，选择相同的可运行线程，并且都在不同的处理器上运行它。）
+<p>用户级线程包在多个方面与操作系统存在不良交互。例如，如果一个用户级线程在系统调用中阻塞，另一个用户级线程将无法运行，因为用户级线程调度器不知道其某个线程已被 xv6 调度器取消调度。又如，两个用户级线程无法在不同核心上并发运行，因为 xv6 调度器并不知道存在多个可并行运行的线程。请注意，如果两个用户级线程真正并行运行，由于存在若干竞争条件，该实现将无法正常工作（例如，运行在不同处理器上的两个线程可能同时调用 <tt>thread_schedule</tt>
+同时选择同一个可运行线程，并在不同处理器上分别运行它。）
 
-<p>有多种方法可以解决这些问题。一种正在使用 <a href="http://en.wikipedia.org/wiki/Scheduler_activations">调度程序激活</a> 另一种是每个用户级线程使用一个内核线程（如 Linux 内核所做的那样）。在 xv6 中实现这些方法之一。要做到这一点并不容易；例如，在更新多线程用户进程的页表时，您需要实现 TLB 关闭。
+<p>有几种方法可以解决这些问题。其中一种是使用 <a href="http://en.wikipedia.org/wiki/Scheduler_activations">调度程序激活（scheduler activations）</a> 另一种是为每个用户级线程使用一个内核线程（如 Linux 内核所做的那样）。在 xv6 中实现其中一种方式。这并不容易做到正确；例如，当为多线程用户进程更新页表时，你需要实现 TLB 击落（TLB shootdown）。
 
-<p>将锁、条件变量、屏障等添加到您的线程包中。
+<p>向你的线程包中添加锁、条件变量、屏障（barrier）等。
 
 </p></p></p></p></p></a></p></p></p></p></p></p></p></p></p></p></pp></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></body>
 </html>

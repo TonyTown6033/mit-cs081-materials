@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/homework/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/homework/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/reference.html">参考资料</a></li>
@@ -77,21 +77,21 @@
 <!-- START SECTION: body -->
 <h2>论文阅读作业</h2>
 <!-- START SECTION: thishw -->
-<p> 锁避免了竞争条件，但限制了并行性。在本次讲座中，我们将研究 RCU，它可以为某些内核操作提供更多并行性。
+<p> 锁可以避免竞争条件，但会限制并行性。在本次课程中，我们研究 RCU，它可以在某些内核操作中实现更高的并行性。
 
-<p> 在准备讲座时，请阅读论文
-<a href="https://pdos.csail.mit.edu/6.1810/2025/homework/readings/rcu-decade-later.pdf">RCU 在 Linux 内核中的使用：十年后</a>.
+<p> 在课前准备阶段，请阅读该论文
+<a href="https://pdos.csail.mit.edu/6.1810/2025/homework/readings/rcu-decade-later.pdf">RCU 在 Linux 内核中的应用：十年回顾</a>.
 
-<p>图8显示了获取读写锁进行读取的性能。读写锁的实现与您在实验室中实现的类似。看着你的 <tt>read_acuire</tt>
-实现以及本文中图 8 所示的开销，随着更多内核在读取模式下并行获取锁，您的实现中的哪些操作会变得更加昂贵？
+<p>图 8 展示了以读模式获取读写锁的性能。该读写锁的实现与你在实验中实现的类似。结合你的 <tt>read_acuire</tt>
+实现以及论文图 8 中所示的开销，当更多核心以读模式并行获取锁时，你的实现中哪个操作会变得更加耗时？
 <!-- END SECTION: thishw -->
 <p>
-在名为的 ASCII 文本文件中提交您的答案 <tt>homework.txt</tt>
-到 Gradescope 上相应的“Lecture N”作业。
+将您的答案提交到一个名为 <tt>homework.txt</tt>
+至 Gradescope 上对应的"Lecture N"作业。
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

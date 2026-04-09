@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料</a></li>
@@ -76,14 +76,14 @@
 <div class="container">
 <!-- START SECTION: body -->
 <h1>实验：锁</h1>
-<p>在本实验中，您将获得重新设计代码以提高并行性的经验。多核机器上并行性差的一个常见症状是高锁争用。提高并行性通常涉及更改数据结构和锁定策略以减少争用。您将为 xv6 内存分配器和块缓存执行此操作。
+<p>在本实验中，你将通过重新设计代码来积累提高并行性的经验。在多核机器上，并行性差的常见表现是锁竞争激烈。提高并行性通常需要同时改变数据结构和加锁策略，以减少竞争。你将对 xv6 的内存分配器和块缓存进行此类优化。
 
 <div class="lab-prereq">
-<p>在编写代码之前，请务必阅读以下部分： <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a> :
+<p>在编写代码之前，请确保阅读以下内容，来自 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a> :
     <ul>
-<li> 第7章：“锁定”以及相应的代码。
+<li> 第 7 章：「锁」及其对应代码。
 
-    <li> 第 3.5 节：“代码：物理内存分配器”
+    <li> 第 3.5 节：「代码：物理内存分配器」
 
     </li></li></ul>
 </p></div>
@@ -93,11 +93,11 @@
   $ <kbd>make clean</kbd>
 </pre>
 <h2>内存分配器 <script>g("moderate")</script></h2>
-<p>程序 user/kalloctest 强调 xv6 的内存分配器：三个进程增大和缩小其地址空间，导致多次调用 <tt>kalloc</tt> 和 <tt>kfree</tt>.
+<p>程序 user/kalloctest 对 xv6 的内存分配器施加压力：三个进程反复扩大和收缩其地址空间，从而产生大量对 <tt>kalloc</tt> 和 <tt>kfree</tt>.
   <tt>kalloc</tt> 和 <tt>kfree</tt>
-  获得 <tt>kmem.lock</tt>。 kalloctest 打印（如“#test-and-set”）循环迭代次数 <tt>acquire</tt> 由于尝试获取另一个核心已经持有的锁，对于
-  <tt>kmem</tt> 锁和其他一些锁。循环迭代次数 <tt>acquire</tt>
-  是锁争用的粗略度量。的输出 <tt>kalloctest</tt> 在开始实验之前看起来与此类似：
+  的获取 <tt>kmem.lock</tt>调用。kalloctest 打印（标记为 "#test-and-set"）在 <tt>acquire</tt> 中，由于尝试获取已被其他核持有的锁而导致的循环迭代次数，针对
+  <tt>kmem</tt> 锁及其他若干锁。在 <tt>acquire</tt>
+  中的循环迭代次数是衡量锁竞争程度的粗略指标。在开始本实验之前， <tt>kalloctest</tt> 的输出类似如下：
 
 <pre>
 $ <kbd>kalloctest</kbd>
@@ -138,20 +138,20 @@ test4 FAIL m 59382 n 135309
 $ 
 </pre>
 <p>
-您可能会看到与此处显示的计数不同的计数，并且前 5 个竞争锁的顺序也不同。
+您可能会看到与此处显示的不同的计数，以及前5个竞争最激烈的锁的不同顺序。
 
 <p>
-<tt>acquire</tt> 对于每个锁，维护调用的计数 <tt>acquire</tt> 对于该锁，以及循环次数 <tt>acquire</tt> 尝试设置锁但失败。 kalloctest 调用一个系统调用，使内核打印 kmem 锁（这是本实验的重点）和 5 个竞争最激烈的锁的计数。如果存在锁争用的数量 <tt>acquire</tt> 循环迭代将会很大。系统调用返回 kmem 锁的循环迭代次数总和。
+<tt>acquire</tt> 对每个锁维护调用 <tt>acquire</tt> 对于该锁，以及 <tt>acquire</tt> 尝试但未能成功获取锁。kalloctest 调用一个系统调用，使内核打印出 kmem 锁（本实验的重点）以及争用最激烈的 5 个锁的相关计数。如果存在锁争用，则 <tt>acquire</tt> 循环迭代次数将会很大。系统调用返回所有 kmem 锁的循环迭代次数之和。
 
-<p>对于本实验，您必须使用具有多个内核的专用卸载计算机。如果您使用正在执行其他操作的机器，则 kalloctest 打印的计数将是无意义的。您可以使用专用的 Athena 工作站或您自己的笔记本电脑，但不要使用拨号计算机。
+<p>在本实验中，你必须使用一台专用的、空闲的多核机器。如果你使用一台正在运行其他任务的机器，kalloctest 打印的计数将毫无意义。你可以使用专用的 Athena 工作站，或者你自己的笔记本电脑，但不要使用拨号机器。
 
-<p>kalloctest 中锁争用的根本原因是 <tt>kalloc()</tt> 有一个空闲列表，由一个锁保护。要消除锁争用，您必须重新设计内存分配器以避免单个锁和列表。基本思想是为每个 CPU 维护一个空闲列表，每个列表都有自己的锁。不同CPU上的分配和释放可以并行运行，因为每个CPU将在不同的列表上操作。主要挑战是处理一个CPU的空闲列表为空，但另一个CPU的列表有空闲内存的情况；在这种情况下，一个 CPU 必须“窃取”另一个 CPU 的空闲列表的一部分。窃取可能会导致锁争用，但希望这种情况不会频繁发生。
+<p>`kalloctest` 中锁竞争的根本原因是 <tt>kalloc()</tt> 有一个单一的空闲链表，由一个单独的锁保护。为了消除锁争用，你需要重新设计内存分配器，以避免使用单一的锁和链表。基本思路是为每个 CPU 维护一个空闲链表，每个链表有其自己的锁。不同 CPU 上的分配和释放操作可以并行运行，因为每个 CPU 将操作不同的链表。主要挑战在于处理某个 CPU 的空闲链表为空、但另一个 CPU 的链表中仍有空闲内存的情况；在这种情况下，该 CPU 必须从另一个 CPU 的空闲链表中"窃取"一部分内存。窃取操作可能会引入锁争用，但这种情况应该不会频繁发生。
 
 <div class="lab-required">
-<p>您的工作是实现每个 CPU 的空闲列表，并在 CPU 的空闲列表为空时进行窃取。您必须给出所有以“kmem”开头的锁名称。也就是说，你应该打电话
+<p>你的任务是实现每个 CPU 的空闲链表，并在某个 CPU 的空闲链表为空时从其他 CPU 窃取。你必须为所有锁命名，且名称须以 "kmem" 开头。也就是说，你应该调用
 <tt>initlock</tt>
-对于每个锁，并传递一个以“kmem”开头的名称。运行 kalloctest 来查看您的实现是否减少了锁争用。要检查它是否仍然可以分配所有内存，请运行 <tt>usertests sbrkmuch</tt>。您的输出将类似于下图所示，尽管具体数字会有所不同，但 kmem 锁的争用总数大大减少。确保所有测试都在 <tt>usertests -q</tt> pass.
-  <tt>make grade</tt> 应该说 kalloctests 通过了。
+对于你的每个锁，传入一个以 "kmem" 开头的名称。运行 kalloctest 检查你的实现是否减少了锁争用。要验证仍然能够分配所有内存，请运行 <tt>usertests sbrkmuch</tt>。你的输出结果将与下方所示类似，kmem 锁上的总体争用将大幅减少，尽管具体数字会有所不同。请确保 <tt>usertests -q</tt> 通过。
+  <tt>make grade</tt> 应显示 kalloctests 通过。
 </p></div>
 <pre>
 $ <kbd>kalloctest</kbd>
@@ -210,23 +210,23 @@ $
 </pre>
 <p>一些提示：
   <ul>
-<li>您可以使用常量 <tt>NCPU</tt> 来自内核/param.h
+<li>您可以使用常量 <tt>NCPU</tt> 来自 kernel/param.h
       
-    <li>让 <tt>freerange</tt> 将所有可用内存分配给正在运行的 CPU <tt>freerange</tt>.
+    <li>让 <tt>freerange</tt> 将所有空闲内存分配给正在运行的 CPU <tt>freerange</tt>.
       
-    <li>功能 <tt>cpuid</tt> 返回当前的核心编号，但只有在中断关闭时调用它并使用其结果才是安全的。你应该使用
-    <tt>push_off()</tt> 和 <tt>pop_off()</tt> 关闭和打开中断。
+    <li>该函数 <tt>cpuid</tt> 返回当前核心编号，但只有在中断关闭时调用它并使用其返回值才是安全的。你应该使用
+    <tt>push_off()</tt> 和 <tt>pop_off()</tt> 用于关闭和开启中断。
     
-    <li>看看 <tt>snprintf</tt> kernel/sprintf.c 中的函数用于字符串格式化的想法。不过，将所有锁命名为“kmem”就可以了。
+    <li>看一看 <tt>snprintf</tt> kernel/sprintf.c 中的函数以获取字符串格式化的思路。不过，将所有锁都命名为 "kmem" 也是可以的。
       
-    <li>（可选）使用 xv6 的竞赛检测器运行您的解决方案：
+    <li>可选：使用 xv6 的竞态检测器运行你的解决方案：
       <pre>
 	$ make clean
 	$ make KCSAN=1 qemu
 	$ <kbd>kalloctest</kbd>
 	  ..
       </pre>
-      的 <tt>kalloctest</tt> 可能会失败，但你不应该看到任何比赛。如果 xv6 的竞争检测器观察到竞争，它将打印两个堆栈跟踪，按照以下几行描述竞争：
+      该 <tt>kalloctest</tt> 可能会失败，但你不应该看到任何竞态。如果 xv6 的竞态检测器检测到竞态，它将打印两段栈回溯，描述竞态情况，格式如下：
       <pre>
 	 == race detected ==
 	 backtrace for racing load
@@ -255,7 +255,7 @@ $
 	 0x0000000080002fdc
 	 ==========
       </pre>
-      在您的操作系统上，您可以通过将回溯剪切并粘贴到中，将其转换为带有行号的函数名称 <tt>addr2line</tt>:
+      在你的操作系统上，可以将栈回溯粘贴到以下工具中，将其转换为带行号的函数名： <tt>addr2line</tt>:
       <pre>
 	 $ <kbd>riscv64-linux-gnu-addr2line -e kernel/kernel</kbd>
 	 0x000000008000ab8a
@@ -278,17 +278,17 @@ $
         kernel/sysproc.c:54
         kernel/syscall.c:251
       </pre>
-      您不需要运行竞争检测器，但您可能会发现它很有帮助。请注意，竞争检测器会显着减慢 xv6 的速度，因此您可能不想在运行时使用它 <tt>usertests</tt>.
+      你不是必须运行竞态检测器，但它可能对你有所帮助。请注意，竞态检测器会显著降低 xv6 的运行速度，因此在运行时你可能不希望启用它。 <tt>usertests</tt>.
 
   </li></li></li></li></li></ul>
 <h2>读写锁  <script>g("moderate")</script></h2>
-<p> 这一半的作业与前半部分是独立的；无论您是否完成了前半部分，您都可以完成这半部分（并通过测试）。
+<p> 本作业的后半部分与前半部分相互独立；无论你是否完成了前半部分，都可以单独完成后半部分（并通过相应测试）。
 
-<p> 考虑xv6的 <tt>sys_pause</tt> 和 <tt>sys_uptime</tt> 函数，读取全局 <tt>ticks</tt> 变量。由于该变量可能会同时更新 <tt>clockintr</tt>，这两个函数获取 <tt>tickslock</tt>
-  读取之前的自旋锁 <tt>ticks</tt>。重要的是，这可以防止 <tt>clockintr</tt>
-  来自同时修改 <tt>ticks</tt>，但这也阻止了多核读取 <tt>ticks</tt> 同时，这样就好了。在后一种情况下，自旋锁不必要地降低了性能。
+<p> 考虑 xv6 的 <tt>sys_pause</tt> 和 <tt>sys_uptime</tt> 函数，它们读取全局 <tt>ticks</tt> 变量。由于该变量可能被 <tt>clockintr</tt>并发更新，这两个函数在读取前会先获取 <tt>tickslock</tt>
+  自旋锁，然后再读取 <tt>ticks</tt>。重要的是，这可以防止 <tt>clockintr</tt>
+  同时修改 <tt>ticks</tt>，但这也阻止了多个核心同时读取 <tt>ticks</tt> ，而同时读取本是完全可行的。在后一种情况下，自旋锁会不必要地降低性能。
 
-<p> 解决这个问题的常见方法是使用读写锁。读写锁引入了两种锁持有者的概念：读者和作者。一次最多可以有一个写入者（当有写入者时，就不能有读者），但可以同时有多个读者（只要没有写入者）。典型的读写锁API如下（参见 <tt>kernel/defs.h</tt>):
+<p> 解决此问题的常见方案是使用读写锁。读写锁引入了两种锁持有者的概念：读者和写者。同一时刻最多只能有一个写者（且有写者时不能有读者），但可以同时存在多个读者（前提是没有写者）。典型的读写锁 API 如下（参见 <tt>kernel/defs.h</tt>):
 
 <pre>
 void            initrwlock(struct rwspinlock*);
@@ -297,15 +297,15 @@ void            read_release(struct rwspinlock*);
 void            write_acquire(struct rwspinlock*);
 void            write_release(struct rwspinlock*);
 </pre>
-<p> 读写锁可能出现的一个微妙问题是，如果有很多读取者，那么写入者可能永远没有机会运行。换句话说，即使读者不断获取和释放锁，也永远不会有真正零读者的时刻，因此写入者可能永远无法获取锁。为了解决这个问题，读写锁通常会实现写入者优先方案：一旦写入者尝试获取锁，后续读取者必须等待，直到写入者成功获取并释放锁（当然，要等待当前读取者释放锁才允许写入者获取）。
+<p> 读写锁可能出现的一个微妙问题是：如果读者持续不断，写者可能永远得不到运行机会。换句话说，即使读者不断地获取和释放锁，实际读者数量从未降为零，导致写者可能永远无法获取锁。为解决此问题，读写锁通常实现写者优先策略：一旦有写者尝试获取锁，后续读者必须等待，直到该写者成功获取并释放锁（当然，需等待当前读者释放锁后，写者才能获取）。
 
 <div class="lab-required">
-<p> 遵循上述 API 和语义，在 xv6 中实现读写自旋锁。确保读者不会让写者挨饿：如果有任何待处理的写者，则没有更多的读者可以获得锁。
+<p> 在 xv6 中按照上述 API 和语义实现一个读写自旋锁。确保读者不会使写者饥饿：若存在任何待等待的写者，则不允许新的读者获取锁。
 
-  <p> 您需要填写读写自旋锁 API 的存根函数 <tt>kernel/spinlock.c</tt>，并可能改变 a 的定义 <tt>struct rwspinlock</tt> 在 <tt>kernel/spinlock.h</tt>.
+  <p> 你需要在以下文件中填写读写自旋锁 API 的桩函数 <tt>kernel/spinlock.c</tt>，并可能需要修改 <tt>struct rwspinlock</tt> 在 <tt>kernel/spinlock.h</tt>.
 
-  <p> 完成后，通过运行来测试您的 rwspinlock 实现
-    <tt>rwlktest</tt>。您应该看到类似于以下内容的输出：
+  <p> 完成后，通过运行以下命令测试你的 rwspinlock 实现
+    <tt>rwlktest</tt>。你应看到类似如下的输出：
 
 <pre>
 $ <kbd>rwlktest</kbd>
@@ -322,64 +322,64 @@ rwspinlock_test(1): 0
 rwlktest: passed 3/3
 $
 </pre>
-<p> 确保 <tt>usertests -q</tt> 仍然过去。
-    <tt>make grade</tt> 完成后应该通过所有测试。
+<p> 确保 <tt>usertests -q</tt> 仍能通过。
+    <tt>make grade</tt> 完成后应通过所有测试。
 </p></p></p></p></div>
 <p>一些提示：
   <ul>
-<li>看看 <tt>sys_rwlktest</tt> 在 <tt>kernel/spinlock.c</tt>
-        第一；您应该能够分阶段测试您的实施。
+<li>先看看 <tt>sys_rwlktest</tt> 在 <tt>kernel/spinlock.c</tt>
+        ；你应该能够分阶段测试你的实现。
 
-    <li>如果你跑 <tt>rwlktest</tt> 在 xv6 中而不修改任何内容 <tt>kernel/spinlock.c</tt>，内核将打印 <tt>panic: acquire</tt>
-        因为最初的自旋锁实现只允许锁一次被一个线程持有。您需要将调用替换为 <tt>acquire()</tt> 和 <tt>release()</tt> 在
+    <li>如果您运行 <tt>rwlktest</tt> 在不修改 xv6 内部任何内容的情况下 <tt>kernel/spinlock.c</tt>，内核将打印 <tt>panic: acquire</tt>
+        ，因为原始的 spinlock 实现每次只允许一个线程持有锁。你需要将对 <tt>acquire()</tt> 和 <tt>release()</tt> 在
         <tt>write/read_acquire_inner</tt> 和
-        <tt>write/read_release_inner</tt> 用你自己的锁实现。
+        <tt>write/read_release_inner</tt> 的调用替换为你自己的锁实现。
 
-    <li>Be careful about possible interleavings.例如，如果读者看到没有挂起的写入者并想要获取锁进行读取，那么您如何知道获取锁仍然安全？
+    <li>请注意可能存在的交错执行情况。例如，若一个读者发现没有待处理的写者并希望获取读锁，你如何确保此时获取锁仍然是安全的？
 
-    <li>阅读有关原子操作的内置 gcc 函数可能会有所帮助；看到
+    <li>阅读有关 gcc 内置原子操作函数的资料可能会有所帮助；参见
         <a href="https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html">https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html</a>.
   </li></li></li></li></ul>
 <!-- END SECTION: body -->
 <!-- START SECTION: submit -->
 <p><a name="submit"></a>
-<h2>提交实验室</h2>
+<h2>提交实验</h2>
 <h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并输入一个整数，即您在实验室上花费的小时数。
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 文件。
+<p>创建一个新文件， <tt>time.txt</tt>，并填入一个整数，表示你在本次实验上花费的小时数。
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 该文件。
 
 <h3>答案</h3>
-<p>如果本实验室有问题，请将您的答案写在 <tt>answers-*.txt</tt>.
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件。
+<p>如果本次实验包含问题，请将你的答案写入 <tt>answers-*.txt</tt>.
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件中。
 
 <h3>提交</h3>
-<p>作业提交由 Gradescope 处理。您将需要一个 MIT Gradescope 帐户。请参阅 Piazza 了解加入课程的入场代码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">这个链接</a>
-如果您需要更多帮助加入。
+<p>作业提交通过 Gradescope 处理。你需要一个 MIT Gradescope 账户。请在 Piazza 上查看加入课程的注册码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">此链接</a>
+如果您需要更多帮助以加入。
 
-<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传到相应的 Gradescope 作业。
+<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传至对应的 Gradescope 作业。
 
-<p> 如果你跑 <kbd>make zipball</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+<p> 如果您运行 <kbd>make zipball</kbd> ，且存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <tt>??</tt>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <tt>??</tt>开头的行中。您可以让 <tt>git</tt> 使用以下命令跟踪您创建的新文件
 <kbd>git add {filename}</kbd>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请跑 <kbd>make grade</kbd> 确保您的代码通过所有测试。 Gradescope 自动评分器将使用相同的评分程序为您提交的内容分配评分。</li>
-<li>运行前提交任何修改过的源代码 <kbd>make zipball</kbd>.</li>
-<li>您可以在 Gradescope 检查提交的状态并下载提交的代码。 Gradescope 实验室成绩是您最终的实验室成绩。</li>
+<li>请运行 <kbd>make grade</kbd> 以确保您的代码通过所有测试。Gradescope 自动评分器将使用相同的评分程序为您的提交评分。</li>
+<li>在运行之前，请提交所有已修改的源代码 <kbd>make zipball</kbd>.</li>
+<li>您可以在 Gradescope 上查看提交状态并下载已提交的代码。Gradescope 上的实验成绩即为您的最终实验成绩。</li>
 </ul>
 </div>
 <!-- END SECTION: submit -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

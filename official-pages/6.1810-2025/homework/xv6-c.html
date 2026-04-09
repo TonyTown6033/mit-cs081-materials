@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/homework/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/homework/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/homework/reference.html">参考资料</a></li>
@@ -75,27 +75,27 @@
 </div>
 <div class="container">
 <!-- START SECTION: body -->
-<h2>xv6阅读作业</h2>
+<h2>xv6 阅读作业</h2>
 <p>
-在整个学期中，我们希望您能够阅读该计划的整个实施过程 <a href="https://github.com/mit-pdos/xv6-riscv/tree/riscv/kernel">xv6 内核</a>，伴随着 <a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/book-riscv-rev5.pdf">xv6 书</a>，它解释了内核实现的基本原理和设计。 （源代码也可以作为 <a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/xv6-src-booklet-rev5.pdf">狮子式PDF</a>)
+在本学期中，我们希望你能阅读完整的 <a href="https://github.com/mit-pdos/xv6-riscv/tree/riscv/kernel">xv6 内核</a>的全部实现，并配合 <a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/book-riscv-rev5.pdf">xv6 书</a>一同阅读，该书解释了内核实现背后的原理与设计。（源代码也可作为 <a href="https://pdos.csail.mit.edu/6.1810/2025/homework/xv6/xv6-src-booklet-rev5.pdf">Lions 风格 PDF</a>)
 
 <!-- START SECTION: thishw -->
 <p>
-本讲座将重点介绍您以前可能没有见过的 C 编程语言的各个方面，这些方面与内核实现特别相关，并且您将在 xv6 内核代码中遇到。阅读以下部分
-<a href="https://en.wikipedia.org/wiki/The_C_Programming_Language"><i>C 编程语言</i></a> （第二版）作者：Kernighan 和 Ritchie：
+本节课将重点介绍 C 编程语言中你可能尚未接触过的内容，这些内容与内核实现尤为相关，你将在 xv6 内核代码中遇到它们。请阅读
+<a href="https://en.wikipedia.org/wiki/The_C_Programming_Language"><i>《C 程序设计语言》</i></a> （第二版），作者 Kernighan 与 Ritchie，阅读以下章节：
 
 <ul>
-<li>第 2.9 节（按位运算符）
-<li>第 5.1 节（指针和地址）
-<li>第 5.2 节（指针和函数参数）
-<li>第 5.3 节（指针和数组）
-<li>5.4节（地址运算）
-<li>5.5节（字符指针和函数）
-<li>5.6节（指针数组；指向指针的指针）
-<li>第 6.4 节（结构体指针）
+<li>第 2.9 节（位运算符）
+<li>第 5.1 节（指针与地址）
+<li>第 5.2 节（指针与函数参数）
+<li>第 5.3 节（指针与数组）
+<li>第 5.4 节（地址运算）
+<li>第 5.5 节（字符指针与函数）
+<li>第 5.6 节（指针数组；指向指针的指针）
+<li>第 6.4 节（指向结构体的指针）
 </li></li></li></li></li></li></li></li></ul>
 <p>
-考虑 32 位系统上的以下 C 代码片段：
+考虑以下在 32 位系统上的 C 代码片段：
 
 <pre>
 struct f {
@@ -116,7 +116,7 @@ struct h {
 struct h *h;
 </pre>
 <p>
-假设值 <tt>h</tt> 是 <tt>0x1000</tt>。算出下列表达式的值，或解释为什么不可能算出它们：
+假设 <tt>h</tt> 的值为 <tt>0x1000</tt>。请求出以下表达式的值，或说明为何无法确定：
 
 <ol>
 <li><tt>&amp;h-&gt;g.d[2]</tt>
@@ -126,12 +126,12 @@ struct h *h;
 </li></li></li></li></ol>
 <!-- END SECTION: thishw -->
 <p>
-在名为的 ASCII 文本文件中提交您的答案 <tt>homework.txt</tt>
-到 Gradescope 上相应的“Lecture N”作业。
+将您的答案提交到一个名为 <tt>homework.txt</tt>
+至 Gradescope 上对应的"Lecture N"作业。
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

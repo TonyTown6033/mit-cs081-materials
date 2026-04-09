@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.S081 / 2020 年秋季
+6.S081 / 2020年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -11,7 +11,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link href="labs/labs.css" rel="stylesheet" type="text/css">
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -83,14 +83,14 @@ function unfoldinstrux(unfold) {
 }
 </script>
 <h1>
-6.S081使用的工具
+6.S081 中使用的工具
 </h1>
-<p>对于本课程，您将需要几个不同工具的 RISC-V 版本：QEMU 5.1、GDB 8.3、GCC 和 Binutils。</p>
-<p>我们强烈建议使用 Debathena 机器（例如 athena.dialup.mit.edu）来进行实验室工作。如果您使用运行 Linux 的 MIT Athena 机器，那么所有这些工具都位于 6.828 储物柜中：只需键入 '<samp>add -f
-6.828</samp>' 来访问它们。如果您无法访问 Debathena 计算机，您可以直接安装工具或按照以下说明使用 Linux 虚拟机。</p>
-<p>如果您在设置方面遇到困难，请在办公时间前来或在 Piazza 上发帖。我们很乐意提供帮助！</p>
-<h3>使用雅典娜</h3>
-<p>ssh 到 Athena 拨号计算机之一并添加工具：
+<p>本课程需要以下工具的 RISC-V 版本：QEMU 5.1、GDB 8.3、GCC 和 Binutils。</p>
+<p>强烈建议使用 Debathena 机器（例如 athena.dialup.mit.edu）来完成实验。如果你使用运行 Linux 的 MIT Athena 机器，所有这些工具均位于 6.828 locker 中：只需输入<samp>add -f
+6.828</samp>即可访问这些工具。如果你无法访问 Debathena 机器，可以按照以下说明直接安装这些工具，或使用安装了 Linux 的虚拟机。</p>
+<p>如果在配置过程中遇到问题，欢迎前来答疑课或在 Piazza 上发帖提问，我们很乐意提供帮助！</p>
+<h3>使用 Athena</h3>
+<p>通过 ssh 登录 Athena 拨号机器，然后添加所需工具：
 
 <pre>
 $ ssh {your kerberos}@athena.dialup.mit.edu
@@ -102,48 +102,48 @@ $ add -f 6.828
 <pre>
 $ xcode-select --install
 </pre>
-<p>接下来，安装 <a href="https://brew.sh/">自制</a>，macOS 的包管理器：
+<p>接下来，安装 <a href="https://brew.sh/">Homebrew</a>，一个适用于 macOS 的包管理器：
 
 <pre>
 $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 </pre>
-<p>接下来，安装 <a href="https://github.com/riscv/homebrew-riscv">RISC-V编译器工具链</a>:
+<p>接下来，安装 <a href="https://github.com/riscv/homebrew-riscv">RISC-V 编译器工具链</a>:
 
 <pre>
 $ brew tap riscv/riscv
 $ brew install riscv-tools
 </pre>
-<p>酿造配方可能无法链接到 <tt>/usr/local</tt>。您将需要更新 shell 的 rc 文件（例如 <a href="https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html">～/.bashrc</a>) 添加适当的目录 <a href="http://www.linfo.org/path_env_var.html">$PATH</a>.
+<p>brew 的 formula 可能无法链接到 <tt>/usr/local</tt>。您需要更新 shell 的 rc 文件（例如 <a href="https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html">~/.bashrc</a>），将相应目录添加到 <a href="http://www.linfo.org/path_env_var.html">$PATH</a>.
 
 <pre>
 PATH=$PATH:/usr/local/opt/riscv-gnu-toolchain/bin
 </pre>
-<p>最后，安装QEMU：
+<p>最后，安装 QEMU：
 
 <pre>
 brew install qemu
 </pre>
-<h3>通过 APT 安装 (Debian/Ubuntu)</h3>
-<p>确保您正在为您的 debian 版本运行“bullseye”或“sid”（在 ubuntu 上，可以通过运行来检查 <tt>cat /etc/debian_version</tt>），然后运行：</p>
+<h3>通过 APT 安装（Debian/Ubuntu）</h3>
+<p>请确认您使用的 Debian 版本为 "bullseye" 或 "sid"（在 Ubuntu 上可通过运行以下命令查看 <tt>cat /etc/debian_version</tt>），然后运行：</p>
 <pre>sudo apt-get install git build-essential gdb-multiarch qemu-system-misc gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu </pre>
-<p>（“buster”上的 QEMU 版本太旧，因此您必须单独获取它。）</p>
-<h4>qemu 系统杂项修复</h4>
-此时此刻，包裹似乎 <tt>qemu-system-misc</tt> 已收到一个更新，该更新破坏了其与我们内核的兼容性。如果你跑 <tt>make qemu</tt> 并且脚本似乎在之后挂起<br/><tt>qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0</tt><br/> 您需要卸载该软件包并安装旧版本：
+<p>（"buster" 上的 QEMU 版本过旧，需另行单独安装。）</p>
+<h4>qemu-system-misc 修复</h4>
+目前，软件包 <tt>qemu-system-misc</tt> 收到了一次更新，导致其与我们的内核不兼容。如果你运行 <tt>make qemu</tt> 后脚本似乎卡住，<br/><tt>qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0</tt><br/> 你需要卸载该软件包并安装旧版本：
 <pre>
   $ sudo apt-get remove qemu-system-misc
   $ sudo apt-get install qemu-system-misc=1:4.2-3ubuntu6
 </pre>
 <h3>在 Arch 上安装</h3>
 <pre>sudo pacman -S riscv64-linux-gnu-binutils riscv64-linux-gnu-gcc riscv64-linux-gnu-gdb qemu-arch-extra</pre>
-<h3>其他 Linux 发行版（即编译您自己的工具链）</h3>
-<p>我们假设您将工具链安装到
-<tt>/usr/local</tt> 在现代 Ubuntu 安装上。您将需要相当多的磁盘空间来编译这些工具（大约 9GiB）。如果您没有那么多空间，请考虑使用 MIT Athena 机器。</p>
-<p>首先，克隆 RISC-V GNU 编译器工具链的存储库：
+<h3>其他 Linux 发行版（即自行编译工具链）</h3>
+<p>我们假设你正在将工具链安装到
+<tt>/usr/local</tt> 一台现代 Ubuntu 系统上。编译工具需要相当大的磁盘空间（约 9GiB）。如果空间不足，请考虑使用 MIT Athena 机器。</p>
+<p>首先，克隆 RISC-V GNU 编译器工具链的仓库：
 
 <pre>
 $ git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
 </pre>
-<p>接下来，确保您拥有编译工具链所需的包：
+<p>接下来，确保已安装编译工具链所需的软件包：
 
 <pre>
 $ sudo apt-get install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
@@ -156,7 +156,7 @@ $ ./configure --prefix=/usr/local
 $ sudo make
 $ cd ..
 </pre>
-<p> 接下来，检索并提取 QEMU 5.1.0 的源代码：
+<p> 接下来，下载并解压 QEMU 5.1.0 的源代码：
 <pre>
 $ wget https://download.qemu.org/qemu-5.1.0.tar.xz
 $ tar xf qemu-5.1.0.tar.xz
@@ -170,23 +170,23 @@ $ make
 $ sudo make install
 $ cd ..
 </pre>
-<h3>Windows（即运行 Linux VM）</h3>
-<p>我们尚未对其进行测试，但也许可以通过适用于 Linux 的 Windows 子系统或自行编译工具来获得您所需的一切。</p>
-<p>但是，更简单的选择可能是使用上面列出的其他操作系统之一运行虚拟机。通过平台虚拟化，Linux 可以与您的正常计算环境共存。安装 Linux 虚拟机分为两步。首先，您下载虚拟化平台。</p>
-<ul><li><a href="https://www.virtualbox.org/"><strong>虚拟盒子</strong></a>
-  （Mac、Linux、Windows 免费）— <a href="https://www.virtualbox.org/wiki/Downloads">下载页面</a></li>
-<li><a href="http://www.vmware.com/products/player/">虚拟机播放器</a> （Linux 和 Windows 免费，需要注册）</li>
-<li><a href="http://www.vmware.com/products/fusion/">VMware融合</a> （可从 IS&amp;T 免费下载）。
+<h3>Windows（即运行 Linux 虚拟机）</h3>
+<p>我们尚未测试，但或许可以通过 Windows Subsystem for Linux 或自行编译工具的方式获取所需的一切。</p>
+<p>不过，更简便的方案可能是使用上述其他操作系统之一运行虚拟机。借助平台虚拟化技术，Linux 可以与你的常规计算环境共存。安装 Linux 虚拟机分为两步：首先，下载虚拟化平台。</p>
+<ul><li><a href="https://www.virtualbox.org/"><strong>VirtualBox</strong></a>
+  （Mac、Linux、Windows 均可免费使用）—— <a href="https://www.virtualbox.org/wiki/Downloads">下载页面</a></li>
+<li><a href="http://www.vmware.com/products/player/">VMware Player</a> （Linux 和 Windows 免费使用，需注册）</li>
+<li><a href="http://www.vmware.com/products/fusion/">VMware Fusion</a> （可从 IS&amp;T 免费下载）。
   </li></ul>
-<p>VirtualBox 有点慢并且不太灵活，但是免费！</p>
-<p>安装虚拟化平台后，下载您选择的 Linux 发行版的启动磁盘映像。</p>
-<ul><li><a href="http://www.ubuntu.com/download/desktop">Ubuntu 桌面</a> 是一种选择。</li>
+<p>VirtualBox 速度稍慢且灵活性略低，但完全免费！</p>
+<p>安装好虚拟化平台后，下载您所选 Linux 发行版的启动磁盘镜像。</p>
+<ul><li><a href="http://www.ubuntu.com/download/desktop">Ubuntu Desktop</a> 是一个可选项。</li>
 </ul>
-<p>这将下载一个名为类似的文件
-  <tt>ubuntu-18.04.3-desktop-amd64.iso</tt>。启动您的虚拟化平台并创建一个新的（64 位）虚拟机。使用下载的Ubuntu镜像作为启动盘；该过程因虚拟机而异，但非常简单。
+<p>这将下载一个类似如下名称的文件
+  <tt>ubuntu-18.04.3-desktop-amd64.iso</tt>。启动您的虚拟化平台并创建一台新的（64 位）虚拟机。将下载的 Ubuntu 镜像作为启动磁盘；具体步骤因虚拟机而异，但总体较为简单。
 </p>
 <h2> 测试您的安装 </h2>
-<p>要测试您的安装，您应该能够检查以下内容：
+<p>要测试您的安装是否成功，您应能完成以下检查：
 
 <pre>
 $ riscv64-unknown-elf-gcc --version
@@ -197,7 +197,7 @@ $ qemu-system-riscv64 --version
 QEMU emulator version 5.1.0
 </pre>
 
-您还应该能够编译并运行 xv6：
+您还应能够编译并运行 xv6：
 
 <pre>
 # in the xv6 directory
@@ -207,17 +207,17 @@ init: starting sh
 $
 </pre>
 
-要退出 qemu，请输入：Ctrl-a x。
+要退出 QEMU，请输入：Ctrl-a x。
 
 <!-- End Page Content -->
 <hr/>
 <font style="font-size: 12px;">
-<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<p>对 6.S081 有任何问题或意见？请发送电子邮件至课程教员：
 <a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="tools.html#top">顶部</a></b> //
-<b><a href="index.html">S6.081 首页</a></b> // 
-<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:04 EDT</i>
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="tools.html#top">返回顶部</a></b> //
+<b><a href="index.html">6.S081 主页</a></b> // 
+<i>最后更新于 2025年9月4日（星期四）23:15:04 EDT</i>
 </p></p></font>
 </p></p></p></p></p></p></p></p></p></p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>

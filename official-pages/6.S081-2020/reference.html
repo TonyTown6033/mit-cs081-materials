@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.S081 / 2020 年秋季
+6.S081 / 2020年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -11,7 +11,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link href="labs/labs.css" rel="stylesheet" type="text/css">
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -72,46 +72,46 @@
 </div>
 <div class="container">
 <center><h2>阅读材料</h2></center>
-<h3>UNIX系统</h3>
+<h3>UNIX</h3>
 <ul>
-<li> <a href="https://www.youtube.com/watch?v=tc4ROCJYbm0">YouTube Unix 简介</a>
+<li> <a href="https://www.youtube.com/watch?v=tc4ROCJYbm0">Youtube Unix 入门介绍</a>
 <li> <a href="readings/ritchie78unix.pdf">
 	UNIX 分时系统</a>,
-	<a href="http://cm.bell-labs.com/who/dmr/">丹尼斯·里奇</a>
-	和 <a href="http://cm.bell-labs.com/who/ken/">肯·L·汤普森</a>，贝尔系统技术期刊 57，第 6 期，第 2 部分（1978 年 7 月至 8 月）第 1905-1930 页。
+	<a href="http://cm.bell-labs.com/who/dmr/">Dennis M. Ritchie</a>
+	和 <a href="http://cm.bell-labs.com/who/ken/">Ken L. Thompson</a>，Bell System Technical Journal 第57卷，第6期，第2部分（1978年7月至8月），第1905-1930页。
 
 <li> <a href="http://www.read.seas.harvard.edu/~kohler/class/aosref/ritchie84evolution.pdf">
-	Unix分时系统的演变</a>，丹尼斯·里奇，1979 年。
+	Unix 分时系统的演进</a>，Dennis M. Ritchie，1979年。
 
-<li><i>C语言程序设计（第二版）</i> 作者：克尼根和里奇。 Prentice Hall, Inc.，1988。ISBN 0-13-110362-8，1998。
+<li><i>C程序设计语言（第二版）</i> 作者：Kernighan 和 Ritchie。Prentice Hall, Inc.，1988年。ISBN 0-13-110362-8，1998年。
 
 </li></li></li></li></ul>
 <h3>RISC-V 仿真</h3>
 <ul>
-<li> <a href="http://www.qemu.org/">QEMU</a> - 快速且流行的 RISC-V 平台和 CPU 模拟器。
+<li> <a href="http://www.qemu.org/">QEMU</a> - 一款快速且广泛使用的 RISC-V 平台与 CPU 模拟器。
 	<ul>
 <li><a href="http://wiki.qemu.org/Qemu-doc.html">用户手册</a>
 </li></ul>
 <li> <a href="readings/FU540-C000-v1.0.pdf">SiFive FU540-C000 手册</a>
-<li> <a href="readings/virtio-v1.1-csprd01.pdf">虚拟 I/O 设备 (VIRTIO)</a>
+<li> <a href="readings/virtio-v1.1-csprd01.pdf">虚拟 I/O 设备（VIRTIO）</a>
 </li></li></li></ul>
 <h3>RISC-V</h3>
 <ul>
-<li><i>RISC-V 阅读器：开放架构图集</i> 作者：D. Patterson 和 A. Waterman，草莓峡谷，2017 年。
+<li><i>《RISC-V 读本：开放架构图谱》</i> 作者：D. Patterson 与 A. Waterman，Strawberry Canyon，2017 年。
 
-  <li><a href="https://github.com/riscv/riscv-isa-manual/releases/download/draft-20200727-8088ba4/riscv-spec.pdf">RISC-V非特权指令</a>
-<li><a href="https://github.com/riscv/riscv-isa-manual/releases/download/draft-20200727-8088ba4/riscv-privileged.pdf">RISC-V 特权指令</a>
+  <li><a href="https://github.com/riscv/riscv-isa-manual/releases/download/draft-20200727-8088ba4/riscv-spec.pdf">RISC-V 非特权指令集</a>
+<li><a href="https://github.com/riscv/riscv-isa-manual/releases/download/draft-20200727-8088ba4/riscv-privileged.pdf">RISC-V 特权指令集</a>
 <li><a href="readings/riscv-calling.pdf">调用约定</a>
 </li></li></li></li></ul>
 <!-- End Page Content -->
 <hr/>
 <font style="font-size: 12px;">
-<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<p>对 6.S081 有任何问题或意见？请发送电子邮件至课程教员：
 <a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="reference.html#top">顶部</a></b> //
-<b><a href="index.html">S6.081 首页</a></b> // 
-<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:04 EDT</i>
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="reference.html#top">返回顶部</a></b> //
+<b><a href="index.html">6.S081 主页</a></b> // 
+<i>最后更新于 2025年9月4日（星期四）23:15:04 EDT</i>
 </p></p></font>
 </div>
 <script src="js/jquery-1.10.2.min.js"></script>

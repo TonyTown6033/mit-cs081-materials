@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.S081 / 2020 年秋季
+6.S081 / 2020年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -11,7 +11,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link href="labs/labs.css" rel="stylesheet" type="text/css">
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -73,27 +73,27 @@
 <div class="container">
 <center>
 <h2>
-6.S081：边做边学
+6.S081：在实践中学习
 </h2>
 </center>
-<p>目录描述：操作系统的设计和实现，以及它们作为系统编程基础的使用。主题包括虚拟内存；文件系统；线程；上下文切换；内核；中断；系统调用；进程间通信；软件和硬件之间的协调和交互。 RISC-V xv6 多处理器操作系统用于说明这些主题。个别实验室任务涉及扩展 xv6 操作系统，例如支持复杂的虚拟内存功能和网络。
+<p>课程简介：操作系统的设计与实现，及其作为系统编程基础的应用。主题包括虚拟内存、文件系统、线程、上下文切换、内核、中断、系统调用、进程间通信、协调机制，以及软硬件之间的交互。课程使用面向 RISC-V 的多处理器操作系统 xv6 来阐释上述主题。各个实验作业涉及对 xv6 操作系统的扩展，例如支持高级虚拟内存特性和网络功能。
   
-<p>你可能想知道为什么我们要研究 xv6，一个类似于 Unix v6 的操作系统，而不是最新最好版本的 Linux、Windows 或 BSD Unix。 xv6足够大，足以说明操作系统中的基本设计和实现思想。另一方面，xv6 比任何现代生产操作系统都要小得多，因此也更容易理解。 xv6 具有与许多现代操作系统类似的结构；一旦您探索了 xv6，您就会发现 Linux 等内核内部有很多熟悉的内容。
+<p>你可能想知道，我们为何要研究 xv6——一个与 Unix v6 相似的操作系统——而非最新版本的 Linux、Windows 或 BSD Unix。xv6 的规模足以展示操作系统的基本设计与实现思想，同时又远小于任何现代生产级操作系统，因而更易于理解。xv6 的结构与许多现代操作系统相似；一旦你深入探索过 xv6，就会发现 Linux 等内核中有许多熟悉的身影。
 
 <h2>致谢</h2>
-<p>6.如果没有过去的一群出色的助教（Josh Cates、Austin Clements、Russ Cox、Cody Cutler、Bryan Ford、Max Krohn、Emil Sit、Jonathan Behrens 和 Anish Athalye），S081 就不会存在于今天。他们使这堂课成为现实。我们共同将 6.S081 献给 Josh Cates；我们希望许多学生能够被 Josh 对操作系统的热情所启发。
+<p>6.S081 的诞生离不开一批优秀的历届助教（Josh Cates、Austin Clements、Russ Cox、Cody Cutler、Bryan Ford、Max Krohn、Emil Sit、Jonathan Behrens 和 Anish Athalye）。正是他们让这门课程成为现实。我们谨以 6.S081 纪念 Josh Cates，希望他对操作系统的热忱能够激励更多学生。
 
-<p>我们也感谢麻省理工学院（包括SIPB）和其他学校的学生和教职人员做出的许多贡献。
+<p>我们同样感谢 MIT（包括 SIPB）及其他学校的学生与教学人员所做出的诸多贡献。
 
 <!-- End Page Content -->
 <hr/>
 <font style="font-size: 12px;">
-<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<p>对 6.S081 有任何问题或意见？请发送电子邮件至课程教员：
 <a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="overview.html#top">顶部</a></b> //
-<b><a href="index.html">S6.081 首页</a></b> // 
-<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:04 EDT</i>
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="overview.html#top">返回顶部</a></b> //
+<b><a href="index.html">6.S081 主页</a></b> // 
+<i>最后更新于 2025年9月4日（星期四）23:15:04 EDT</i>
 </p></p></font>
 </p></p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>

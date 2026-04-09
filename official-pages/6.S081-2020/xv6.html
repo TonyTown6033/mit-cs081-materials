@@ -1,7 +1,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.S081 / 2020 年秋季
+6.S081 / 2020年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -10,7 +10,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link href="labs/labs.css" rel="stylesheet" type="text/css">
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -70,61 +70,61 @@
 </div>
 </div>
 <div class="container">
-<h1>xv6，一个简单的类Unix教学操作系统</h1>
+<h1>xv6，一个简单的类 Unix 教学操作系统</h1>
 <h2>简介</h2>
 
-xv6是2006年夏天开发的教学操作系统，我们将xv6移植到RISC-V用于新的本科班6.S081。
+xv6 是一个于 2006 年夏季开发的教学操作系统，我们将 xv6 移植到 RISC-V 平台，用于新的本科课程 6.S081。
 
-<h2>xv6 来源和文本</h2>
+<h2>xv6 源代码与教材</h2>
 
-最新的 xv6 源代码和文本可通过
+最新的 xv6 源代码和教材可通过以下方式获取
 <pre>git clone git://github.com/mit-pdos/xv6-riscv.git</pre>
 和
 <pre>git clone git://github.com/mit-pdos/xv6-riscv-book.git</pre>
 <a name="v6"></a>
-<h2>Unix 版本 6</h2>
-<p>xv6 的灵感来自 Unix V6 和：
+<h2>Unix 第 6 版</h2>
+<p>xv6 的设计灵感来源于 Unix V6 以及：
 
 <ul>
-<li>狮子会 <i>UNIX 第 6 版评论</i>, John Lions，点对点通信；国际标准书号：1-57398-013-7；第一版（2000 年 6 月 14 日）。
+<li>Lions 的 <i>《UNIX 第 6 版注解》</i>，John Lions 著，Peer to Peer Communications 出版；ISBN：1-57398-013-7；第 1 版（2000 年 6 月 14 日）。
 	<ul>
-<li>一个在线版本 <a href="http://www.lemis.com/grog/Documentation/Lions/">狮子会解说</a>, 和 <a href="http://v6.cuzuco.com/">源代码</a>.
+<li>《Lions 注解》的在线版本 <a href="http://www.lemis.com/grog/Documentation/Lions/">Lions 注解</a>，以及 <a href="http://v6.cuzuco.com/">源代码</a>.
 
 
-	<li>v6 源代码也可用 
+	<li>v6 源代码也可 
 	  <a href="http://minnie.tuhs.org/cgi-bin/utree.pl?file=V6">在线</a>
-	  通过 <a href="http://www.tuhs.org/">Unix 遗产协会</a>.
+	  通过 <a href="http://www.tuhs.org/">Unix 遗产学会</a>.
 
 	</li></li></ul>
 </li></ul>
 
-以下内容对于阅读原始代码很有用：
+以下资料有助于阅读原始代码：
 <ul>
 <li><i>
-PDP11/40 处理器手册</i>，数字设备公司，1972 年。
+PDP11/40 处理器手册</i>，Digital Equipment Corporation，1972年。
 <ul>
-<li>一个 <a href="http://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf">PDF</a> （由扫描图像制成，不可进行文本搜索）
-<li>一个 <a href="http://pdos.csail.mit.edu/6.828/2005/pdp11/">基于网络的版本</a> 按指令名称索引。
+<li>一份 <a href="http://pdos.csail.mit.edu/6.828/2005/readings/pdp11-40.pdf">PDF</a> （由扫描图像制成，不支持文本搜索）
+<li>一份 <a href="http://pdos.csail.mit.edu/6.828/2005/pdp11/">网页版</a> 按指令名称索引。
 </li></li></ul>
 </li></ul>
-<h2>反馈意见</h2>
-如果您有兴趣使用 xv6 或在课程中使用过 xv6，我们很乐意听取您的意见。如果我们可以做些什么来让 xv6 更容易采用，我们很想听听。我们也有兴趣了解什么有效，什么无效。
+<h2>反馈</h2>
+如果您有意使用 xv6 或已在课程中使用过 xv6，欢迎与我们联系。若有任何能让 xv6 更易于采用的建议，我们都乐于倾听。同时，我们也希望了解哪些方面效果良好、哪些方面有所不足。
 <p>
-拉斯·考克斯 (rsc@swtch.com)<br/>
-弗兰斯·卡舒克 (kaashoek@mit.edu)<br/>
-罗伯特·莫里斯 (rtm@mit.edu)
+Russ Cox (rsc@swtch.com)<br/>
+Frans Kaashoek (kaashoek@mit.edu)<br/>
+Robert Morris (rtm@mit.edu)
 <p>
 您可以通过 6.S081-staff@pdos.csail.mit.edu 联系我们所有人。
 
 <!-- End Page Content -->
 <hr/>
 <font style="font-size: 12px;">
-<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<p>对 6.S081 有任何问题或意见？请发送电子邮件至课程教员：
 <a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="xv6.html#top">顶部</a></b> //
-<b><a href="index.html">S6.081 首页</a></b> // 
-<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:04 EDT</i>
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="xv6.html#top">返回顶部</a></b> //
+<b><a href="index.html">6.S081 主页</a></b> // 
+<i>最后更新于 2025年9月4日（星期四）23:15:04 EDT</i>
 </p></p></font>
 </p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>

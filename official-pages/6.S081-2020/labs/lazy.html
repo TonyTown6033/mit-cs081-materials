@@ -4,41 +4,34 @@
 <link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <h1>实验：xv6 惰性页面分配</h1>
 <p>
-操作系统可以使用页表硬件的许多巧妙技巧之一是用户空间堆内存的延迟分配。 xv6 应用程序使用 sbrk() 系统调用向内核请求堆内存。在我们提供给您的内核中，sbrk() 分配物理内存并将其映射到进程的虚拟地址空间。内核可能需要很长时间才能为大型请求分配和映射内存。例如，考虑 1 GB 由 262,144 个 4096 字节的页组成；即使每个单独的价格都很便宜，这也是一个巨大的分配数量。此外，某些程序分配的内存比实际使用的内存多（例如，为了实现稀疏数组），或者在使用之前分配内存。为了让 sbrk() 在这些情况下更快地完成，复杂的内核会延迟分配用户内存。也就是说，sbrk()不分配物理内存，而只是记住分配了哪些用户地址，并在用户页表中将这些地址标记为无效。当进程第一次尝试使用延迟分配的内存的任何给定页面时，CPU 会生成页面错误，内核通过分配物理内存、将其清零并映射它来处理该错误。在本实验中，您将将此惰性分配功能添加到 xv6 中。
+操作系统可以利用页表硬件实现许多巧妙的技巧，其中之一便是对用户态堆内存进行惰性分配。xv6 应用程序通过 sbrk() 系统调用向内核申请堆内存。在我们提供的内核实现中，sbrk() 会分配物理内存并将其映射到进程的虚拟地址空间。对于较大的内存申请，内核分配并映射内存可能耗费大量时间。举例来说，1 GB 内存由 262,144 个 4096 字节的页面组成——即便每次分配的开销很小，总量仍然巨大。此外，某些程序申请的内存远多于实际使用量（例如用于实现稀疏数组），或在实际使用前很久就提前申请内存。为了让 sbrk() 在这些情况下能更快返回，成熟的内核会采用惰性方式分配用户内存。具体而言，sbrk() 并不立即分配物理内存，而只是记录哪些用户地址已被分配，并在用户页表中将这些地址标记为无效。当进程首次尝试访问某个惰性分配的页面时，CPU 会触发缺页错误，内核随即响应，分配物理内存、将其清零并完成映射。本实验中，你将为 xv6 添加这一惰性分配功能。
 
 <div class="prereq">
-<p>在开始编码之前，请阅读第 4 章（特别是 4.6） <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a>，以及您可能修改的相关文件：
+<p>在开始编写代码之前，请阅读 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a>的第 4 章（尤其是 4.6 节），以及你可能需要修改的相关文件：
   <ul>
 <li> <tt>kernel/trap.c</tt>
 <li> <tt>kernel/vm.c</tt>
 <li> <tt>kernel/sysproc.c</tt>
 </li></li></li></ul>
 </p></div>
-<p>要开始实验，请切换到惰性分支：
+<p>要开始本实验，请切换到 lazy 分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout lazy</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-<h2>消除 sbrk() 的分配 <script>g("easy")</script></h2>
+<h2>去除 sbrk() 中的内存分配 <script>g("easy")</script></h2>
 <div class="required">
-Your first task is to delete page allocation from the sbrk(n) system
-call implementation, which is the function sys_sbrk() in sysproc.c. The
-sbrk(n) system call grows the process's memory size by n bytes, and
-then returns the start of the newly allocated region (i.e., the old
-size). Your new sbrk(n) should just increment the process's size
-(myproc()-&gt;sz) by n and return the old size. It should not allocate memory
--- so you should delete the call to growproc() (but you still need to
-increase the process's size!).
+你的第一个任务是删除 sbrk(n) 系统调用实现中的页面分配逻辑，该实现位于 sysproc.c 中的 sys_sbrk() 函数。sbrk(n) 系统调用将进程的内存大小增加 n 字节，并返回新分配区域的起始地址（即原来的大小）。修改后的 sbrk(n) 只需将进程的大小（myproc()-&gt;sz）增加 n 并返回旧的大小，而不实际分配内存——因此你需要删除对 growproc() 的调用（但仍然需要更新进程的大小！）。
 </div>
 <p>
-尝试猜测此修改的结果会是什么：什么会破坏？
+试着预测一下这个修改会带来什么结果：哪些地方会出错？
 
 <p>
-进行此修改，启动 xv6，然后输入 <tt>echo hi</tt> 到外壳。你应该看到这样的东西：
+进行此修改，启动 xv6，然后输入 <tt>echo hi</tt> 到 shell。你应该会看到类似如下的输出：
 
 <pre>
 init: starting sh
@@ -49,56 +42,56 @@ va=0x0000000000004000 pte=0x0000000000000000
 panic: uvmunmap: not mapped
 </pre>
 
-“usertrap(): ...”消息来自 trap.c 中的用户陷阱处理程序；它捕获了一个不知道如何处理的异常。确保您了解发生此页面错误的原因。 “stval=0x0..04008”表示导致缺页的虚拟地址为0x4008。
+"usertrap(): ..." 消息来自 trap.c 中的用户态陷阱处理程序；它捕获到了一个不知道如何处理的异常。请确保你理解此页错误发生的原因。"stval=0x0..04008" 表示导致页错误的虚拟地址为 0x4008。
 
 <h2>惰性分配 <script>g("moderate")</script></h2>
 <div class="required">
-修改 trap.c 中的代码，通过将新分配的物理内存页映射到故障地址来响应用户空间的页面错误，然后返回到用户空间以让进程继续执行。您应该在之前添加您的代码 <tt>printf</tt> 产生“usertrap(): ...”消息的调用。修改您需要的任何其他 xv6 内核代码以获得 <tt>echo hi</tt> 去工作。
+修改 `trap.c` 中的代码，通过在发生错误的地址处映射一个新分配的物理内存页来响应来自用户态的页错误，然后返回用户态让进程继续执行。你应该将代码添加在 <tt>printf</tt> 产生"usertrap(): ..."消息的调用。修改 xv6 内核中其他任何必要的代码，以使 <tt>echo hi</tt> 使其正常工作。
 </div>
 
 以下是一些提示：
  
 <ul>
-<li>您可以通过查看 usertrap() 中的 r_scause() 是 13 还是 15 来检查错误是否为页面错误。
+<li>你可以在 `usertrap()` 中通过检查 `r_scause()` 是否为 13 或 15 来判断某个故障是否为缺页故障。
 
-<li><tt>r_stval()</tt> 返回 RISC-V <tt>stval</tt> 寄存器，其中包含导致页面错误的虚拟地址。
+<li><tt>r_stval()</tt> 返回 RISC-V <tt>stval</tt> 寄存器，其中包含导致缺页故障的虚拟地址。
 
-<li>从 vm.c 中的 uvmalloc() 窃取代码，这就是 sbrk() 调用的内容（通过 growproc()）。您需要调用 kalloc() 和 mappages()。
+<li>从 vm.c 中的 uvmalloc() 借鉴代码，这是 sbrk()（通过 growproc()）所调用的函数。你需要调用 kalloc() 和 mappages()。
 
-<li>使用 PGROUNDDOWN(va) 将故障虚拟地址向下舍入到页边界。
+<li>使用 PGROUNDDOWN(va) 将发生错误的虚拟地址向下对齐到页面边界。
 
-<li>uvmunmap() 会出现恐慌；修改它，以便在某些页面未映射时不会出现恐慌。
+<li>uvmunmap() 会触发 panic；请修改它，使其在某些页面未映射时不触发 panic。
 
-<li>如果内核崩溃，请在 kernel/kernel.asm 中查找 sepc
+<li>如果内核崩溃，请在 kernel/kernel.asm 中查找 sepc 的值。
 
-<li>使用你的 <tt>vmprint</tt> pgtbl 实验室的函数用于打印页表的内容。
+<li>使用你的 <tt>vmprint</tt> （来自 pgtbl 实验的函数）打印页表的内容。
 
-<li>如果您看到错误“incomplete type proc”，请包含“spinlock.h”，然后包含“proc.h”。
+<li>如果出现错误 "incomplete type proc"，请先包含 "spinlock.h"，再包含 "proc.h"。
 
 </li></li></li></li></li></li></li></li></ul>
 <p>
-如果一切顺利，您的惰性分配代码应该会导致 <tt>echo
-hi</tt> 工作。您应该至少遇到一个页面错误（因此导致延迟分配），也许是两个。
+如果一切顺利，你的惰性分配代码应能使 <tt>echo
+hi</tt> 正常运行。你应该会看到至少一次缺页错误（从而触发惰性分配），也可能出现两次。
 
-<h2>惰性测试和用户测试 <script>g("moderate")</script></h2>
-<p>我们已经为您提供了 <tt>lazytests</tt>，一个 xv6 用户程序，用于测试一些可能会给您的惰性内存分配器带来压力的特定情况。修改您的内核代码，以便两者都 <tt>lazytests</tt>
-和 <tt>usertests</tt> pass.
+<h2>Lazytests 与 Usertests <script>g("moderate")</script></h2>
+<p>我们为你提供了 <tt>lazytests</tt>，这是一个 xv6 用户程序，用于测试一些可能对你的惰性内存分配器造成压力的特定场景。请修改你的内核代码，使以下两者全部 <tt>lazytests</tt>
+和 <tt>usertests</tt> 通过。
 
 <ul>
-<li> 处理负 sbrk() 参数。
+<li> 处理 sbrk() 的负数参数。
 
-  <li> 如果进程在高于 sbrk() 分配的虚拟内存地址上发生页面错误，则终止该进程。
+  <li> 若进程在高于任何 sbrk() 已分配范围的虚拟内存地址上发生缺页错误，则终止该进程。
 
-  <li> 正确处理 fork() 中父子内存复制。
+  <li> 正确处理 fork() 中从父进程到子进程的内存复制。
 
-  <li> 处理这样的情况：进程将有效地址从 sbrk() 传递到系统调用（例如 read 或 write），但该地址的内存尚未分配。
+  <li> 处理以下情况：进程将一个通过 sbrk() 获得的有效地址传递给 read 或 write 等系统调用，但该地址对应的内存尚未分配。
 
-  <li> 正确处理内存不足：如果 kalloc() 在页面错误处理程序中失败，则终止当前进程。
+  <li> 正确处理内存不足的情况：若缺页错误处理程序中 kalloc() 失败，则终止当前进程。
 
-  <li> 处理用户堆栈下方无效页面上的故障。
+  <li> 处理用户栈下方无效页面上发生的缺页错误。
 
 </li></li></li></li></li></li></ul>
-<p>如果您的内核通过了惰性测试和用户测试，您的解决方案是可以接受的：
+<p>若你的内核能够通过 lazytests 和 usertests，则你的解答即为合格：
 <pre>
 $ <kbd> lazytests</kbd>
 lazytests starting
@@ -117,19 +110,19 @@ ALL TESTS PASSED
 $
 </pre>
 <p><a name="submit">
-<h2>提交实验室</h2>
-<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
+<h2>提交实验</h2>
+<p><b>本实验至此完成。</b> 确保你通过了所有 make grade 测试。如果本实验包含问题，不要忘记将答案写入 answers-<i>lab-name</i>.txt。提交你的更改（包括添加 answers-<i>lab-name</i>.txt），并在实验目录中运行 make handin 以提交实验。
 
-<h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
-<tt>git commit</tt> 文件。
+<h3>所用时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中填入一个整数，表示你在本实验上花费的小时数。不要忘记 <tt>git add</tt> 和
+<tt>git commit</tt> 该文件。
 
 <h3>提交</h3>
 
-您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
+你将通过 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。在提交任何作业或实验之前，您需要先从提交网站申请一个 API 密钥。
 </p>
-<p>将最终更改提交到实验室后，输入 <kbd>make
-handin</kbd> 提交您的实验室。
+<p>在将实验的最终更改提交（commit）后，输入 <kbd>make
+handin</kbd> 以提交您的实验。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -144,39 +137,38 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
-再次生成它（<i>myapi.key</i> 不得包含换行符）。
+<kbd>make handin</kbd> 将把您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+重新生成（<i>myapi.key</i> 不得包含换行符）。
 </p>
 <p>
-如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+如果您运行 <kbd>make handin</kbd> 时存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <kbd>??</kbd>开头的行中。您可以让 <tt>git</tt> 以追踪你使用以下命令创建的新文件
 <tt>git add filename</tt>.
 </p>
 <p>
-如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用 curl 或 Git 命令修复该问题。或者你可以运行 <kbd>make tarball</kbd>。这将为你生成一个 tar 文件，你可以通过我们的 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网页界面</a>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请运行“makegrade”以确保您的代码通过所有测试</li>
-<li>在运行“make handin”之前提交任何修改的源代码</li>
-<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行 `make grade` 以确保你的代码通过所有测试</li>
+<li>在运行 `make handin` 之前，请先提交所有已修改的源代码</li>
+<li>你可以在以下地址查看提交状态并下载已提交的代码 <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-<h2>可选的挑战练习</h2>
+<h2>可选挑战练习</h2>
 <ul>
-<li>让惰性页面分配与您的简单工作一起工作 <tt>copyin</tt>
-  来自之前的实验室。
+<li>使惰性分配能够与你在上一个实验中实现的简单 <tt>copyin</tt>
+  协同工作。
 
 </li></ul>
 </p></p></a></p></p></p></p></p></p></p></p></body>
 </html>
-
 

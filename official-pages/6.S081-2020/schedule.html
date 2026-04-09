@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.S081 / 2020 年秋季
+6.S081 / 2020年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -12,7 +12,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link href="labs/labs.css" rel="stylesheet" type="text/css">
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -123,16 +123,16 @@ table.calendar thead tr {
     color: #444444;
 }
 </style>
-<b><big>1-2:30p 讲座的 Zoom 链接位于
-<a href="https://piazza.com/class/kdejeo2qbpo7g1?cid=7">广场柱子</a></big></b>。未来几天的笔记等链接是 2019 年 6.S081 材料的副本。我们将随着课程的进展更新笔记。讲座笔记可能会帮助您记住讲座内容，但它们
-<i>不</i> 替代参加讲座。
+<b><big>1-2:30p 讲座的 Zoom 链接在
+<a href="https://piazza.com/class/kdejeo2qbpo7g1?cid=7">一篇 Piazza 帖子</a></big></b>中。未来几天的笔记等链接均来自 2019 年 6.S081 的课程材料。我们将随课程进展更新笔记。讲义可能有助于你回顾讲座内容，但它们
+<i>不</i> 不能替代参加讲座。
   
 <p>
 <table cellpadding="6" cellspacing="0" class="calendar" width="100%">
 <thead>
 <tr>
-<td width="35%">星期一</td><td width="10%">星期二</td>
-<td width="35%">星期三</td><td width="10%">星期四</td>
+<td width="35%">周一</td><td width="10%">周二</td>
+<td width="35%">周三</td><td width="10%">周四</td>
 <td width="10%">周五</td>
 </tr>
 </thead>
@@ -141,10 +141,10 @@ table.calendar thead tr {
     注册日</td>
 <td id="2020-9-1"><span class="date">9月1日</span></td>
 <td class="lecture" id="2020-9-2"><span class="date">9月2日</span><br/>
-<b>LEC 1（实时）：</b> <a href="lec/l-overview.txt">简介</a> 和 <a href="lec/l-overview/index.html">例子</a> （讲义： <a href="xv6/book-riscv-rev1.pdf">xv6 书</a>)  <a href="https://youtu.be/L6YqHxYHa7A">视频</a><br/>
-<span class="reading"><b>准备工作</b>: <a href="xv6/book-riscv-rev1.pdf">阅读第 1 章</a> （供您娱乐： <a href="https://www.youtube.com/watch?v=tc4ROCJYbm0">Unix</a>)</span><br/>
-<span class="hwdue"><b>作业 1 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/util.html">实验室实用程序：Unix 实用程序</a></span></td>
+<b>第1讲 (rtm)：</b> <a href="lec/l-overview.txt">简介</a> 和 <a href="lec/l-overview/index.html">示例</a> （讲义： <a href="xv6/book-riscv-rev1.pdf">xv6 书</a>)  <a href="https://youtu.be/L6YqHxYHa7A">视频</a><br/>
+<span class="reading"><b>预习</b>: <a href="xv6/book-riscv-rev1.pdf">阅读第1章</a> （供参考： <a href="https://www.youtube.com/watch?v=tc4ROCJYbm0">Unix</a>)</span><br/>
+<span class="hwdue"><b>作业1截止：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/util.html">Lab util: Unix 实用工具</a></span></td>
 <td id="2020-9-3"><span class="date">9月3日</span></td>
 <td id="2020-9-4"><span class="date">9月4日</span></td>
 </tr>
@@ -153,187 +153,187 @@ table.calendar thead tr {
     劳动节</td>
 <td id="2020-9-8"><span class="date">9月8日</span></td>
 <td class="lecture" id="2020-9-9"><span class="date">9月9日</span><br/>
-<b>LEC 2（TA/dm）：</b> <a href="lec/l-c-slides.pdf">C</a> 和 <a href="lec/gdb_slides.pdf">数据库</a> (<a href="lec/pointers.c">指针示例</a>)<br/>
-<span class="reading"><b>准备工作</b>：Kernighan 和 Ritchie (K&amp;R) 的 2.9（按位运算符）和 5.1（指针和地址）到 5.6（指针数组）和 6.4（指向结构的指针）</span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/syscall.html">实验室系统调用：系统调用</a></span></td>
+<b>第2讲（助教/dm）：</b> <a href="lec/l-c-slides.pdf">C</a> 和 <a href="lec/gdb_slides.pdf">gdb</a> (<a href="lec/pointers.c">指针示例</a>)<br/>
+<span class="reading"><b>预习</b>：Kernighan 和 Ritchie（K&amp;R）著作中的 2.9 节（位运算符）、5.1 节（指针与地址）至 5.6 节（指针数组）以及 6.4 节（结构体指针）</span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/syscall.html">实验 syscall：系统调用</a></span></td>
 <td class="important" id="2020-9-10"><span class="date">9月10日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验室实用程序</span></td>
+<span class="deadline"><b>截止</b>：实验 util</span></td>
 <td id="2020-9-11"><span class="date">9月11日</span></td>
 </tr>
 <tr> <!-- week of sep 14 -->
 <td class="lecture" id="2020-9-14"><span class="date">9月14日</span><br/>
-<b>LEC 3（前）：</b> <a href="lec/l-os.txt">操作系统组织和系统调用</a> (<a href="lec/l-os-boards.pdf">板</a>)  <a href="https://youtu.be/o44d---Dk4o">视频</a><br/>
-<span class="reading"><b>准备工作</b>: <a href="xv6/book-riscv-rev1.pdf">阅读第 2 章</a> 和 xv6 代码： <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.h">kernel/proc.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/defs.h">kernel/defs.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/entry.S">kernel/entry.S</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/main.c">kernel/main.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/user/initcode.S">user/initcode.S</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/user/init.c">user/init.c</a>，并略读 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c">kernel/proc.c</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/exec.c">kernel/exec.c</a></span><br/>
-<span class="hwdue"><b>作业 2 到期：</b> <a href="homework/q.html">问题</a></span></td>
+<b>第3讲（fk）：</b> <a href="lec/l-os.txt">操作系统组织与系统调用</a> (<a href="lec/l-os-boards.pdf">板书</a>)  <a href="https://youtu.be/o44d---Dk4o">视频</a><br/>
+<span class="reading"><b>预习</b>: <a href="xv6/book-riscv-rev1.pdf">阅读第2章</a> 以及 xv6 代码： <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.h">kernel/proc.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/defs.h">kernel/defs.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/entry.S">kernel/entry.S</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/main.c">kernel/main.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/user/initcode.S">user/initcode.S</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/user/init.c">user/init.c</a>，并略读 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c">kernel/proc.c</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/exec.c">kernel/exec.c</a></span><br/>
+<span class="hwdue"><b>作业 2 截止：</b> <a href="homework/q.html">问题</a></span></td>
 <td id="2020-9-15"><span class="date">9月15日</span></td>
 <td class="lecture" id="2020-9-16"><span class="date">9月16日</span><br/>
-<b>LEC 4（前）：</b> <a href="lec/l-vm.txt">页表</a> (<a href="lec/l-vm-boards.pdf">板</a>)  <a href="https://youtu.be/f1Hpjty3TT8">视频</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第三章</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/memlayout.h">kernel/memlayout.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/vm.c">kernel/vm.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/kalloc.c">kernel/kalloc.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h">kernel/riscv.h</a>, 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/exec.c">kernel/exec.c</a></span><br/>
-<span class="hwdue"><b>作业 3 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/pgtbl.html">实验 pgtbl：页表</a></span></td>
+<b>第4讲 (fk)：</b> <a href="lec/l-vm.txt">页表</a> (<a href="lec/l-vm-boards.pdf">板书</a>)  <a href="https://youtu.be/f1Hpjty3TT8">视频</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第3章</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/memlayout.h">kernel/memlayout.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/vm.c">kernel/vm.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/kalloc.c">kernel/kalloc.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h">kernel/riscv.h</a>，以及 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/exec.c">kernel/exec.c</a></span><br/>
+<span class="hwdue"><b>作业 3 截止：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/pgtbl.html">Lab pgtbl：页表</a></span></td>
 <td class="important" id="2020-9-17"><span class="date">9月17日</span><br/>
-<span class="deadline"><b>到期日</b>：实验室系统调用</span></td>
+<span class="deadline"><b>截止</b>：Lab syscall</span></td>
 <td id="2020-9-18"><span class="date">9月18日</span></td>
 </tr>
 <tr> <!-- week of sep 21 -->
 <td class="lecture" id="2020-9-21"><span class="date">9月21日</span><br/>
-<b>LEC 5（TA/nk）：</b> <a href="lec/l-riscv.txt">调用约定和堆栈帧 RISC-V</a> (<a href="lec/l-riscv-slides.pdf">幻灯片</a>)  <a href="https://youtu.be/s-Z5t_yTyTM">视频</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/riscv-calling.pdf">调用约定</a></span></td>
+<b>第5讲（TAs/nk）：</b> <a href="lec/l-riscv.txt">RISC-V 调用约定与栈帧</a> (<a href="lec/l-riscv-slides.pdf">幻灯片</a>)  <a href="https://youtu.be/s-Z5t_yTyTM">视频</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/riscv-calling.pdf">调用约定</a></span></td>
 <td id="2020-9-22"><span class="date">9月22日</span></td>
 <td class="lecture" id="2020-9-23"><span class="date">9月23日</span><br/>
-<b>LEC 6（实时）：</b> <a href="lec/l-internal.txt">隔离&amp;系统调用进入/退出</a> <a href="https://youtu.be/T26UuauaxWA">（视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第 4 章，4.6 除外</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h">kernel/riscv.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/trampoline.S">kernel/trampoline.S</a>, 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/trap.c">kernel/trap.c</a></span><br/>
-<span class="hwdue"><b>作业 4 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/traps.html">实验室陷阱：陷阱</a></span></td>
-<td class="important" id="2020-9-24"><span class="date">9月24日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验 pgtbl</span></td>
-<td id="2020-9-25"><span class="date">9月25日</span></td>
+<b>第6讲（rtm）：</b> <a href="lec/l-internal.txt">隔离与系统调用入口/出口</a> <a href="https://youtu.be/T26UuauaxWA">（视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第4章（4.6节除外）</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/riscv.h">kernel/riscv.h</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/trampoline.S">kernel/trampoline.S</a>，以及 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/trap.c">kernel/trap.c</a></span><br/>
+<span class="hwdue"><b>作业 4 截止：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/traps.html">Lab traps：陷阱</a></span></td>
+<td class="important" id="2020-9-24"><span class="date">9 月 24 日</span><br/>
+<span class="deadline"><b>截止</b>：Lab pgtbl</span></td>
+<td id="2020-9-25"><span class="date">9 月 25 日</span></td>
 </tr>
 <tr> <!-- week of sep 28 -->
-<td class="lecture" id="2020-9-28"><span class="date">9月28日</span><br/>
-<b>LEC 7（前）：</b> <a href="lec/l-QA1.txt">问答实验室</a> (<a href="lec/l-QA1.pdf">板</a>)  <a href="https://youtu.be/_WWjNIJAfVg"> 视频</a><br/>
-<span class="hwdue"><b>作业 5 到期：</b> <a href="homework/QA.html">问题</a></span></td>
-<td id="2020-9-29"><span class="date">9月29日</span></td>
-<td class="lecture" id="2020-9-30"><span class="date">9月30日</span><br/>
-<b>LEC 8（前）：</b> <a href="lec/l-pgfaults.txt">页面错误</a> (<a href="lec/l-pgfaults.pdf">板</a>)  <a href="https://youtu.be/KSYO-gTZo0A">视频</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第 4.6 节</a></span><br/>
-<span class="hwdue"><b>作业 6 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/lazy.html">实验室惰性：惰性分配</a></span></td>
-<td class="important" id="2020-10-1"><span class="date">10 月 1 日</span><br/>
-<span class="deadline"><b>到期日</b>：实验室陷阱</span></td>
+<td class="lecture" id="2020-9-28"><span class="date">9 月 28 日</span><br/>
+<b>第 7 讲（fk）：</b> <a href="lec/l-QA1.txt">实验答疑</a> (<a href="lec/l-QA1.pdf">板书</a>)  <a href="https://youtu.be/_WWjNIJAfVg"> 视频</a><br/>
+<span class="hwdue"><b>作业 5 截止：</b> <a href="homework/QA.html">问题</a></span></td>
+<td id="2020-9-29"><span class="date">9 月 29 日</span></td>
+<td class="lecture" id="2020-9-30"><span class="date">9 月 30 日</span><br/>
+<b>第 8 讲（fk）：</b> <a href="lec/l-pgfaults.txt">页面错误</a> (<a href="lec/l-pgfaults.pdf">板书</a>)  <a href="https://youtu.be/KSYO-gTZo0A">视频</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第 4.6 节</a></span><br/>
+<span class="hwdue"><b>作业 6 截止日期：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/lazy.html">Lab lazy：惰性分配</a></span></td>
+<td class="important" id="2020-10-1"><span class="date">10月1日</span><br/>
+<span class="deadline"><b>截止</b>：Lab trap</span></td>
 <td class="special" id="2020-10-2"><span class="date">10月2日</span><br/>
-    添加日期</td>
+    待定日期</td>
 </tr>
 <tr> <!-- week of oct 5 -->
 <td class="lecture" id="2020-10-5"><span class="date">10月5日</span><br/>
-<b>LEC 9（前）：</b> <a href="lec/l-interrupt.txt">中断</a> (<a href="lec/l-interrupt.pdf">板</a>)  <a href="https://youtu.be/zRnGNndcVEA"> 视频 </a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第5章</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/kernelvec.S">kernel/kernelvec.S</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/plic.c">kernel/plic.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/console.c">kernel/console.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/uart.c">kernel/uart.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/printf.c">kernel/printf.c</a></span><br/>
-<span class="hwdue"><b>作业 7 到期：</b> <a href="homework/q.html">问题</a></span></td>
+<b>第9讲（fk）：</b> <a href="lec/l-interrupt.txt">中断</a> (<a href="lec/l-interrupt.pdf">板书</a>)  <a href="https://youtu.be/zRnGNndcVEA"> 视频 </a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">第 5 章</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/kernelvec.S">kernel/kernelvec.S</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/plic.c">kernel/plic.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/console.c">kernel/console.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/uart.c">kernel/uart.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/printf.c">kernel/printf.c</a></span><br/>
+<span class="hwdue"><b>作业 7 截止日期：</b> <a href="homework/q.html">问题</a></span></td>
 <td id="2020-10-6"><span class="date">10月6日</span></td>
-<td class="lecture" id="2020-10-7"><span class="date">10 月 7 日</span><br/>
-<b>LEC 10（前）：</b> <a href="lec/l-lockv2.txt">多处理器和锁定</a> (<a href="lec/l-lock.pdf">板</a>)  <a href="https://youtu.be/NGXu3vN7yAk"> 视频</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">“锁定”</a> 与 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/spinlock.h">kernel/spinlock.h</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/spinlock.c">kernel/spinlock.c</a></span><br/>
-<span class="hwdue"><b>作业 8 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/cow.html">实验牛：写时复制分叉</a></span></td>
-<td class="important" id="2020-10-8"><span class="date">10 月 8 日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验室懒惰</span></td>
-<td id="2020-10-9"><span class="date">10 月 9 日</span></td>
+<td class="lecture" id="2020-10-7"><span class="date">10月7日</span><br/>
+<b>第10讲 (fk)：</b> <a href="lec/l-lockv2.txt">多处理器与锁</a> (<a href="lec/l-lock.pdf">板书</a>)  <a href="https://youtu.be/NGXu3vN7yAk"> 视频</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">《锁》</a> 配合 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/spinlock.h">kernel/spinlock.h</a> 和 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/spinlock.c">kernel/spinlock.c</a></span><br/>
+<span class="hwdue"><b>作业 8 截止日期：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/cow.html">Lab cow：写时复制 fork</a></span></td>
+<td class="important" id="2020-10-8"><span class="date">10月8日</span><br/>
+<span class="deadline"><b>截止</b>：Lab lazy</span></td>
+<td id="2020-10-9"><span class="date">10月9日</span></td>
 </tr>
 <tr> <!-- week of oct 12 -->
-<td class="holiday" id="2020-10-12"><span class="date">10 月 12 日</span><br/>
+<td class="holiday" id="2020-10-12"><span class="date">10月12日</span><br/>
     原住民日</td>
-<td class="holiday" id="2020-10-13"><span class="date">10 月 13 日</span><br/>
-    周一日程<br/>
-    黑客日：没有班会；在实验室工作</td>
-<td class="lecture" id="2020-10-14"><span class="date">10 月 14 日</span><br/>
-<b>LEC 11（实时）：</b> <a href="lec/l-threads.txt">线程切换</a> <a href="https://youtu.be/vsgrTHY5tkg">（视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">「日程安排」</a> 通过第 7.4 节，以及 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c">kernel/proc.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/swtch.S">kernel/swtch.S</a></span><br/>
-<span class="hwdue"><b>作业 9 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/thread.html">实验室线程：多线程</a></span></td>
-<td class="important" id="2020-10-15"><span class="date">10 月 15 日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验牛</span></td>
-<td id="2020-10-16"><span class="date">10 月 16 日</span></td>
+<td class="holiday" id="2020-10-13"><span class="date">10月13日</span><br/>
+    周一课程安排<br/>
+    自由编程日：无课堂会议；专注完成实验</td>
+<td class="lecture" id="2020-10-14"><span class="date">10月14日</span><br/>
+<b>第11讲（rtm）：</b> <a href="lec/l-threads.txt">线程切换</a> <a href="https://youtu.be/vsgrTHY5tkg">（视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="xv6/book-riscv-rev1.pdf">《调度》</a> 至第7.4节，以及 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c">kernel/proc.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/swtch.S">kernel/swtch.S</a></span><br/>
+<span class="hwdue"><b>作业9截止：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/thread.html">线程实验：多线程</a></span></td>
+<td class="important" id="2020-10-15"><span class="date">10月15日</span><br/>
+<span class="deadline"><b>截止</b>：Lab cow</span></td>
+<td id="2020-10-16"><span class="date">10月16日</span></td>
 </tr>
 <tr> <!-- week of oct 19 -->
-<td class="lecture" id="2020-10-19"><span class="date">10 月 19 日</span><br/>
-<b>LEC 12（实时）：</b> 问答实验室  <a href="https://youtu.be/S8ZTJKzhQao">（视频）</a><br/>
-<span class="hwdue"><b>作业 10 到期：</b> <a href="homework/QA.html">问题</a></span></td>
+<td class="lecture" id="2020-10-19"><span class="date">10月19日</span><br/>
+<b>第12讲（rtm）：</b> 实验答疑  <a href="https://youtu.be/S8ZTJKzhQao">（视频）</a><br/>
+<span class="hwdue"><b>作业10截止：</b> <a href="homework/QA.html">问题</a></span></td>
 <td id="2020-10-20"><span class="date">10月20日</span></td>
 <td class="lecture" id="2020-10-21"><span class="date">10月21日</span><br/>
-<b>LEC 13（实时）：</b> <a href="lec/l-coordination.txt">sleep&amp;wakeup</a> 和 <a href="lec/l-coordination.c">代码</a> <a href="https://youtu.be/gP67sJ4PTnc">（视频）</a><br/>
-<span class="reading"><b>准备工作</b>: 阅读剩余部分 <a href="xv6/book-riscv-rev1.pdf">「日程安排」</a>，以及相应的部分 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c">kernel/proc.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/sleeplock.c">kernel/sleeplock.c</a></span><br/>
-<span class="hwdue"><b>作业 11 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/lock.html">实验室锁：并行/锁定</a></span></td>
-<td class="important" id="2020-10-22"><span class="date">10月22日</span><br/>
-<span class="deadline"><b>到期日</b>：实验室线程</span></td>
-<td id="2020-10-23"><span class="date">10月23日</span></td>
+<b>第13讲（rtm）：</b> <a href="lec/l-coordination.txt">sleep&amp;wakeup</a> 和 <a href="lec/l-coordination.c">代码</a> <a href="https://youtu.be/gP67sJ4PTnc">（视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读其余部分 <a href="xv6/book-riscv-rev1.pdf">《调度》</a>，以及对应章节 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/proc.c">kernel/proc.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/sleeplock.c">kernel/sleeplock.c</a></span><br/>
+<span class="hwdue"><b>作业 11 截止：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/lock.html">实验 lock：并行性/锁</a></span></td>
+<td class="important" id="2020-10-22"><span class="date">10 月 22 日</span><br/>
+<span class="deadline"><b>截止</b>：实验 thread</span></td>
+<td id="2020-10-23"><span class="date">10 月 23 日</span></td>
 </tr>
 <tr> <!-- week of oct 26 -->
-<td class="lecture" id="2020-10-26"><span class="date">10月26日</span><br/>
-<b>LEC 14（前）：</b> <a href="lec/l-fs.txt">文件系统</a> (<a href="lec/l-fs.pdf">板</a>)  <a href="https://youtu.be/ADzLv1nRtR8">（视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/bio.c">kernel/bio.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/fs.c">kernel/fs.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/sysfile.c">kernel/sysfile.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/file.c">kernel/file.c</a> 和 <a href="https://pdos.csail.mit.edu/6.S081/2020/xv6-book-riscv-rev1.pdf">“文件系统”（日志记录部分除外）</a></span><br/>
-<span class="hwdue"><b>作业 12 到期：</b> <a href="homework/q.html">问题</a></span></td>
-<td id="2020-10-27"><span class="date">10月27日</span></td>
-<td class="lecture" id="2020-10-28"><span class="date">10月28日</span><br/>
-<b>LEC 15（前）：</b> <a href="lec/l-crash.txt">崩溃恢复</a> (<a href="lec/l-crash.pdf">板</a>)  <a href="https://youtu.be/7Hk2dIorDkk"> 视频</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/log.c">kernel/log.c</a> 以及“文件系统”的日志记录部分</span><br/>
-<span class="hwdue"><b>作业 13 到期：</b> <a href="homework/q.html">问题</a></span><br/>
+<td class="lecture" id="2020-10-26"><span class="date">10 月 26 日</span><br/>
+<b>第 14 讲（fk）：</b> <a href="lec/l-fs.txt">文件系统</a> (<a href="lec/l-fs.pdf">板书</a>)  <a href="https://youtu.be/ADzLv1nRtR8">（视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/bio.c">kernel/bio.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/fs.c">kernel/fs.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/sysfile.c">kernel/sysfile.c</a>, <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/file.c">kernel/file.c</a> 和 <a href="https://pdos.csail.mit.edu/6.S081/2020/xv6-book-riscv-rev1.pdf">《文件系统》（日志相关章节除外）</a></span><br/>
+<span class="hwdue"><b>作业 12 截止：</b> <a href="homework/q.html">问题</a></span></td>
+<td id="2020-10-27"><span class="date">10 月 27 日</span></td>
+<td class="lecture" id="2020-10-28"><span class="date">10 月 28 日</span><br/>
+<b>第15讲 (fk)：</b> <a href="lec/l-crash.txt">崩溃恢复</a> (<a href="lec/l-crash.pdf">板书</a>)  <a href="https://youtu.be/7Hk2dIorDkk"> 视频</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="https://github.com/mit-pdos/xv6-riscv/blob/riscv/kernel/log.c">kernel/log.c</a> 以及「文件系统」的日志章节</span><br/>
+<span class="hwdue"><b>作业13截止：</b> <a href="homework/q.html">问题</a></span><br/>
 <span class="assignment"><b>作业</b>: <a href="labs/fs.html">实验 fs：文件系统</a></span></td>
 <td class="important" id="2020-10-29"><span class="date">10月29日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验室锁</span></td>
+<span class="deadline"><b>截止</b>：实验 lock</span></td>
 <td id="2020-10-30"><span class="date">10月30日</span></td>
 </tr>
 <tr> <!-- week of nov 2 -->
 <td class="lecture" id="2020-11-2"><span class="date">11月2日</span><br/>
-<b>LEC 16（实时）：</b> <a href="lec/l-journal.txt">文件系统性能和快速崩溃恢复</a> <a href="https://youtu.be/CmDcf6rjFb4">（视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/journal-ext2fs.html">记录 Linux ext2fs 文件系统 (1998)</a></span><br/>
-<span class="hwdue"><b>作业 14 到期：</b> <a href="homework/q.html">问题</a></span></td>
+<b>第16讲 (rtm)：</b> <a href="lec/l-journal.txt">文件系统性能与快速崩溃恢复</a> <a href="https://youtu.be/CmDcf6rjFb4">（视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/journal-ext2fs.html">Linux ext2fs 文件系统的日志机制（1998）</a></span><br/>
+<span class="hwdue"><b>作业 14 截止日期：</b> <a href="homework/q.html">问题</a></span></td>
 <td id="2020-11-3"><span class="date">11月3日</span></td>
-<td class="lecture" id="2020-11-4"><span class="date">11 月 4 日</span><br/>
-<b>LEC 17（前）：</b> <a href="lec/l-uservm.txt">应用程序的虚拟内存</a> (<a href="lec/l-uservm.pdf">板</a>) (<a href="https://pdos.csail.mit.edu/6.S081/2020/lec/sqrt.c">开方示例</a>) (<a href="lec/baker.c">贝克的例子</a>)  <a href="https://youtu.be/YNQghIvk0jc"> 视频 </a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/appel-li.pdf">用户程序的虚拟内存原语 (1991)</a></span><br/>
-<span class="hwdue"><b>作业 15 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/mmap.html">实验 mmap：Mmap</a></span></td>
-<td class="important" id="2020-11-5"><span class="date">11 月 5 日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验 fs</span></td>
+<td class="lecture" id="2020-11-4"><span class="date">11月4日</span><br/>
+<b>第17讲 (fk)：</b> <a href="lec/l-uservm.txt">面向应用程序的虚拟内存</a> (<a href="lec/l-uservm.pdf">板书</a>) (<a href="https://pdos.csail.mit.edu/6.S081/2020/lec/sqrt.c">sqrt 示例</a>) (<a href="lec/baker.c">baker 示例</a>)  <a href="https://youtu.be/YNQghIvk0jc"> 视频 </a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/appel-li.pdf">用户程序的虚拟内存原语（1991）</a></span><br/>
+<span class="hwdue"><b>作业 15 截止日期：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/mmap.html">实验 mmap：mmap</a></span></td>
+<td class="important" id="2020-11-5"><span class="date">11月5日</span><br/>
+<span class="deadline"><b>截止</b>：实验 fs</span></td>
 <td id="2020-11-6"><span class="date">11月6日</span></td>
 </tr>
 <tr> <!-- week of nov 9 -->
-<td class="lecture" id="2020-11-9"><span class="date">11 月 9 日</span><br/>
-<b>LEC 18（实时）：</b> <a href="lec/l-organization.txt">操作系统组织</a> <a href="https://youtu.be/dM9PLdaTpnA"> （视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/microkernel.pdf">基于微内核的系统的性能 (1997)</a></span><br/>
-<span class="hwdue"><b>作业 16 到期：</b> <a href="homework/q.html">问题</a></span></td>
-<td id="2020-11-10"><span class="date">11 月 10 日</span></td>
-<td class="holiday" id="2020-11-11"><span class="date">11 月 11 日</span><br/>
+<td class="lecture" id="2020-11-9"><span class="date">11月9日</span><br/>
+<b>第18讲 (rtm)：</b> <a href="lec/l-organization.txt">操作系统组织结构</a> <a href="https://youtu.be/dM9PLdaTpnA"> （视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/microkernel.pdf">微内核系统的性能（1997年）</a></span><br/>
+<span class="hwdue"><b>第16次作业截止日期：</b> <a href="homework/q.html">问题</a></span></td>
+<td id="2020-11-10"><span class="date">11月10日</span></td>
+<td class="holiday" id="2020-11-11"><span class="date">11月11日</span><br/>
     退伍军人节</td>
-<td id="2020-11-12"><span class="date">11 月 12 日</span></td>
-<td id="2020-11-13"><span class="date">11 月 13 日</span></td>
+<td id="2020-11-12"><span class="date">11月12日</span></td>
+<td id="2020-11-13"><span class="date">11月13日</span></td>
 </tr>
 <tr> <!-- week of nov 16 -->
-<td class="lecture" id="2020-11-16"><span class="date">11 月 16 日</span><br/>
-<b>LEC 19（RTM）：</b> <a href="lec/l-vmm.txt">虚拟机</a> <a href="https://youtu.be/R8obXHAIPY0"> （视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/belay-dune.pdf">Dune：对特权 CPU 功能的安全用户级访问 (2012)</a></span><br/>
-<span class="hwdue"><b>作业 17 到期：</b> <a href="homework/q.html">问题</a></span></td>
-<td id="2020-11-17"><span class="date">11 月 17 日</span></td>
-<td class="lecture" id="2020-11-18"><span class="date">11 月 18 日</span><br/>
-<b class="deadline">删除日期</b><br/>
-<b>LEC 20（前）：</b> <a href="lec/l-biscuit.txt">内核和 HLL</a> (<a href="lec/l-biscuit-slides.pdf">幻灯片</a>)  <a href="https://youtu.be/AAtXWGwxI9k"> 视频 </a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/biscuit.pdf">饼干纸 (2018)</a>,  <a href="lec/faq-biscuit.txt">常见问题解答</a></span><br/>
-<span class="hwdue"><b>作业 18 到期：</b> <a href="homework/q.html">问题</a></span><br/>
-<span class="assignment"><b>作业</b>: <a href="labs/net.html">实验室网络：网络堆栈</a></span></td>
-<td class="important" id="2020-11-19"><span class="date">11 月 19 日</span><br/>
-<span class="deadline"><b>到期日</b>：实验室映射</span></td>
-<td id="2020-11-20"><span class="date">11 月 20 日</span></td>
+<td class="lecture" id="2020-11-16"><span class="date">11月16日</span><br/>
+<b>第19讲 (rtm)：</b> <a href="lec/l-vmm.txt">虚拟机</a> <a href="https://youtu.be/R8obXHAIPY0"> （视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/belay-dune.pdf">Dune：对特权 CPU 特性的安全用户级访问（2012）</a></span><br/>
+<span class="hwdue"><b>作业 17 截止：</b> <a href="homework/q.html">问题</a></span></td>
+<td id="2020-11-17"><span class="date">11月17日</span></td>
+<td class="lecture" id="2020-11-18"><span class="date">11月18日</span><br/>
+<b class="deadline">退课截止日期</b><br/>
+<b>第20讲 (fk)：</b> <a href="lec/l-biscuit.txt">内核与高级语言</a> (<a href="lec/l-biscuit-slides.pdf">幻灯片</a>)  <a href="https://youtu.be/AAtXWGwxI9k"> 视频 </a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/biscuit.pdf">Biscuit 论文（2018）</a>,  <a href="lec/faq-biscuit.txt">常见问题</a></span><br/>
+<span class="hwdue"><b>作业 18 截止：</b> <a href="homework/q.html">问题</a></span><br/>
+<span class="assignment"><b>作业</b>: <a href="labs/net.html">Lab net：网络栈</a></span></td>
+<td class="important" id="2020-11-19"><span class="date">11月19日</span><br/>
+<span class="deadline"><b>截止</b>：Lab mmap</span></td>
+<td id="2020-11-20"><span class="date">11月20日</span></td>
 </tr>
 <tr> <!-- week of nov 23 - nov 29 -->
-<td class="holiday" colspan="7" id="2020-11-23"><span class="date">11 月 23 日 - 11 月 29 日</span><br/>
+<td class="holiday" colspan="7" id="2020-11-23"><span class="date">11月23日 - 11月29日</span><br/>
     感恩节</td>
 <tr> <!-- week of nov 30 -->
-<td class="lecture" id="2020-11-30"><span class="date">11 月 30 日</span><br/>
-<b>LEC 21（实时）：</b> <a href="lec/l-net.txt">网络</a> <a href="https://youtu.be/Fcjychg4Tvk"> （视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/mogul96usenix.pdf">接收活锁 (1996)</a></span><br/>
-<span class="hwdue"><b>作业 19 到期：</b> <a href="homework/q.html">问题</a></span></td>
-<td id="2020-12-1"><span class="date">12 月 1 日</span></td>
+<td class="lecture" id="2020-11-30"><span class="date">11月30日</span><br/>
+<b>第21讲 (rtm)：</b> <a href="lec/l-net.txt">网络</a> <a href="https://youtu.be/Fcjychg4Tvk"> （视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/mogul96usenix.pdf">接收活锁（1996年）</a></span><br/>
+<span class="hwdue"><b>第19次作业截止：</b> <a href="homework/q.html">问题</a></span></td>
+<td id="2020-12-1"><span class="date">12月1日</span></td>
 <td class="lecture" id="2020-12-2"><span class="date">12月2日</span><br/>
-<b>LEC 22（RTM）：</b> <a href="lec/l-meltdown.txt">崩溃</a> <a href="https://youtu.be/WpKVr3p5rjE"> （视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/meltdown.pdf">崩溃 (2018)</a></span><br/>
-<span class="hwdue"><b>作业 20 到期：</b> <a href="homework/q.html">问题</a></span></td>
+<b>第22讲 (rtm)：</b> <a href="lec/l-meltdown.txt">Meltdown</a> <a href="https://youtu.be/WpKVr3p5rjE"> （视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/meltdown.pdf">Meltdown (2018)</a></span><br/>
+<span class="hwdue"><b>作业20截止日期：</b> <a href="homework/q.html">问题</a></span></td>
 <td id="2020-12-3"><span class="date">12月3日</span></td>
-<td id="2020-12-4"><span class="date">12 月 4 日</span></td>
+<td id="2020-12-4"><span class="date">12月4日</span></td>
 </tr>
 <tr> <!-- week of dec 7 -->
 <td class="lecture" id="2020-12-7"><span class="date">12月7日</span><br/>
-<b>LEC 23（实时）：</b> <a href="lec/l-rcu.txt">RCU 注释</a>, <a href="https://pdos.csail.mit.edu/6.S081/2020/lec/l-rcu.pdf">2018年幻灯片</a> <a href="https://youtu.be/KUwyCGMTeq8"> （视频）</a><br/>
-<span class="reading"><b>准备工作</b>：阅读 <a href="readings/rcu-decade-later.pdf">RCU 论文 (2013)</a>, <a href="lec/rcu-faq.txt">常见问题解答</a></span><br/>
-<span class="hwdue"><b>家庭作业 21 到期：</b> <a href="homework/q.html">问题</a></span></td>
+<b>第23讲 (rtm)：</b> <a href="lec/l-rcu.txt">RCU 笔记</a>, <a href="https://pdos.csail.mit.edu/6.S081/2020/lec/l-rcu.pdf">2018年幻灯片</a> <a href="https://youtu.be/KUwyCGMTeq8"> （视频）</a><br/>
+<span class="reading"><b>预习</b>：阅读 <a href="readings/rcu-decade-later.pdf">RCU 论文 (2013)</a>, <a href="lec/rcu-faq.txt">常见问题</a></span><br/>
+<span class="hwdue"><b>作业 21 截止：</b> <a href="homework/q.html">问题</a></span></td>
 <td class="important" id="2020-12-8"><span class="date">12月8日</span><br/>
-<span class="deadline"><b>到期日</b>: 实验室网</span></td>
+<span class="deadline"><b>截止</b>：Lab net</span></td>
 <td class="lecture" id="2020-12-9"><span class="date">12月9日</span><br/>
-    课程的最后一天<br/>
-<b>LEC 24（前）：</b> Q&amp;A  <a href="https://youtu.be/W9m6m0OGNB8"> （视频）</a><br/>
-<span class="hwdue"><b>作业 22 到期：</b> <a href="homework/QA.html">问题</a></span></td>
+    最后一天上课<br/>
+<b>第24讲（fk）：</b> Q&amp;A  <a href="https://youtu.be/W9m6m0OGNB8"> （视频）</a><br/>
+<span class="hwdue"><b>作业 22 截止：</b> <a href="homework/QA.html">问题</a></span></td>
 <td id="2020-12-10"><span class="date">12月10日</span></td>
-<td id="2020-12-11"><span class="date">12 月 11 日</span></td>
+<td id="2020-12-11"><span class="date">12月11日</span></td>
 </tr>
 </tr></table>
 <script type="text/javascript">
@@ -348,12 +348,12 @@ for (var fwd = 0; fwd < 3; fwd++) {
 <!-- End Page Content -->
 <hr/>
 <font style="font-size: 12px;">
-<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<p>对 6.S081 有任何问题或意见？请发送电子邮件至课程教员：
 <a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="schedule.html#top">顶部</a></b> //
-<b><a href="index.html">S6.081 首页</a></b> // 
-<i>最后更新时间：美国东部时间 2020 年 12 月 9 日星期三 18:30:26</i>
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="schedule.html#top">返回顶部</a></b> //
+<b><a href="index.html">6.S081 主页</a></b> // 
+<i>最后更新于 2020年12月9日（周三）18:30:26 EST</i>
 </p></p></font>
 </p></div>
 <script src="js/jquery-1.10.2.min.js"></script>

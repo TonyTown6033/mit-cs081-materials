@@ -4,36 +4,36 @@
 <link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <h1>实验：xv6 的写时复制 fork
-<p> 虚拟内存提供了一定程度的间接性：内核可以通过将 PTE 标记为无效或只读来拦截内存引用，从而导致页面错误，并且可以通过修改 PTE 来更改地址的含义。计算机系统中有一种说法，任何系统问题都可以通过一定程度的间接解决。惰性分配实验室提供了一个例子。本实验探讨了另一个示例：copy-on write fork。
+<p> 虚拟内存提供了一层间接性：内核可以通过将 PTE 标记为无效或只读来拦截内存引用，从而触发页面错误，并可以通过修改 PTE 来改变地址的含义。计算机系统领域有一句名言：任何系统问题都可以通过增加一层间接性来解决。惰性分配实验提供了一个例子，本实验则探讨另一个例子：写时复制 fork。
     
-<p>要启动实验室，请切换到cow分支：
+<p>要开始本实验，请切换到 cow 分支：
 <pre>
 $ <kbd>git fetch</kbd>
 $ <kbd>git checkout cow</kbd>
 $ <kbd>make clean</kbd>
 </pre>
-<h2>问题</h2>
+<h2>问题描述</h2>
 
-xv6 中的 fork() 系统调用将父进程的所有用户空间内存复制到子进程中。如果父级很大，复制可能需要很长时间。更糟糕的是，工作常常被浪费掉。例如，子进程中的 fork() 后跟 exec() 将导致子进程丢弃复制的内存，可能不会使用其中的大部分内存。另一方面，如果父级和子级都使用一个页面，并且一个或两个都写入该页面，则确实需要一个副本。
+xv6 中的 fork() 系统调用会将父进程的所有用户态内存复制到子进程中。如果父进程占用内存较大，复制过程可能耗费大量时间。更糟糕的是，这些工作往往大部分都是徒劳的；例如，子进程在 fork() 之后紧接着调用 exec()，将导致子进程丢弃已复制的内存，而其中大部分可能根本未被使用过。另一方面，如果父子进程都需要使用某个页面，且其中一方或双方对其进行了写操作，则确实需要进行复制。
 
 <h2>解决方案</h2>
 
-写时复制 (COW) fork() 的目标是推迟为子级分配和复制物理内存页，直到实际需要副本（如果有）。
+写时复制（COW）fork() 的目标是推迟为子进程分配和复制物理内存页的时机，直到真正需要时才进行复制（如果需要的话）。
 
 <p>
-COW fork() 只为子进程创建一个页表，用户内存的 PTE 指向父进程的物理页。 COW fork() 将父级和子级中的所有用户 PTE 标记为不可写。当任一进程尝试写入其中一个 COW 页时，CPU 将强制发生页错误。内核页面错误处理程序检测到这种情况，为错误进程分配物理内存页面，将原始页面复制到新页面，并修改错误进程中的相关 PTE 以引用新页面，这次 PTE 标记为可写。当页面错误处理程序返回时，用户进程将能够写入其页面副本。
+COW fork() 仅为子进程创建一个页表，其中用户内存的 PTE 指向父进程的物理页。COW fork() 将父子进程中所有用户态 PTE 均标记为不可写。当任意一个进程尝试写入这些 COW 页时，CPU 将触发页面错误。内核的页面错误处理程序检测到这种情况后，会为发生错误的进程分配一个物理内存页，将原始页内容复制到新页中，并修改该进程中对应的 PTE 以指向新页，同时将该 PTE 标记为可写。页面错误处理程序返回后，用户进程便可以对其私有的页面副本进行写操作。
 
 <p>
-COW fork() 使得释放实现用户内存的物理页变得有点棘手。给定的物理页可能被多个进程的页表引用，并且仅当最后一个引用消失时才应释放。
+COW fork() 使得释放实现用户内存的物理页变得稍加复杂。某个物理页可能同时被多个进程的页表所引用，只有当最后一个引用消失时，该物理页才应被释放。
 
-<h2>实现复制写入<script>g("hard")</script></h2>
+<h2>实现写时复制<script>g("hard")</script></h2>
 <p>
 <div class="required">
-您的任务是在 xv6 内核中实现写时复制 fork。如果修改后的内核成功执行了owtest 和usertests 程序，那么您就完成了。
+您的任务是在 xv6 内核中实现写时复制 fork。如果您修改后的内核能够成功执行 cowtest 和 usertests 程序，则表示任务完成。
 </div>
-<p>为了帮助您测试您的实现，我们提供了一个名为cowtest 的xv6 程序（源代码位于user/cowtest.c 中）。 owtest 运行各种测试，但即使是第一个测试也会在未经修改的 xv6 上失败。因此，最初，您将看到：
+<p>为了帮助你测试你的实现，我们提供了一个名为 cowtest 的 xv6 程序（源代码位于 user/cowtest.c）。cowtest 运行各种测试，但即使是第一个测试也会在未修改的 xv6 上失败。因此，最初你会看到：
 
 <pre>
 $ <kbd>cowtest</kbd>
@@ -41,10 +41,10 @@ simple: fork() failed
 $ 
 </pre>
 
-“简单”测试分配一半以上的可用物理内存，然后 fork()。分叉失败是因为没有足够的可用物理内存来为子进程提供父进程内存的完整副本。
+"simple"测试分配了超过一半的可用物理内存，然后调用 fork()。由于没有足够的空闲物理内存为子进程提供父进程内存的完整副本，fork 失败。
 
 <p>
-完成后，您的内核应该通过owtest和usertest中的所有测试。即：
+完成后，您的内核应通过 cowtest 和 usertests 中的所有测试。即：
 
 <pre>
 $ <kbd>cowtest</kbd>
@@ -64,51 +64,50 @@ ALL TESTS PASSED
 $
 </pre>
 <p>
-这是一个合理的攻击计划。
+以下是一个合理的攻略方案。
 
 <ol>
-<li> 修改 uvmcopy() 以将父级的物理页面映射到子级，而不是分配新页面。清除 <tt>PTE_W</tt> 孩子和家长的 PTE 成绩。
+<li> 修改 `uvmcopy()`，将父进程的物理页映射到子进程，而不是分配新页。清除 <tt>PTE_W</tt> 在子进程和父进程的 PTE 中。
 
-<li> 修改 usertrap() 以识别页面错误。当 COW 页面上发生页面错误时，使用 kalloc() 分配一个新页面，将旧页面复制到新页面，然后使用以下命令将新页面安装到 PTE 中： <tt>PTE_W</tt>
-set.
+<li> 修改 `usertrap()`，使其能够识别缺页错误。当 COW 页面发生缺页错误时，使用 `kalloc()` 分配一个新页面，将旧页面的内容复制到新页面，并将新页面通过以下方式安装到 PTE 中： <tt>PTE_W</tt>
+集合。
 
-<li> 确保每个物理页在最后一个 PTE 引用消失时被释放——但不是在此之前。实现此目的的一个好方法是为每个物理页保留引用该页的用户页表数量的“引用计数”。当以下情况时，将页面的引用计数设置为 1： <tt>kalloc()</tt> 分配它。当 fork 导致子进程共享页面时增加页面的引用计数，并在每次任何进程从其页表中删除页面时减少页面的计数。
-<tt>kfree()</tt> 仅当其引用计数为零时才应将页面放回空闲列表。将这些计数保存在固定大小的整数数组中是可以的。您必须制定一个如何索引数组以及如何选择其大小的方案。例如，您可以使用页面的物理地址除以 4096 来索引该数组，并为该数组提供等于放置在空闲列表上的任何页面的最高物理地址的元素数 <tt>kinit()</tt> in
-kalloc.c.
+<li> 确保每个物理页面在最后一个引用它的 PTE 消失时才被释放——而不是更早。一个好的方法是，为每个物理页面维护一个"引用计数"，记录有多少用户页表引用了该页面。当 <tt>kalloc()</tt> 在 fork 导致子进程共享该页面时增加页面的引用计数，并在任何进程将该页面从其页表中移除时减少页面的计数。
+<tt>kfree()</tt> 只有当页面的引用计数为零时，才应将其放回空闲列表。可以将这些计数保存在一个固定大小的整数数组中。你需要设计一种方案来确定数组的索引方式以及如何选择其大小。例如，可以用页面的物理地址除以 4096 作为数组索引，并将数组元素个数设置为等于由 <tt>kinit()</tt> 在 kalloc.c 中。
 
-<li> 修改 copyout() 以在遇到 COW 页面时使用与页面错误相同的方案。
+<li> 修改 copyout()，使其在遇到 COW 页面时采用与处理缺页故障相同的方案。
 
 </li></li></li></li></ol>
 <p>一些提示：
 
   <ul>
-<li>惰性页面分配实验室可能使您熟悉了许多与写时复制相关的 xv6 内核代码。但是，您不应该将此实验基于您的惰性分配解决方案；相反，请按照上面的指示从 xv6 的新副本开始。
+<li>惰性分配实验很可能已经让你熟悉了与写时复制相关的大部分 xv6 内核代码。但是，请不要在你的惰性分配解答的基础上完成本实验；请按照上述要求，从一份全新的 xv6 代码开始。
 
 <li>
-对于每个 PTE，有一种方法来记录它是否是 COW 映射可能会很有用。为此，您可以使用 RISC-V PTE 中的 RSW（为软件保留）位。
+为每个 PTE 记录其是否为 COW 映射可能会有所帮助。你可以使用 RISC-V PTE 中的 RSW（软件保留）位来实现这一点。
 
 <li>
-<tt>usertests</tt> 探索场景 <tt>cowtest</tt> 不进行测试，所以不要忘记检查两者的所有测试是否都通过。
+<tt>usertests</tt> 探测了一些 <tt>cowtest</tt> 未测试的场景，因此不要忘记检查两者的所有测试均能通过。
 
-<li>一些有用的宏和页表标志的定义位于 <tt>kernel/riscv.h</tt>.
+<li>一些关于页表标志位的有用宏和定义位于 <tt>kernel/riscv.h</tt>.
 
-<li>如果发生 COW 页面错误并且没有可用内存，则应终止该进程。
+<li>如果发生 COW 缺页故障且没有可用内存，则应终止该进程。
 
   </li></li></li></li></li></ul>
 <p><a name="submit">
-<h2>提交实验室</h2>
-<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
+<h2>提交实验</h2>
+<p><b>本实验至此完成。</b> 确保你通过了所有 make grade 测试。如果本实验包含问题，不要忘记将答案写入 answers-<i>lab-name</i>.txt。提交你的更改（包括添加 answers-<i>lab-name</i>.txt），并在实验目录中运行 make handin 以提交实验。
 
-<h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
-<tt>git commit</tt> 文件。
+<h3>所用时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中填入一个整数，表示你在本实验上花费的小时数。不要忘记 <tt>git add</tt> 和
+<tt>git commit</tt> 该文件。
 
 <h3>提交</h3>
 
-您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
+你将通过 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。在提交任何作业或实验之前，您需要先从提交网站申请一个 API 密钥。
 </p>
-<p>将最终更改提交到实验室后，输入 <kbd>make
-handin</kbd> 提交您的实验室。
+<p>在将实验的最终更改提交（commit）后，输入 <kbd>make
+handin</kbd> 以提交您的实验。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -123,37 +122,37 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
-再次生成它（<i>myapi.key</i> 不得包含换行符）。
+<kbd>make handin</kbd> 将把您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+重新生成（<i>myapi.key</i> 不得包含换行符）。
 </p>
 <p>
-如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+如果您运行 <kbd>make handin</kbd> 时存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <kbd>??</kbd>开头的行中。您可以让 <tt>git</tt> 以追踪你使用以下命令创建的新文件
 <tt>git add filename</tt>.
 </p>
 <p>
-如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用 curl 或 Git 命令修复该问题。或者你可以运行 <kbd>make tarball</kbd>。这将为你生成一个 tar 文件，你可以通过我们的 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网页界面</a>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请运行“makegrade”以确保您的代码通过所有测试</li>
-<li>在运行“make handin”之前提交任何修改的源代码</li>
-<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行 `make grade` 以确保你的代码通过所有测试</li>
+<li>在运行 `make handin` 之前，请先提交所有已修改的源代码</li>
+<li>你可以在以下地址查看提交状态并下载已提交的代码 <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-<h2>可选的挑战练习</h2>
+<h2>可选挑战练习</h2>
 <ul>
-<li>修改 xv6 以支持惰性页面分配和 COW。
+<li>修改 xv6，使其同时支持惰性分配和写时复制（COW）。
 
-  <li>测量您的 COW 实现减少了多少字节 xv6 副本数及其分配的物理页数。寻找并利用机会进一步减少这些数字。
+  <li>测量你的 COW 实现减少了多少 xv6 复制的字节数以及分配的物理页数。寻找并利用机会进一步减少这些数量。
 
 </li></li></ul>
 </p></p></a></p></p></p></p></p></p></p></p></p></p></h1></body>

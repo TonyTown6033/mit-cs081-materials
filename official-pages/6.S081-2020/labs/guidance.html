@@ -1,61 +1,61 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
-<title>实验室指导</title>
+<title>实验指南</title>
 <link href="labs.css" rel="stylesheet" type="text/css"/>
 </head>
-<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
-<h1>实验室指导</h1>
-<h2>作业的难度</h2>
-<p>每项作业都表明其难度：
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
+<h1>实验指南</h1>
+<h2>作业难度</h2>
+<p>每项作业均标注了其难度等级：
   <ul>
-<li><p><span class="easy">简单</span>: 不到一个小时。这些练习通常是后续练习的热身练习。</p></li>
-<li><p><span class="moderate">中等</span>：1-2小时。</p></li>
-<li><p><span class="hard">硬</span>: 2个多小时。通常，这些练习不需要太多代码，但要正确编写代码却很困难。</p></li>
+<li><p><span class="easy">简单</span>：不到一小时。这些练习通常是后续练习的热身。</p></li>
+<li><p><span class="moderate">中等</span>：1–2 小时。</p></li>
+<li><p><span class="hard">困难</span>：超过 2 小时。这类练习通常不需要太多代码，但要写对却颇具技巧性。</p></li>
 </ul>
-  这些时间是我们预期的粗略估计。对于某些可选作业，我们没有解决方案，而且难度也只能靠猜测。如果您发现自己在任务上花费的时间比我们预期的要多，请联系广场或在办公时间前来。
+  以上时间仅为我们的粗略预估。部分选做作业我们没有参考答案，难度评级也只是大致猜测。如果你发现自己在某项作业上花费的时间超出预期，请在 Piazza 上留言或前来参加答疑课时。
   
-<p>一般来说，练习不需要很多行代码（几十到几百行），但代码在概念上很复杂，而且往往细节很重要。因此，请确保完成实验室指定的阅读，通读相关文件，查阅文档（RISC-V 手册等位于 <a href="../reference.html">参考页</a>）在编写任何代码之前。只有当你牢牢掌握了作业和解决方案后，才开始编码。当你开始编码时，分小步实施你的解决方案（作业通常建议如何将问题分解为更小的步骤），并在继续下一个步骤之前测试每个步骤是否有效。
+<p>这些练习通常不需要太多代码（从几十行到几百行不等），但代码在概念上较为复杂，细节往往至关重要。因此，请务必完成实验的指定阅读材料，通读相关文件，并查阅相关文档（RISC-V 手册等可在 <a href="../reference.html">参考资料页面</a>）之前，请先阅读并理解相关的 xv6 章节内容。只有当你对作业要求和解题思路有了充分把握之后，再开始编写代码。开始编码时，请将解决方案分小步骤实现（作业通常会提示如何将问题拆分为更小的步骤），并在继续下一步之前验证每个步骤是否正确。
 
 <div class="warning">
-<p>警告：不要在实验截止日期前一天晚上开始实验；在几天内分几次进行实验会更节省时间。操作系统内核中错误的表现可能令人困惑，可能需要大量思考和仔细调试才能理解和修复。
+<p>警告：不要在实验截止日期的前一晚才开始做实验；将实验分散到多天、分多次完成会大大提高效率。操作系统内核中的错误表现往往令人困惑，可能需要大量思考和仔细调试才能理解并修复。
 </p></div>
 <h2>调试技巧</h2>
 
-以下是调试解决方案的一些提示：
+以下是一些调试解答的技巧：
 <ul>
-<li><p>确保您了解 C 和指针。 Kernighan 和 Ritchie 所著的《C 编程语言（第二版）》一书对 C 进行了简洁的描述。一些有用的指针练习是
-    <a href="https://pdos.csail.mit.edu/6.828/2019/lec/pointers.c">这里</a>。除非您已经精通 C 语言，否则请勿跳过或浏览上面的指针练习。如果你不真正理解 C 中的指针，你将在实验室中遭受难以言喻的痛苦和痛苦，然后最终以艰难的方式理解它们。相信我们；你不想知道什么是“艰难的道路”。
+<li><p>确保你理解 C 语言和指针。Kernighan 与 Ritchie 所著的《The C programming language (second edition)》是对 C 语言的简明描述。以下是一些有用的指针练习：
+    <a href="https://pdos.csail.mit.edu/6.828/2019/lec/pointers.c">这里</a>除非你已经对 C 语言了如指掌，否则不要跳过或略读上面的指针练习。如果你没有真正理解 C 语言中的指针，你将在实验中遭受无尽的痛苦与折磨，最终只能以惨痛的方式弄懂它们。相信我们——你不会想知道"惨痛的方式"究竟意味着什么。
     
-  <p>一些指针常见的习惯用法特别值得记住：
+  <p>以下几种常见的指针惯用法尤其值得牢记：
 <ul>
-<li>如果 <code>int *p = (int*)100</code>，那么 
+<li>如果 <code>int *p = (int*)100</code>，然后 
     <code>(int)p + 1</code> 和 <code>(int)(p + 1)</code>
-    是不同的数字：第一个是 <code>101</code> 但第二个是 <code>104</code>。当向指针添加整数时，如第二种情况，整数会隐式乘以指针指向的对象的大小。</li>
-<li><code>p[i]</code> 被定义为相同 <code>*(p+i)</code>，引用p指向的内存中的第i个对象。当对象大于一字节时，上述加法规则有助于此定义起作用。</li>
-<li> <code>&amp;p[i]</code> 是一样的 <code>(p+i)</code>，产生 p 指向的内存中第 i 个对象的地址。</li>
+    是不同的数字：第一个是 <code>101</code> 但第二个是 <code>104</code>。当将整数与指针相加时（如第二种情况），该整数会隐式地乘以指针所指向对象的大小。</li>
+<li><code>p[i]</code> 其定义与以下表达式相同 <code>*(p+i)</code>，指向 p 所指内存中第 i 个对象。当对象大小超过一个字节时，上述加法规则使该定义仍然成立。</li>
+<li> <code>&amp;p[i]</code> 与以下表达式等价 <code>(p+i)</code>，得到 p 所指内存中第 i 个对象的地址。</li>
 </ul>
 <p>
-尽管大多数 C 程序从不需要在指针和整数之间进行转换，但操作系统却经常这样做。每当您看到涉及内存地址的加法时，问问自己这是整数加法还是指针加法，并确保所加的值是否适当地相乘。
+尽管大多数 C 程序无需在指针与整数之间进行强制类型转换，但操作系统却经常需要这样做。每当看到涉及内存地址的加法运算时，请思考这是整数加法还是指针加法，并确认被加的值是否已经过适当的乘法处理。
   </p></p></p></li>
-<li><p>如果您的练习部分有效，请通过提交代码来检查进度。如果您稍后破坏了某些内容，则可以回滚到检查点并以较小的步骤前进。要了解有关 Git 的更多信息，请查看
-  <a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git 用户手册</a>，或者，你可能会发现这个
-<a href="http://eagain.net/articles/git-for-computer-scientists/">面向 CS 的 Git 概述</a> useful. </p></li>
-<li><p>如果测试失败，请确保您了解代码未通过测试的原因。插入打印语句，直到您了解发生了什么。</p></li>
-<li><p>您可能会发现您的 print 语句可能会产生很多您想要搜索的输出；一种方法是运行
-  <tt>make qemu</tt> 里面的 <tt>script</tt> （运行 <kbd>man
-  script</kbd> 在您的计算机上），它将所有控制台输出记录到一个文件中，然后您可以搜索该文件。不要忘记退出 <tt>script</tt>.
+<li><p>如果某道练习已部分完成，请通过提交代码来保存进度。若后续出现问题，可以回滚到该检查点并以更小的步骤继续推进。如需深入了解 Git，请参阅
+  <a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git 用户手册</a>，或者，您也可以参考这份
+<a href="http://eagain.net/articles/git-for-computer-scientists/">面向计算机科学的 Git 概览</a> ，可能会对您有所帮助。 </p></li>
+<li><p>如果某项测试未通过，请务必弄清楚代码失败的原因。插入打印语句，直到明确问题所在。</p></li>
+<li><p>您可能会发现打印语句产生了大量输出需要检索；一种方法是运行
+  <tt>make qemu</tt> 内部 <tt>script</tt> （运行 <kbd>man
+  script</kbd> 在你的机器上），它会将所有控制台输出记录到一个文件中，你随后可以对其进行搜索。不要忘记退出 <tt>script</tt>.
   </p></li>
-<li><p>在许多情况下，打印语句就足够了，但有时能够单步执行某些汇编代码或检查堆栈上的变量会很有帮助。要将 gdb 与 xv6 一起使用，请运行 make <kbd>make qemu-gdb</kbd> 在一个窗口中，运行 <kbd>gdb</kbd> （或 <kbd>riscv64-linux-gnu-gdb</kbd>）在另一个窗口中，设置一个断点，然后是“c”（继续），xv6 将运行直到遇到断点。 （参见 <a href="https://pdos.csail.mit.edu/6.828/2019/lec/gdb_slides.pdf">使用 GNU 调试器</a> 获取有用的 GDB 提示。）
+<li><p>在许多情况下，打印语句已经足够，但有时能够逐步执行某些汇编代码或检查栈上的变量会很有帮助。要在 xv6 中使用 gdb，请在一个窗口中运行 make <kbd>make qemu-gdb</kbd> 在另一个窗口中运行 <kbd>gdb</kbd> （或 <kbd>riscv64-linux-gnu-gdb</kbd>），设置断点，然后输入 'c'（continue，继续），xv6 将运行直到命中断点。（参见 <a href="https://pdos.csail.mit.edu/6.828/2019/lec/gdb_slides.pdf">GNU 调试器使用指南</a> 以获取有用的 GDB 技巧。）
   </p></li>
-<li><p>如果您想查看编译器为内核生成的程序集是什么，或者想了解特定内核地址处的指令是什么，请参阅该文件 <tt>kernel.asm</tt>，Makefile 在编译内核时生成。 （Makefile 还生成 <tt>.asm</tt> 对于所有用户程序。）
+<li><p>如果你想查看编译器为内核生成的汇编代码，或者想找出某个特定内核地址处的指令，请参见文件 <tt>kernel.asm</tt>，该文件由 Makefile 在编译内核时生成。（Makefile 还会为所有用户程序生成 <tt>.asm</tt> 。）
   </p></li>
-<li><p>如果内核发生恐慌，它将打印一条错误消息，列出崩溃时程序计数器的值；你可以搜索 <tt>kernel.asm</tt> 找出程序计数器崩溃时在哪个函数中，或者您可以运行 <kbd>addr2line -e
-  kernel/kernel <i>pc-value</i></kbd> （运行 <kbd>man addr2line</kbd>
-  了解详情）。如果您想获得回溯，请使用 gdb 重新启动：在一个窗口中运行“make qemu-gdb”，在另一个窗口中运行 gdb（或 riscv64-linux-gnu-gdb），在恐慌中设置断点（“b恐慌”），然后是“c”（继续）。当内核到达断点时，输入“bt”以获取回溯。
+<li><p>如果内核发生崩溃（panic），它将打印一条错误信息，列出崩溃时程序计数器的值；你可以搜索 <tt>kernel.asm</tt> 要找出程序崩溃时程序计数器所在的函数，或者你可以运行 <kbd>addr2line -e
+  kernel/kernel <i>pc值</i></kbd> （运行 <kbd>man addr2line</kbd>
+  详情请参阅相关说明）。如果你想获取回溯信息，请使用 gdb 重新启动：在一个窗口中运行 'make qemu-gdb'，在另一个窗口中运行 gdb（或 riscv64-linux-gnu-gdb），在 panic 处设置断点（'b panic'），然后输入 'c'（continue）继续执行。当内核触发断点时，输入 'bt' 以获取回溯信息。
   </p></li>
-<li><p>如果您的内核挂起（例如，由于死锁）或无法进一步执行（例如，由于执行内核指令时出现页面错误），您可以使用 gdb 找出挂起的位置。在一个窗口中运行“make qemu-gdb”，在另一个窗口中运行 gdb (riscv64-linux-gnu-gdb)，然后运行“c”（继续）。当内核出现挂起时，在 qemu-gdb 窗口中按 Ctrl-C 并输入“bt”以获取回溯。
+<li><p>如果你的内核挂起（例如，由于死锁）或无法继续执行（例如，由于执行内核指令时发生页错误），你可以使用 gdb 找出其挂起位置。在一个窗口中运行 `make qemu-gdb`，在另一个窗口中运行 gdb（`riscv64-linux-gnu-gdb`），然后输入 `c`（continue）继续执行。当内核出现挂起时，在 qemu-gdb 窗口中按 Ctrl-C，然后输入 `bt` 获取回溯信息。
   </p></li>
-<li><tt>qemu</tt> 有一个“监视器”，可让您查询模拟计算机的状态。您可以通过输入 control-a c （“c”代表控制台）来获取它。一个特别有用的监视命令是 <tt>info mem</tt> 打印页表。您可能需要使用 <tt>cpu</tt> 命令选择哪个核心 <tt>info mem</tt> 看看，或者你可以启动 qemu <tt>make CPUS=1 qemu</tt> 导致只有一个核心。
+<li><tt>qemu</tt> 有一个"监视器"，让你可以查询模拟机器的状态。你可以通过输入 control-a c 来进入它（"c"代表控制台）。一个特别有用的监视器命令是 <tt>info mem</tt> 打印页表。你可能需要使用 <tt>cpu</tt> 命令来选择核心 <tt>info mem</tt> 查看，或者你可以通过以下命令启动 qemu： <tt>make CPUS=1 qemu</tt> 使其只使用单个核心。
 
 </li></ul>
 

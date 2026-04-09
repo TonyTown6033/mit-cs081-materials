@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料</a></li>
@@ -76,23 +76,23 @@
 <div class="container">
 <!-- START SECTION: body -->
 <h1>实验：xv6 与 Unix 工具</h1>
-<p>本实验将让您熟悉 xv6 及其系统调用。
+<p>本实验将帮助你熟悉 xv6 及其系统调用。
 
-<h2>启动xv6 <script>g("easy")</script></h2>
+<h2>启动 xv6 <script>g("easy")</script></h2>
 <p>
-看看
-<a href="https://pdos.csail.mit.edu/6.1810/2025/labs/tools.html">实验工具页面</a> 有关如何设置计算机来运行这些实验的信息。
+看一看
+<a href="https://pdos.csail.mit.edu/6.1810/2025/labs/tools.html">实验工具页面</a> 了解如何配置你的计算机以运行这些实验。
 
-<p>获取实验 xv6 源代码的 git 存储库：
+<p>获取本实验 xv6 源代码的 Git 仓库：
 <pre>
 $ <kbd>git clone git://g.csail.mit.edu/xv6-labs-2025</kbd>
 Cloning into 'xv6-labs-2025'...
 ...
 $ <kbd>cd xv6-labs-2025</kbd>
 </pre>
-<p>本实验和后续实验所需的文件是使用 <a href="http://www.git-scm.com/">git</a> 版本控制系统。对于每个实验室，您都将查看专为该实验室定制的 xv6 版本。要了解有关 Git 的更多信息，请查看
-<a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git 用户手册</a>，或者这个
-<a href="http://eagain.net/articles/git-for-computer-scientists/">面向 CS 的 Git 概述</a>。 Git 允许您跟踪对代码所做的更改。例如，如果您完成了其中一项练习，并想要检查您的进度，您可以 <i>提交</i> 通过运行进行更改：
+<p>本实验及后续实验所需的文件通过 <a href="http://www.git-scm.com/">Git</a> 版本控制系统分发。每个实验对应一个专为该实验定制的 xv6 版本，你需要切换到相应的版本。如需深入了解 Git，请参阅
+<a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git 用户手册</a>，或参考这份
+<a href="http://eagain.net/articles/git-for-computer-scientists/">面向计算机科学的 Git 概览</a>。Git 允许你追踪对代码所做的修改。例如，当你完成某个练习并希望保存当前进度时，可以 <i>提交</i> 你的更改，运行：
 </p>
 <pre>
 $ <kbd>git commit -am 'my solution for util lab exercise 1'</kbd>
@@ -101,8 +101,8 @@ Created commit 60d2135: my solution for util lab exercise 1
 $
 </pre>
 <p>
-您可以使用以下命令查看您的更改 <kbd>git diff</kbd>，它显示自上次提交以来的更改。 <kbd>git diff
-origin/util</kbd> 显示相对于初始值的变化 <tt>util</tt> code.  <tt>origin/util</tt> 是本实验 git 分支的名称。
+你可以通过以下命令查看你的更改 <kbd>git diff</kbd>，显示自上次提交以来的更改。 <kbd>git diff
+origin/util</kbd> 显示相对于初始版本的更改 <tt>util</tt> 代码。  <tt>origin/util</tt> 是本实验的 git 分支名称。
 </p>
 <p>构建并运行 xv6：
 <pre>
@@ -127,7 +127,7 @@ init: starting sh
 $
 </pre>
 <p>
-如果您输入 <tt>ls</tt> 在提示符处，您应该看到类似于以下内容的输出：
+如果你在提示符处输入 <tt>ls</tt> ，你应该会看到类似如下的输出：
 <pre>
 $ <kbd>ls</kbd>
 .              1 1 1024
@@ -152,42 +152,42 @@ wc             2 18 33816
 zombie         2 19 31080
 console        3 20 0
 </pre>
-这些是文件 <tt>mkfs</tt> 包含在初始文件系统中；大多数是您可以运行的程序。您刚刚运行了其中之一： <tt>ls</tt>.
+这些是 <tt>mkfs</tt> 在初始文件系统中包含的文件；其中大多数是可以运行的程序。你刚刚运行了其中一个： <tt>ls</tt>.
 
-<p>xv6没有 <tt>ps</tt> 命令，但是，如果您输入 <kbd>Ctrl-p</kbd>，内核将打印每个进程的信息。如果您现在尝试，您将看到两行：一行代表 <tt>init</tt>，还有一个用于 <tt>sh</tt>.
+<p>xv6 没有 <tt>ps</tt> 命令，但如果你输入 <kbd>Ctrl-p</kbd>，内核将打印每个进程的信息。如果你现在尝试，将会看到两行：一行对应 <tt>init</tt>，以及一个用于 <tt>sh</tt>.
 
-<p>要退出 qemu，请输入： <kbd>Ctrl-a x</kbd> （按 <kbd>Ctrl</kbd> 和 <kbd>a</kbd> 同时，紧接着 <kbd>x</kbd>).
+<p>要退出 qemu，请输入： <kbd>Ctrl-a x</kbd> （同时按 <kbd>Ctrl</kbd> 和 <kbd>a</kbd> ，然后按 <kbd>x</kbd>).
 
-<h2>睡觉 <script>g("easy")</script></h2>
-<p>本练习使您熟悉在 xv6 上编写用户程序以及 <tt>pause</tt> 系统调用。
+<h2>sleep <script>g("easy")</script></h2>
+<p>本练习帮助你熟悉如何在 xv6 上编写用户程序，以及 <tt>pause</tt> 系统调用。
 
 <div class="lab-required">
-<p>实现用户级 <tt>sleep</tt> xv6 的程序，类似于 UNIX sleep 命令。你的 <tt>sleep</tt> 应暂停用户指定的刻度数。时钟周期是 xv6 内核定义的时间概念，即定时器芯片两次中断之间的时间。您的解决方案应该在文件中
+<p>为 xv6 实现一个用户态的 <tt>sleep</tt> 程序，仿照 UNIX sleep 命令的方式。你的 <tt>sleep</tt> 应暂停用户指定的 tick 数。tick 是 xv6 内核定义的时间单位，即计时器芯片两次中断之间的时间间隔。你的解答应位于文件
   <tt>user/sleep.c</tt>.
 </p></div>
 <p>
 <p>一些提示：
   <ul>
-<li>在开始编码之前，请阅读本书的第 1 章 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a>.
+<li>开始编写代码前，请阅读 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a>.
 
-    <li>将您的代码放入 <tt>user/sleep.c</tt>。看看其他一些程序 <tt>user/</tt>
-    （例如， <tt>user/echo.c</tt>, <tt>user/grep.c</tt>, 和 <tt>user/rm.c</tt>）来查看命令行参数如何传递给程序。
+    <li>将你的代码放入 <tt>user/sleep.c</tt>。查看 <tt>user/</tt>
+    （例如， <tt>user/echo.c</tt>, <tt>user/grep.c</tt>以及 <tt>user/rm.c</tt>）中的一些其他程序，了解命令行参数是如何传递给程序的。
 
-    <li>添加您的 <tt>sleep</tt> 编程到 <tt>UPROGS</tt> 在 Makefile 中；一旦你这样做了， <tt>make qemu</tt> 将编译您的程序，您将能够从 xv6 shell 运行它。
+    <li>将你的 <tt>sleep</tt> 程序添加到 <tt>UPROGS</tt> 的 Makefile 中；完成后， <tt>make qemu</tt> 将编译你的程序，你就可以在 xv6 shell 中运行它了。
 
-    <li>如果用户忘记传递参数，sleep 应该打印一条错误消息。
+    <li>如果用户忘记传递参数，sleep 应打印一条错误信息。
 
-    <li>命令行参数作为字符串传递；您可以使用将其转换为整数 <tt>atoi</tt> （参见 user/ulib.c）。
+    <li>命令行参数以字符串形式传入；你可以使用 <tt>atoi</tt> （参见 user/ulib.c）将其转换为整数。
 
     <li>使用系统调用 <tt>pause()</tt>.
 
-    <li>参见 <tt>kernel/sysproc.c</tt> 对于实现以下功能的 xv6 内核代码 <tt>pause()</tt> 系统调用（寻找 <tt>sys_pause</tt>), <tt>user/user.h</tt>
-    对于 C 的定义 <tt>pause()</tt> 可从用户程序调用，以及 <tt>user/usys.S</tt> 对于从用户代码跳转到内核的汇编代码 <tt>pause()</tt>.
+    <li>参见 <tt>kernel/sysproc.c</tt> 用于实现该功能的 xv6 内核代码 <tt>pause()</tt> 系统调用（查找 <tt>sys_pause</tt>), <tt>user/user.h</tt>
+    的 C 定义 <tt>pause()</tt> 可从用户程序调用，以及 <tt>user/usys.S</tt> 用于从用户代码跳转到内核的汇编代码，用于 <tt>pause()</tt>.
 
-    <li>看看克尼根和里奇的书 <i>C语言程序设计（第二版）</i> (K&amp;R) 了解 C.
+    <li>参阅 Kernighan 和 Ritchie 的著作 <i>《C 程序设计语言》（第二版）</i> （K&amp;R）以学习 C 语言。
 
   </li></li></li></li></li></li></li></li></ul>
-<p>从 xv6 shell 运行程序：
+<p>在 xv6 shell 中运行该程序：
     <pre>
       $ <kbd>make qemu</kbd>
       ...
@@ -196,26 +196,26 @@ console        3 20 0
       (nothing happens for a little while)
       $
     </pre>
-<p>您的程序在运行时应该暂停，如上所示。运行 <kbd>make grade</kbd> 在命令行（qemu 之外）中查看您是否通过睡眠测试。
+<p>如上所示运行时，程序应暂停。运行 <kbd>make grade</kbd> 在命令行中（在 qemu 外部）查看是否通过 sleep 测试。
 
- <p>请注意 <kbd>make grade</kbd> 运行所有测试，包括以下任务的测试。如果您想运行一项任务的成绩测试，请输入：
+ <p>注意， <kbd>make grade</kbd> 运行所有测试，包括以下任务的测试。如果只想运行某一任务的评分测试，请输入：
    <pre>
      $ <kbd>./grade-lab-util sleep</kbd>
    </pre>
-   这将运行与“睡眠”匹配的等级测试。或者，您可以输入：
+   这将运行与 "sleep" 匹配的评分测试。或者，你也可以输入：
    <pre>
      $ <kbd>make GRADEFLAGS=sleep grade</kbd>
    </pre>
-   其作用相同。
+   其功能相同。
 
-<h2>六五 <script>g("moderate")</script></h2>
-<p>在本练习中，您将使用系统调用 open 和 read、C 字符串以及用 C 处理文本文件。
+<h2>sixfive <script>g("moderate")</script></h2>
+<p>在本练习中，你将使用系统调用 open 和 read、C 字符串以及 C 语言文本文件处理。
 
 <div class="lab-required">
-<p>对于每个输入文件， <tt>sixfive</tt> 必须打印文件中 5 或 6 的倍数的所有数字。数字是由字符串“-\r\t\n./,”中的字符分隔的十进制数字序列。因此，对于“xv6”中的 6，six Five 不应该打印 6，但是，例如“/6”，它应该打印。
+<p>对于每个输入文件， <tt>sixfive</tt> 必须打印文件中所有能被 5 或 6 整除的数字。数字是由字符串 " -\r\t\n./," 中的字符分隔的十进制数字序列。因此，对于 "xv6" 中的 6，sixfive 不应打印该 6，但例如 "/6," 中的 6 则应打印。
 </p></div>
 
-  以下示例说明了 Six Five 的行为：
+  以下示例说明了 sixfive 的行为：
   <pre>
     $ <kbd>sixfive sixfive.txt</kbd>
     5
@@ -226,35 +226,35 @@ console        3 20 0
   </pre>
 <p>一些提示：
   <ul>
-<li>当时读取输入文件一个字符
-    <li> 您可以使用以下命令测试字符是否与任何分隔符匹配 <tt>strchr</tt> （参见 user/ulib.c）。
-    <li>文件的开头和结尾是隐式分隔符。
+<li>每次读取输入文件中的一个字符
+    <li> 你可以使用以下方法判断某个字符是否匹配任意分隔符 <tt>strchr</tt> （参见 user/ulib.c）将其转换为整数。
+    <li>文件的开头和结尾视为隐式分隔符。
   </li></li></li></ul>
-<h2>内存转储 <script>g("easy")</script></h2>
+<h2>memdump <script>g("easy")</script></h2>
 <p>
-  本练习将让您更多地练习使用 C 指针。在开始之前，请阅读 Kernighan 和 Ritchie (K&amp;R) 所著的《C 编程语言（第二版）》中的第 5.1 节（指针和地址）到 5.6（指针数组）和 6.4（结构体指针）。
+  本练习将帮助你进一步练习使用 C 指针。开始之前，请阅读 Kernighan 和 Ritchie（K&amp;R）所著《C 程序设计语言（第二版）》中的 5.1 节（指针与地址）至 5.6 节（指针数组）以及 6.4 节（指向结构的指针）。
 
 <p>
-看看 <tt>user/memdump.c</tt>。你的工作是实现该功能
-<tt>memdump(char *fmt, char *data)</tt>. <tt>memdump()</tt>的目的是以 fmt 参数描述的格式打印 data 指向的内存内容。格式是 C 字符串。字符串的每个字符指示如何打印数据的连续部分。因此，例如，具有多个字段的 C 结构体可以使用包含多个字符的格式字符串进行打印。
+请参阅 <tt>user/memdump.c</tt>。你的任务是实现该函数
+<tt>memdump(char *fmt, char *data)</tt>. <tt>memdump()</tt>的作用是按照 fmt 参数所描述的格式，打印 data 所指向的内存内容。格式是一个 C 字符串。字符串中的每个字符指示如何打印数据的连续部分。因此，举例来说，一个包含多个字段的 C 结构体可以用一个包含多个字符的格式字符串来打印。
 
 <p>
 您的 memdump() 应处理以下格式字符：
 
 <ul>
-<li>i：将数据的接下来 4 个字节打印为 32 位整数（十进制）。
-<li>p：将数据的接下来 8 个字节打印为 64 位整数（以十六进制表示）。
-<li>h：将数据的接下来 2 个字节打印为 16 位整数（十进制）。
-<li>c：将数据的下一个 1 字节打印为 8 位 ASCII 字符。
-<li>s：接下来的 8 个字节的数据包含一个指向 C 字符串的 64 位指针；打印字符串。
-<li>S：其余数据包含以 null 结尾的 C 字符串的字节；打印字符串。
+<li>i：以十进制形式打印数据的后续 4 个字节，作为 32 位整数。
+<li>p：以十六进制形式打印数据中接下来的 8 个字节，作为一个 64 位整数。
+<li>h：以十进制打印数据的后续 2 个字节，作为 16 位整数。
+<li>c：将数据的下一个 1 字节以 8 位 ASCII 字符形式打印。
+<li>s：数据的接下来 8 个字节包含一个指向 C 字符串的 64 位指针；打印该字符串。
+<li>S：其余数据包含一个以空字符结尾的 C 字符串的字节；打印该字符串。
 </li></li></li></li></li></li></ul>
 <p>
-随意使用C <tt>printf()</tt> 在你的 <tt>memdump()</tt>.
+可以随意使用 C 的 <tt>printf()</tt> 在你的 <tt>memdump()</tt>.
 
 <p>
-的 <tt>memdump</tt> 程序，如果不带参数执行，则调用 <tt>memdump()</tt>
-一些示例格式字符串和数据。如果 <tt>memdump()</tt> 如果正确实现，输出将是：
+该 <tt>memdump</tt> 程序，若不带任何参数执行，则调用 <tt>memdump()</tt>
+以及一些示例格式字符串和数据。如果 <tt>memdump()</tt> 已正确实现，输出将为：
 
 <pre>
 $ memdump
@@ -280,11 +280,11 @@ l
 d
 </pre>
 <p>
-对于示例 4 输出的第一行，您可能会得到不同的十六进制地址。
+示例 4 输出的第一行，你得到的十六进制地址可能与示例不同。
 
 <p>
-如果 <tt>memdump</tt> 使用参数调用程序，它将读取其标准输入直到文件末尾，然后调用 <tt>memdump()</tt>
-与格式和输入数据。所以，有一次 <tt>memdump()</tt> 已实施：
+如果 <tt>memdump</tt> 程序在调用时带有参数，它将从标准输入读取直到文件结束，然后以格式字符串和输入数据为参数调用 <tt>memdump()</tt>
+因此，一旦 <tt>memdump()</tt> 实现完成：
 
 <pre>
 $ echo deadc0de | memdump hhcccc
@@ -299,26 +299,26 @@ $ echo deadc0de | memdump p
 $ 
 </pre>
 <div class="lab-required">
-<p>实施 <tt>memdump()</tt>.
+<p>实现 <tt>memdump()</tt>.
 </p></div>
-<h2>找到 <script>g("moderate")</script></h2>
-<p>本练习探讨路径名和目录，以及系统调用 open、read 和 fstat。
+<h2>find <script>g("moderate")</script></h2>
+<p>本练习探索路径名与目录，以及系统调用 open、read 和 fstat。
 
 <div class="lab-required">
-<p>为 xv6 编写一个简单版本的 UNIX 查找程序：查找目录树中具有特定名称的所有文件。您的解决方案应该在文件中 <tt>user/find.c</tt>.
+<p>为 xv6 编写一个简化版的 UNIX find 程序：在目录树中查找所有具有指定名称的文件。你的解答应放在文件 <tt>user/find.c</tt>.
 
 </p></div>
 <p>一些提示：
   <ul>
-<li>查看 user/ls.c 以了解如何读取目录。
-    <li>使用递归允许 find 深入到子目录。
-    <li>不要递归成“.”和 ”..”。
-    <li>每次调用时 <kbd>make qemu</kbd>，它将构建一个新的 fs.img，删除先前运行中创建的文件。如果您想使用以前使用过的文件系统启动 qemu <kbd>make qemu-fs</kbd>.
-    <li>您需要使用 C 字符串。看一下 K&amp;R（C 书），例如第 5.5 节。
-    <li> Note that == does not compare strings as in Python. Use strcmp() instead.
-    <li>将程序添加到 <tt>UPROGS</tt> 在 Makefile 中。
+<li>参阅 user/ls.c，了解如何读取目录。
+    <li>使用递归，使 find 能够进入子目录。
+    <li>不要递归进入 "." 和 ".."。
+    <li>每次你调用 <kbd>make qemu</kbd>，它都会构建一个新的 fs.img，并删除上一次运行中创建的文件。如果你希望使用上一次的文件系统启动 qemu <kbd>make qemu-fs</kbd>.
+    <li>你需要使用 C 字符串。可参阅 K&amp;R（C 语言教材），例如第 5.5 节。
+    <li> 注意，== 不像在 Python 中那样比较字符串，请改用 strcmp()。
+    <li>将该程序添加到 <tt>UPROGS</tt> 中的 Makefile 里。
   </li></li></li></li></li></li></li></ul>
-<p>您的解决方案应产生以下输出（当文件系统包含文件 <tt>b</tt>, <tt>a/b</tt> 和 <tt>a/aa/b</tt>):
+<p>你的解答应产生如下输出（当文件系统包含以下文件时 <tt>b</tt>, <tt>a/b</tt> 和 <tt>a/aa/b</tt>):
   <pre>
     $ <kbd>make qemu</kbd>
     ...
@@ -334,29 +334,29 @@ $
     ./a/aa/b
     $
   </pre>
-<p>运行 <tt>make grade</tt> 看看我们的测试是怎么想的。
+<p>运行 <tt>make grade</tt> 以查看测试的具体要求。
 
-<h2>执行 <script>g("moderate")</script></h2>
+<h2>exec <script>g("moderate")</script></h2>
 <p>本练习涉及系统调用 fork、exec 和 wait。
 
 <div class="lab-required">
-<p>添加一个“-exec <i>指令</i>” 到 <tt>find</tt>，执行程序“<tt>cmd file</tt>“对于每个文件 <i>f</i> 那个 <tt>find</tt> 查找，而不是打印匹配的文件名。
+<p>添加一个 "-exec <i>cmd</i>" 到 <tt>find</tt>，对每个文件执行程序 "<tt>cmd file</tt>" 对每个文件 <i>f</i> 满足条件的 <tt>find</tt> finds 找到的，而不是打印匹配的文件名。
 </p></div>
 
-  以下示例说明了 find -exec 行为：
+  以下示例说明了 find -exec 的行为：
   <pre>
     $ <kbd>find . wc -exec echo hi</kbd>
     hi ./wc
     $
   </pre>
-  注意，这里的命令是“echo hi”，文件是“./wc”，使得命令“echo hi ./wc”，输出“hi ./wc”。
+  注意，此处的命令为 "echo hi"，文件为 "./wc"，因此完整命令为 "echo hi ./wc"，输出结果为 "hi ./wc"。
 
 <p>一些提示：
   <ul>
-<li>使用 <tt>fork</tt> 和 <tt>exec</tt> 对每个文件调用该命令。使用 <tt>wait</tt> 在父进程中等待子进程完成命令。
-    <li>kernel/param.h 声明了 MAXARG，如果您需要声明 argv 数组，这可能很有用。
+<li>使用 <tt>fork</tt> 和 <tt>exec</tt> 以对每个文件调用该命令。使用 <tt>wait</tt> 在父进程中等待子进程完成该命令。
+    <li>kernel/param.h 中声明了 MAXARG，如果需要声明 argv 数组，该常量可能会有用。
   </li></li></ul>
-<p>要测试您的 find 解决方案，请运行 shell 脚本 findtest.sh。您的解决方案应产生以下输出：
+<p>要测试你的 find 解题方案，请运行 shell 脚本 findtest.sh。你的解题方案应产生如下输出：
   <pre>
   $ <kbd>make qemu</kbd>
   ...
@@ -368,58 +368,76 @@ hello
 hello
 $ $
   </pre>
-输出有很多 <tt>$</tt> 因为 xv6 shell 没有意识到它正在处理来自文件而不是来自控制台的命令，并打印 <tt>$</tt> 对于文件中的每个命令。
+输出中之所以有许多 <tt>$</tt>，是因为 xv6 shell 没有意识到自己正在处理的是来自文件的命令，而不是来自控制台的命令，因此会为文件中的每条命令都打印一个 <tt>$</tt>。
 
 <!-- START SECTION: submit -->
 <p><a name="submit"></a>
-<h2>提交实验室</h2>
+<h2>提交实验</h2>
 <h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并输入一个整数，即您在实验室上花费的小时数。
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 文件。
+<p>创建一个新文件， <tt>time.txt</tt>，并填入一个整数，表示你在本次实验上花费的小时数。
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 该文件。
 
 <h3>答案</h3>
-<p>如果本实验室有问题，请将您的答案写在 <tt>answers-*.txt</tt>.
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件。
+<p>如果本次实验包含问题，请将你的答案写入 <tt>answers-*.txt</tt>.
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件中。
 
 <h3>提交</h3>
-<p>作业提交由 Gradescope 处理。您将需要一个 MIT Gradescope 帐户。请参阅 Piazza 了解加入课程的入场代码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">这个链接</a>
-如果您需要更多帮助加入。
+<p>作业提交通过 Gradescope 处理。你需要一个 MIT Gradescope 账户。请在 Piazza 上查看加入课程的注册码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">此链接</a>
+如果您需要更多帮助以加入。
 
-<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传到相应的 Gradescope 作业。
+<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传至对应的 Gradescope 作业。
 
-<p> 如果你跑 <kbd>make zipball</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+<p> 如果您运行 <kbd>make zipball</kbd> ，且存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <tt>??</tt>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <tt>??</tt>开头的行中。您可以让 <tt>git</tt> 使用以下命令跟踪您创建的新文件
 <kbd>git add {filename}</kbd>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请跑 <kbd>make grade</kbd> 确保您的代码通过所有测试。 Gradescope 自动评分器将使用相同的评分程序为您提交的内容分配评分。</li>
-<li>运行前提交任何修改过的源代码 <kbd>make zipball</kbd>.</li>
-<li>您可以在 Gradescope 检查提交的状态并下载提交的代码。 Gradescope 实验室成绩是您最终的实验室成绩。</li>
+<li>请运行 <kbd>make grade</kbd> 以确保您的代码通过所有测试。Gradescope 自动评分器将使用相同的评分程序为您的提交评分。</li>
+<li>在运行之前，请提交所有已修改的源代码 <kbd>make zipball</kbd>.</li>
+<li>您可以在 Gradescope 上查看提交状态并下载已提交的代码。Gradescope 上的实验成绩即为您的最终实验成绩。</li>
 </ul>
 </div>
 <!-- END SECTION: submit -->
-<h2>可选的挑战练习</h2>
+<h2>可选挑战练习</h2>
 <ul>
-<li><p>编写一个正常运行时间程序，使用以下命令以滴答数形式打印正常运行时间 <tt>uptime</tt> 系统调用。 <script>g("easy")</script>
+<li><p>使用以下方式编写一个 uptime 程序，以 ticks 为单位打印系统运行时间： <tt>uptime</tt> 系统调用。 <script>g("easy")</script>
 </p></li>
-<li><p>支持正则表达式的名称匹配 <tt>find</tt>.  <tt>grep.c</tt> 对正则表达式有一些原始支持。  <script>g("easy")</script>
+<li><p>支持在名称匹配中使用正则表达式，用于 <tt>find</tt>.  <tt>grep.c</tt> 具有一些对正则表达式的基本支持。  <script>g("easy")</script>
 </p></li>
-<li><p>xv6 外壳（<tt>user/sh.c</tt>）只是另一个用户程序。它缺少真实 shell 中的许多功能，但您可以对其进行修改和改进。例如，修改 shell 以不打印 <tt>$</tt> 处理文件中的 shell 命令时 <script>g("moderate")</script>、修改shell以支持等待 <script>g("easy")</script>、修改shell以支持tab补全 <script>g("easy")</script>、修改 shell 以保留传递的 shell 命令的历史记录
-      <script>g("moderate")</script>，或者您希望 shell 执行的任何其他操作。 （如果您雄心勃勃，您可能必须修改内核以支持您需要的内核功能；xv6 支持的不多。）
+<li><p>`user/sh.c`
+
+) doesn't support I/O redirection for commands enclosed in parentheses. For example, the command
+
+`( echo hello ) &gt; tmp1`
+
+doesn't work. Modify the shell to fix this issue by implementing support for such redirection.
+
+---
+
+xv6 shell（
+
+`user/sh.c`
+
+）不支持对括号内的命令进行 I/O 重定向。例如，命令
+
+`( echo hello ) &gt; tmp1`
+
+无法正常工作。请修改 shell 以修复此问题，实现对此类重定向的支持。<tt>user/sh.c</tt>）只是另一个用户程序。它缺少真实 shell 中的许多功能，但你可以对其进行修改和完善。例如，修改该 shell 使其在打印 <tt>$</tt> 当从文件中处理 shell 命令时 <script>g("moderate")</script>，修改 shell 以支持 wait <script>g("easy")</script>，修改 shell 以支持 Tab 补全 <script>g("easy")</script>，修改 shell 以保留已执行的 shell 命令历史记录
+      <script>g("moderate")</script>，或任何其他你希望 shell 实现的功能。（如果你的目标非常宏大，可能需要修改内核以支持所需的内核特性；xv6 目前支持的功能有限。）
 
 </p></li></ul>
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

@@ -1,4 +1,5 @@
 .venv-translate/
 .translate-cache.json
+.translate-ai-cache*.json
 .gitrepo-metadata/
 __pycache__/

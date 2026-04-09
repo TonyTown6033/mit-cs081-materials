@@ -1,132 +1,132 @@
-[自动汉化说明]
-本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+[AI 汉化说明]
+本文件为 AI 汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-6.S081 2020第11讲：线程切换
+6.S081 2020 第11讲：线程切换
 
-主题：xv6 的更多“幕后花絮”
-  以前：系统调用、中断、页表、锁
-  今天：进程/线程切换
+主题：深入了解 xv6 的底层机制
+  前情回顾：系统调用、中断、页表、锁
+  本讲内容：进程/线程切换
 
 为什么要支持多任务？
-  分时：许多用户和/或许多正在运行的程序。
-  程序结构：素数筛。
-  多核硬件上的并行加速。
+  分时复用：多用户和/或多个运行中的程序。
+  程序结构：质数筛。
+  在多核硬件上实现并行加速。
 
-线程是一种抽象，用于在有许多任务时简化编程。
-  线程=独立串行执行——寄存器、pc、堆栈
-  线程系统交错执行多个线程
-  两个主要策略：
-    多个CPU，每个CPU运行不同的线程
-    每个CPU在线程之间“切换”，一次运行一个
+线程是一种抽象，用于在存在多个任务时简化编程。
+  线程 = 一个独立的串行执行单元 —— 包括寄存器、pc、栈
+  线程系统将多个线程的执行交替进行
+  两种主要策略：
+    多个 CPU，每个 CPU 运行不同的线程
+    每个 CPU 在多个线程之间"切换"，每次只运行一个
 
-线程可以共享内存，也可以不共享内存
-  xv6 内核线程：它们共享内核内存（因此有锁）
-  xv6 用户进程：每个进程一个线程，因此不共享
-  linux：支持多个线程共享用户进程的内存
+线程可以共享内存，也可以不共享
+  xv6 内核线程：它们共享内核内存（因此需要锁）
+  xv6 用户进程：每个进程只有一个线程，因此不存在共享
+  linux：支持多个线程共享一个用户进程的内存
 
-还有其他技术可以交错执行多个任务
-  查找事件驱动编程或状态机
-  线程不是最高效的，但通常是最方便的
+还有其他用于交替执行多个任务的技术
+  可参阅事件驱动编程或状态机
+  线程并非最高效的方式，但通常是最便捷的
 
-线程设计挑战
-  如何在几个CPU上交错多个线程？
-    如何使交错透明？
-    “调度”=选择接下来运行哪个线程的过程
-  线程未运行时要保存什么？
+线程设计的挑战
+  如何在少数几个 CPU 上交替运行多个线程？
+    如何让交替执行对线程透明？
+    "调度" = 选择下一个要运行的线程的过程
+  线程未运行时需要保存什么状态？
   如何应对计算密集型线程？
 
 如何应对计算密集型线程？
-  每个CPU都有定时器硬件，它周期性地中断
-  内核使用定时器中断来从循环线程中获取控制权
-  内核保存线程状态、切换、最终恢复，
-    恢复保存的透明度状态
-  运行与可运行
-  这是“抢占式”调度——强制放弃不知情的代码
-    与协作调度相反，协作调度中代码自愿产生
+  每个 CPU 都有定时器硬件，会周期性地产生中断
+  内核利用定时器中断从陷入循环的线程中夺回控制权
+  内核保存线程状态，执行切换，最终恢复执行，
+    并还原已保存的状态以实现透明性
+  RUNNING 与 RUNNABLE
+  这就是"抢占式"调度 —— 强制剥夺毫不知情的代码的执行权
+    与之相对的是协作式调度，在该模式下代码主动让出执行权
 
-如何处理未运行的线程？
-  我们需要留出它的状态：寄存器、堆栈、内存
-    虽然不用担心内存，但它不会去任何地方
-  所以实现为每个线程提供了一个堆栈和寄存器保存区域
-  需要跟踪每个线程的状态
-    运行、可运行、睡眠
+对于未在运行的线程该如何处理？
+  需要暂存其状态：寄存器、栈、内存
+    不过无需担心内存，它不会消失
+  因此实现上需为每个线程提供一个栈和寄存器保存区
+  需要追踪每个线程的状态
+    运行中（RUNNING）vs 可运行（RUNNABLE）vs 睡眠中（SLEEPING）
 
 在 xv6 中：
-  【简单图：进程、用户栈、trapframe、内核栈】
-  每个进程有两个线程，一个用户，一个内核
-    进程*或者*执行它的用户线程，
-    *或*在系统调用或内核线程中断中
-  内核线程共享内核内存/数据结构
+  [简图：进程、用户栈、陷阱帧、内核栈]
+  每个进程有两个线程，一个用户线程，一个内核线程
+    进程要么正在执行其用户线程，
+    要么在其内核线程中处理系统调用或中断
+  内核线程共享内核内存 / 数据结构
     因此内核是一个并行程序
-  我们将使用“进程”和“内核线程”和“线程”作为同义词
+  我们将"进程"、"内核线程"和"线程"作为同义词使用
 
-xv6中线程切换概述
-  （要点：在线程之间切换以在每个CPU上交错许多线程）
-  [图：P1、TF1、STACK1、swtch()、CTX1；
-            CTX、swtch()、STACK、调度程序() 等]
+xv6 中线程切换概述
+  （要点：在线程间切换，使多个线程在每个 CPU 上交替执行）
+  [图示：P1, TF1, STACK1, swtch(), CTX1;
+            CTXs, swtch(), STACKs, scheduler(), &c]
   TF = trapframe = 保存的用户寄存器
-  CTX = 上下文 = 保存的 RISC-V 寄存器
-  从一个进程到另一个进程涉及多个转换：
-    user -> kernel; saves user registers in trapframe
-    kernel thread -> scheduler thread; saves kernel thread registers in context
-    scheduler thread -> kernel thread; restores kernel thread registers from ctx
-    kernel -> user; restores user registers from trapframe
+  CTX = context = 保存的 RISC-V 寄存器
+  从一个进程切换到另一个进程涉及多次状态转换：
+    用户态 -> 内核态；将用户寄存器保存至陷阱帧
+    内核线程 -> 调度器线程；将内核线程寄存器保存至上下文
+    调度器线程 -> 内核线程；从上下文恢复内核线程寄存器
+    内核态 -> 用户态；从陷阱帧恢复用户寄存器
 
-“上下文切换”——从一个线程切换到另一个线程
+"上下文切换"——从一个线程切换到另一个线程
 
-调度程序线程
-  每个核心有一个；每个都有一个堆栈和一个结构体上下文
-  内核线程（进程）总是切换到当前核心的调度程序线程
-    如果一个内核线程处于可运行状态，则切换到另一个内核线程
-    永远不会有直接的内核线程到内核线程的切换
-  原因：调度程序的单独堆栈简化了
-    例如从现有进程切换出去的情况
-  调度程序线程不断扫描进程表，直到
-    它找到一个 RUNNABLE 线程（可能没有一个！）
-  如果没有 RUNNABLE 线程，则调度程序处于“空闲”状态
+调度器线程
+  每个核心有一个调度器线程；每个调度器线程拥有自己的栈和一个 struct context
+  内核线程（进程）始终切换到当前核心的调度器线程
+    再由调度器线程切换到另一个内核线程（如果存在可运行的线程）
+    内核线程之间永远不会直接切换
+  原因：调度器拥有独立的栈，简化了
+    诸如从退出中的进程切换走等边界情况的处理
+  调度器线程持续扫描进程表，直到
+    找到一个可运行（RUNNABLE）的线程（有可能一个都没有！）
+  如果没有可运行的线程，调度器处于"空闲"状态
 
-note:
-  每个核心要么运行其调度程序线程，要么运行其他线程
-    给定的核心一次仅运行一个线程
-  每个线程要么运行在一个核心上，要么运行在它的寄存器上
-    保存在其上下文中
-  如果线程未运行，则其保存的上下文引用调用
-    到 swtch()
+注意：
+  每个核心要么运行其调度器线程，要么运行某个其他线程
+    同一核心在同一时刻只运行一个线程
+  每个线程要么恰好在某一个核心上运行，要么其寄存器
+    已保存在其上下文中
+  如果一个线程未在运行，其保存的上下文对应于一次
+    对 swtch() 的调用
 
-proc.h 中的结构体 proc
-  p->trapframe holds saved user thread's registers
-  p->context holds saved kernel thread's registers
-  p->kstack points to the thread's kernel stack
-  p->state is RUNNING, RUNNABLE, SLEEPING, &c
-  p->lock protects p->state (and other things...)
+proc.h 中的 struct proc
+  p->trapframe 保存用户线程的寄存器
+  p->context 保存内核线程的寄存器
+  p->kstack 指向线程的内核栈
+  p->state 为 RUNNING、RUNNABLE、SLEEPING 等
+  p->lock 保护 p->state（以及其他内容……）
 
-# Code
+# 代码
 
 抢占式切换演示
-  user/spin.c——两个CPU密集型进程
+  user/spin.c —— 两个 CPU 密集型进程
   我的 qemu 只有一个 CPU
-  让我们看看 xv6 在它们之间切换
+  让我们观察 xv6 在两者之间切换
 
-制作 qemu-gdb
-数据库
-（gdb）c
-显示用户/spin.c
-旋转
+make qemu-gdb
+gdb
+(gdb) c
+show user/spin.c
+spin
 
-尽管连续运行，但您可以看到它们交替出现。
-xv6 正在两个进程之间切换其一个 CPU。
-切换是如何进行的？
+可以看到，尽管两个进程持续运行，它们仍然交替执行。
+xv6 正在将其唯一的 CPU 在两个进程之间切换。
+切换是如何工作的？
 
 我将在计时器中断处设置一个断点。
-（gdb）b trap.c：207
-（gdb）c
-（gdb）完成
-（gdb）哪里
+(gdb) b trap.c:207
+(gdb) c
+(gdb) finish
+(gdb) where
 
-我们在 usertrap() 中，处理来自计时器的设备中断
-（kernel/start.c 中的 timerinit() 配置 RISC-V 定时器硬件）。
+我们正处于 usertrap() 中，处理来自计时器的设备中断
+（kernel/start.c 中的 timerinit() 负责配置 RISC-V 计时器硬件）。
 
-定时器中断发生时正在运行什么？
+计时器中断发生时，正在运行的是什么？
 
 (gdb) print p->name
 (gdb) print p->pid
@@ -134,205 +134,205 @@ xv6 正在两个进程之间切换其一个 CPU。
 (gdb) print/x p->trapframe->epc
 
 让我们在 user/spin.asm 中查找保存的 epc
-计时器在增量循环中中断了用户代码，这并不奇怪
+计时器在自增循环中中断了用户代码，这并不意外
 
-(gdb) 步骤...进入proc.c中的yield()
-(gdb) 下一个
+(gdb) step ... 进入 proc.c 中的 yield()
+(gdb) next
 (gdb) print p->state
 
-change p->state from RUNNING to RUNNABLE -> give up CPU but want to run again.
-note: yield() acquires p->lock
-  since modifying p->state
-  并防止另一个 CPU 运行这个 RUNNABLE 线程！
+将 p->state 从 RUNNING 改为 RUNNABLE -> 放弃 CPU，但仍希望继续运行。
+注意：yield() 会获取 p->lock
+  因为需要修改 p->state
+  同时也防止另一个 CPU 运行这个 RUNNABLE 线程！
 
-(gdb) 下一个 2
-(gdb) 步骤（进入 sched()）
+(gdb) next 2
+(gdb) step（进入 sched()）
 
-sched() 进行一些健全性检查，然后调用 swtch()
+sched() 做一些健全性检查，然后调用 swtch()
 
-(gdb) 接下来 7
+(gdb) next 7
 
-这是从进程的内核线程到调度程序线程的上下文切换
-  swtch will save the current RISC-V registers in first argument (p->context)
-  and restore previously-saved registers from 2nd argument (c->context)
-让我们看看 swtch() 将恢复哪些寄存器值
+这是从进程的内核线程切换到调度器线程的上下文切换
+  swtch 会将当前 RISC-V 寄存器保存到第一个参数（p->context）中
+  并从第二个参数（c->context）恢复之前保存的寄存器
+让我们看看 swtch() 将要恢复的寄存器值
 
 (gdb) print/x cpus[0].context
 
 cpus[0].context.ra 在哪里？
   即 swtch() 将返回到哪里？
-  kernel.asm说它在proc.c的scheduler()函数中
+  kernel.asm 显示它位于 proc.c 中的 scheduler() 函数内
 
-(gdb) tbreak 开关
-（gdb）c
+(gdb) tbreak swtch
+(gdb) c
 
-我们在 kernel/swtch.S
-a0 is the first argument, p->context
-a1 是第二个参数 cpus[0].context
-swtch() saves current registers in xx(a0) (p->context)
-swtch() 然后从 xx(a1) (cpus[0].context) 恢复寄存器
-然后 swtch 返回
+我们现在在 kernel/swtch.S 中
+a0 是第一个参数，p->context
+a1 是第二个参数，cpus[0].context
+swtch() 将当前寄存器保存到 xx(a0)（p->context）中
+swtch() 然后从 xx(a1)（cpus[0].context）恢复寄存器
+之后 swtch 返回
 
-问： swtch() 既不保存也不恢复 $pc（程序计数器）！
-   那么它如何知道目标线程中从哪里开始执行呢？
+问：swtch() 既不保存也不恢复 $pc（程序计数器）！
+   那么它如何知道从目标线程的哪里开始执行？
 
 问：为什么 swtch() 只保存 14 个寄存器（ra、sp、s0..s11）？
-   RISC-V 有 32 个寄存器——其他 18 个呢？
-     零、gp、tp
-     t0-t6, a0-a7
-   请注意，我们正在讨论内核线程寄存器
-     所有 32 个用户寄存器已保存在 trapframe 中
+   RISC-V 共有 32 个寄存器——其余 18 个怎么办？
+     zero、gp、tp
+     t0-t6、a0-a7
+   注意我们讨论的是内核线程寄存器
+     全部 32 个用户寄存器已经保存在陷阱帧中了
 
-开关启动时的寄存器：
-(gdb) 打印 $pc -- swtch
-(gdb) 打印 $ra -- 计划
-(gdb) 打印 $sp
+swtch 开始时的寄存器：
+(gdb) print $pc  -- swtch
+(gdb) print $ra  -- sched
+(gdb) print $sp
 
-开关末尾的寄存器：
-(gdb) stepi 28 -- 直到 ret
-(gdb) 打印 $pc -- swtch
-(gdb) print $ra -- 调度程序
-(gdb) 打印 $sp -- stack0+??? --entry.S 在启动时设置
-（gdb）哪里
-(gdb) 斯特皮
+swtch 结束时的寄存器：
+(gdb) stepi 28   -- 直到 ret
+(gdb) print $pc  -- swtch
+(gdb) print $ra  -- scheduler
+(gdb) print $sp  -- stack0+???  -- entry.S 在启动时完成了此设置
+(gdb) where
+(gdb) stepi
 
-我们现在在 Scheduler() 中，在“调度程序线程”中，
-  在调度程序的堆栈上
+我们现在处于 scheduler() 中，即"调度器线程"，
+  位于调度器的栈上
 
-Scheduler() 刚刚从对 swtch() 的调用中返回
-  它不久前进行了该调用，以切换到我们进程的内核线程
-  之前的调用保存了scheduler()的寄存器
-  我们的进程对 swtch() 的调用恢复了 Scheduler() 保存的寄存器
-  这里的p指的是被中断的进程
+scheduler() 刚从对 swtch() 的调用中返回
+  它之前调用该函数是为了切换到我们进程的内核线程
+  那次调用保存了 scheduler() 的寄存器
+  我们进程对 swtch() 的调用恢复了 scheduler() 保存的寄存器
+  这里的 p 指向被中断的进程
 
 (gdb) print p->name
 (gdb) print p->pid
 (gdb) print p->state
 
-记住yield()获取了进程的锁
-  现在调度程序释放它
-  Scheduler() 代码*看起来*像普通的获取/释放对
-    但实际上调度程序获取，yield 释放
-    然后yield获取，调度器释放
-  异常：锁是由与获取锁不同的线程释放的！
+记住 yield() 获取了进程的锁
+  现在 scheduler 将其释放
+  scheduler() 的代码*看起来*像是普通的加锁/解锁配对
+    但实际上是 scheduler 加锁，yield 解锁
+    然后 yield 加锁，scheduler 解锁
+  特殊之处：锁由与获取它不同的线程释放！
 
-Q: why hold p->lock across swtch()?
-   Yield() 获取
-   调度程序（）发布
-   could we release p->lock just before calling swtch()?
+Q: 为什么在 swtch() 执行期间要持有 p->lock？
+   yield() 加锁
+   scheduler() 解锁
+   我们能否在调用 swtch() 之前就释放 p->lock？
 
-p->lock protects a few things:
+p->lock 保护以下几件事：
   使这些步骤原子化：
     * p->state=RUNNABLE
-    * save registers in p->context
-    * 停止使用p的内核堆栈
-    所以其他CPU的调度程序在所有步骤完成之前不会开始运行p
+    * 将寄存器保存到 p->context
+    * 停止使用 p 的内核栈
+    从而确保其他 CPU 的调度器在所有步骤完成前不会开始运行 p
   使这些步骤原子化且不可中断：
     * p->state=RUNNING
-    * 将寄存器从上下文移动到 RISC-V 寄存器
-    所以中断不会yield()并保存尚未初始化的内容
-      RISC-V 在上下文中进行寄存器。
+    * 将寄存器从 context 移入 RISC-V 寄存器
+    从而防止中断触发 yield() 并将尚未初始化的
+      RISC-V 寄存器保存到 context 中。
 
-Scheduler() 的循环查看所有进程，找到一个可运行的进程
-  不断循环直到找到东西——可能会闲置一段时间
-  在这个演示中，会发现另一个旋转过程
-让我们快进到 Scheduler() 找到 RUNNABLE 进程时
+scheduler() 的循环遍历所有进程，找到一个处于 RUNNABLE 状态的进程
+  持续循环直到找到为止——可能会空闲一段时间
+  在本演示中，将找到另一个 spin 进程
+让我们快进到 scheduler() 找到一个 RUNNABLE 进程的时刻
 
 (gdb) tbreak proc.c:474
-（gdb）c
+(gdb) c
 
-Scheduler() 锁定新进程，然后将状态设置为 RUNNING
-  现在另一个 CPU 的调度程序不会运行它
+scheduler() 锁定了新进程，然后将状态设置为 RUNNING
+  这样其他 CPU 的 scheduler() 就不会再运行它了
 
-这是另一个“旋转”过程：
+这是另一个"spin"进程：
 
 (gdb) print p->name
 (gdb) print p->pid
 (gdb) print p->state
 
-让我们看看 swtch() 之后新线程将在哪里开始执行
-  通过在上下文中查看 $ra （返回地址）
+让我们看看新线程在 swtch() 之后会从哪里开始执行
+  通过查看其上下文中的 $ra（返回地址）
 
 (gdb) print/x p->context
 (gdb) x/4i p->context->ra
 
-新线程将返回到 sched()
+新线程将返回到 sched() 中
 
-（再次）查看 kernel/swtch.S
+查看 kernel/swtch.S（再次）
 
-(gdb) tbreak 开关
-（gdb）c
-(gdb) stepi 28 -- 现在即将执行 swtch() 的 ret
-(gdb) 打印 $ra
-（gdb）哪里
+(gdb) tbreak swtch
+(gdb) c
+(gdb) stepi 28 -- 现在即将执行 swtch() 的 ret 指令
+(gdb) print $ra
+(gdb) where
 
-现在我们正处于*其他*旋转过程中的计时器中断中
-  过去它被中断，调用yield() / sched() / swtch()
-  但现在它将恢复并返回到用户空间
+现在我们处于*另一个* spin 进程的时钟中断中
+  在过去它被中断，调用了 yield() / sched() / swtch()
+  但现在它将恢复执行，并返回到用户态
 
-注意：只有 swtch() 写入上下文（初始化除外）
-      只有sched()和scheduler()调用swtch()
-      所以对于内核线程，context.ra总是指向sched()
-      对于调度程序线程，context.ra 总是指向scheduler()
+注意：只有 swtch() 负责写入上下文（初始化除外）
+      只有 sched() 和 scheduler() 会调用 swtch()
+      因此对于内核线程，context.ra 始终指向 sched() 内部
+      而对于 scheduler 线程，context.ra 始终指向 scheduler() 内部
 
 注意：sched() 调用 swtch()——然后 swtch() 返回到 sched()
-      但它通常是一个*不同的*线程返回
+      但通常是*另一个*线程在返回
 
-sched() 和 Scheduler() 是“协同例程”
-   每个人都知道它要切换到什么
-   每个人都知道 swtch() 返回来自哪里
-   e.g. yield() and scheduler() cooperate about p->lock and p->state
-   与普通的线程切换不同，两者都不是
-     一方通常知道哪个线程在之前/之后
+sched() 和 scheduler() 是"协程"关系
+   各自都清楚自己在 swtch() 到哪个目标
+   各自都清楚 swtch() 的返回来自哪里
+   例如 yield() 与 scheduler() 协同管理 p->lock 和 p->state
+   这与普通的线程切换不同，在普通线程切换中，双方通常
+     都不知道当前线程的前后是哪个线程
 
-问：什么是“调度策略”？
-   即，如果多个线程可运行，xv6 如何决定下一步运行什么？
-   这是一个好政策吗？
+问：什么是"调度策略"？
+   即当多个线程处于 RUNNABLE 状态时，xv6 如何决定下一个运行哪个？
+   这是一个好的策略吗？
 
-Q：内核线程是否有抢占式调度？
-   是的——定时器中断和yield()可以在内核中发生。
-   kernel/trap.c 中的 kerneltrap() 调用的 Yield()
-   中断的内核代码的寄存器保存在哪里？
-     not in p->trapframe, since already has user registers.
-     not in p->context, since we're about to call yield() and swtch()
-     kernelvec.S 将它们推送到内核堆栈上（因为已经在内核中）。
+问：内核线程是否支持抢占式调度？
+   是的——计时器中断和 yield() 可能在内核中执行时发生。
+   yield() 由 kernel/trap.c 中的 kerneltrap() 调用
+   被中断的内核代码的寄存器保存在哪里？
+     不在 p->trapframe 中，因为那里已经保存了用户态寄存器。
+     不在 p->context 中，因为我们即将调用 yield() 和 swtch()
+     kernelvec.S 将它们压入内核栈（因为已经处于内核中）。
    内核中的抢占有用吗？
-     在 xv6 中并不重要。
-     如果某些系统调用需要大量计算，则很有价值。
-     或者如果我们需要严格的线程优先级概念。
+     在 xv6 中并不关键。
+     若某些系统调用有大量计算，则很有价值。
+     或者当我们需要严格的线程优先级概念时。
 
-问：为什么scheduler()用intr_on()短暂地启用中断？
-   可能没有 RUNNABLE 线程
-     他们可能都在等待 I/O，例如磁盘或控制台
-   启用中断，以便设备有机会发出完成信号
-     从而唤醒一个线程
-   否则系统会死机
+问：为什么 scheduler() 通过 intr_on() 短暂地开启中断？
+   可能没有处于 RUNNABLE 状态的线程
+     它们可能都在等待 I/O，例如磁盘或控制台
+   开启中断，使设备有机会发出完成信号
+     从而唤醒某个线程
+   否则，系统将会冻结
 
-问：为什么 sched() 在让出 CPU 时禁止持有锁？
-   (other than p->lock)
-   i.e. sched() checks that noff == 1
-   假设进程 P1 持有锁 L1，让出 CPU
+问：为什么 sched() 禁止在持有锁的情况下让出 CPU？
+   （p->lock 除外）
+   即 sched() 会检查 noff == 1
+   假设进程 P1 持有锁 L1 并让出 CPU
    进程 P2 运行，尝试 acquire(L1)
-   P2 的获取旋转并关闭中断
-     所以定时器中断不会发生
-     所以P2不会让出CPU
-     所以P1无法执行
-     所以 P1 永远不会释放 L1
+   P2 的 acquire 在关闭中断的情况下自旋
+     因此计时器中断不会发生
+     因此 P2 不会让出 CPU
+     因此 P1 无法执行
+     因此 P1 永远不会释放 L1
 
-问：我们可以摆脱单独的每 CPU 调度程序线程吗？
-   sched() 可以直接 swtch() 到新线程吗？
-   这样 sched() 就会寻找下一个要运行的进程？
-   这会更快——避免了 swtch() 调用之一
-   是的——但是：
-     调度循环将在线程的内核堆栈上运行
-     如果该线程正在退出怎么办？
-     如果另一个CPU想要运行该线程怎么办？
-     如果线程数少于 CPU，即堆栈太少怎么办？
-     可以解决的——试试吧！
+问：我们能否去掉独立的每 CPU 调度器线程？
+   能否让 sched() 直接 swtch() 到新线程？
+   从而让 sched() 自己查找下一个要运行的进程？
+   那样会更快——避免了其中一次 swtch() 调用
+   可以——但是：
+     调度循环将运行在某个线程的内核栈上
+     如果那个线程正在退出怎么办？
+     如果另一个 CPU 想要运行该线程怎么办？
+     如果线程数少于 CPU 数——即栈不够用怎么办？
+     这些问题都可以解决——不妨试试！
 
 总结
-  xv6为内核代码提供了方便的线程模型
-  通过定时器中断抢占
-  通过切换寄存器和堆栈透明
-  多核需要仔细处理堆栈、锁
+  xv6 为内核代码提供了一个便捷的线程模型
+  通过计时器中断实现抢占
+  通过切换寄存器和栈实现透明调度
+  多核需要对栈和锁进行谨慎处理
   下一讲：线程相互等待的机制

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.S081 / 2020 年秋季
+6.S081 / 2020年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -11,7 +11,7 @@
 <link href="css/style.css" rel="stylesheet" type="text/css"/>
 <link href="labs/labs.css" rel="stylesheet" type="text/css">
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -72,111 +72,111 @@
 </div>
 <div class="container">
 <h1>
-一般信息
+基本信息
 </h1>
 <p>
-<b><a href="general.html#audience">谁应该服用 6.S081</a></b> //
-<b><a href="general.html#communication">通讯</a></b> //
-<b><a href="general.html#grading">分级</a></b> //
+<b><a href="general.html#audience">哪些人应该选修 6.S081</a></b> //
+<b><a href="general.html#communication">沟通交流</a></b> //
+<b><a href="general.html#grading">评分标准</a></b> //
 <b><a href="general.html#labs">实验</a></b> //
-<b><a href="general.html#textbook">教科书</a></b> //
-<b><a href="general.html#homework">家庭作业</a></b> //
-<b><a href="general.html#collaboration">协作</a></b> //
-<b><a href="general.html#meetings">班级会议</a></b> //
-<b><a href="general.html#staff">员工</a></b> //
-<b><a href="general.html#officehours">助教办公时间</a></b>
+<b><a href="general.html#textbook">教材</a></b> //
+<b><a href="general.html#homework">作业</a></b> //
+<b><a href="general.html#collaboration">协作规范</a></b> //
+<b><a href="general.html#meetings">课堂会议</a></b> //
+<b><a href="general.html#staff">教职人员</a></b> //
+<b><a href="general.html#officehours">助教答疑时间</a></b>
 </p>
 <p><a name="audience"></a>
-<h2>谁应该服用 6.S081</h2>
-<p> 它面向喜欢 6.004 并希望了解操作系统的设计和实现以及将其用作系统编程基础的本科生。
+<h2>哪些人应该选修 6.S081</h2>
+<p> 本课程面向喜爱 6.004 并希望深入了解操作系统设计与实现，以及如何将其作为系统编程基础的本科生。
 
 <p><a name="communication"></a>
-<h2>通讯</h2>
-<p>我们将把作业分发到 <a href="http://pdos.csail.mit.edu/6.S081/">课程网站</a>，并通过广场发布所有公告。课程网站上有该学期的时间表 <a href="schedule.html">日程页面</a>.
+<h2>沟通交流</h2>
+<p>我们将在 <a href="http://pdos.csail.mit.edu/6.S081/">课程网站</a>上发布作业，并通过 Piazza 发布所有通知。课程网站的 <a href="schedule.html">日程页面</a>.
 
 <p><a name="grading"></a>
 <h2>评分政策</h2>
-<p>6.S081 的成绩将基于以下结果：
+<p>6.S081 的成绩将根据以下内容综合评定：
   <ul>
-<li> 实验室（70%）。单个实验室的分数是以下输出 <tt>make grade</tt>。所有实验室的权重均等，最后一个实验室除外，该实验室将算作两个实验室。
+<li> 实验（70%）。单个实验的得分为 <tt>make grade</tt>的输出结果。所有实验权重相同，最后一个实验除外，其权重计为两个实验。
 
-   <li> 检查会议（20%）。在检查会议期间，我们会问您一些有关实验室解决方案的问题。我们预计为每个学生举行 3 次随机选择实验室的核对会议。检查会议将按照 0 到 5 的等级进行评分。
+   <li> 检查会议（20%）。在检查会议中，我们将就你的实验解决方案提问。每位学生预计参加 3 次针对随机选定实验的检查会议，评分采用 0 到 5 分制。
 
-   <li> 家庭作业和课堂/广场参与（合计 10%）。
+   <li> 课后作业与课程/Piazza 参与（合计占 10%）。
 
   </li></li></li></ul>
-<p>您必须提交所有实验才能通过课程。
+<p>你必须提交所有实验才能通过本课程。
 
-<p>不会有测验和考试。
+<p>本课程不设小测验和考试。
 
 <p><a name="labs"></a>
 <h2>实验</h2>
-<p>要上交每个实验室，请运行 <tt>make handin</tt> 在您的实验室目录中。提交的材料必须在实验室截止日期的晚上 11:59 之前收到。您可以在截止日期前多次提交。我们使用以下方式对您的最终提交进行评分 <tt>make grade</tt> 并将你的成绩发布在 <a href="https://6828.scripts.mit.edu/2020/handin.py/">交递网站</a>.</p>
-<p> 本学期您总共迟到了 72 个小时。每迟到超过 72 小时，您的实验室总成绩就会减少 1%，最高可达 50%。迟到的时间会被贪婪地分配，因此它们会先分配给较早的实验室，然后再分配给较晚的实验室。根据学院规定，最后一个实验室不得使用较晚的时间（在课程的最后一周进行）。</p>
-<p>延迟上课适用于因生病、工作面试、麻省理工学院体育赛事、其他课程截止日期等原因而落后的情况。对于在情有可原的情况下延期（例如，您生病一周），我们需要一封来自学生院长的信函。</p>
+<p>提交每个实验时，请在你的实验目录下运行 <tt>make handin</tt> 在实验截止日期当天的 11:59pm 前，系统必须收到你的提交。截止日期前你可以多次提交。我们使用你的最终提交进行评分，具体使用 <tt>make grade</tt> 并在 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>.</p>
+<p> 本学期你共有 72 小时的延迟提交额度。超出 72 小时后，每延迟 1 小时将使你的实验总成绩扣减 1%，最多扣减 50%。延迟时长按贪心策略分配，即优先用于较早的实验。根据学院规定，最后一个实验（截止于最后一个完整上课周）不可使用延迟额度。</p>
+<p>延迟额度旨在应对因疾病、求职面试、MIT 体育赛事、其他课程截止日期等原因导致进度落后的情况。如遇特殊情况需要延期（例如生病一周），我们要求提供一封来自学生院长的证明信。</p>
 <!-- That is, the lab component of the overall grade drops by
        ceil((cumulative late - 72 hours)/1 day)
      letter grades. -->
-<h2 id="homework">讲座问题/作业</h2>
-<p>讲座问题/作业旨在让您思考讲座主题。它们应在指定的截止日期讲座开始前（即下午 1 点）截止。如果您在下午 1 点（例如前一天晚上）之前提交讲座问题，我们将不胜感激，以便我们准备在讲座期间回答您的问题。我们不会对您的答案的正确性进行评分，而只是检查您是否付出了合理的努力。您可以在整个学期错过一些讲座问题/作业，而不会受到任何处罚。</p>
-<h2 id="textbook">教科书</h2>
-<p>6.S081依赖于以下书籍：
+<h2 id="homework">课前问题／课后作业</h2>
+<p>课前问题／课后作业旨在引导你思考课程主题。它们须在指定截止日期的课程开始前（即下午 1 点前）提交。如果你能在 1 点前较早提交（例如前一晚），我们将非常感谢，这样我们可以在课上有针对性地解答你的问题。我们不对答案的正确性评分，仅核查你是否认真作答。本学期允许少量漏交，不会受到任何惩罚。</p>
+<h2 id="textbook">教材</h2>
+<p>6.S081 依赖以下书籍：
 <ul>
-<li><a href="xv6/book-riscv-rev1.pdf">xv6：一个简单的类Unix教学操作系统</a> 作者：R. Cox、F. Kaashhoek 和 R. Morris。
+<li><a href="xv6/book-riscv-rev1.pdf">xv6：一个简单的、类 Unix 的教学操作系统</a> 作者：R. Cox、F. Kaashoek 与 R. Morris。
 
-  <li>C语言程序设计（第二版） 作者：克尼根和里奇。 Prentice Hall, Inc.，1988。ISBN 0-13-110362-8，1998。
+  <li>C程序设计语言（第二版） 作者：Kernighan 和 Ritchie。Prentice Hall, Inc.，1988年。ISBN 0-13-110362-8，1998年。
 
 </li></li></ul>
 <p><a name="collaboration"></a>
-<h2>协作</h2>
-<p>欢迎您与其他学生讨论实验（和家庭作业），但您所有的书面作业和代码都必须是您自己的，并且必须仔细承认其他人的所有想法贡献，无论是来自同学还是来自您阅读过的来源。请不要查看其他人的实验或作业代码。请随时在 Piazza 上提问和回答有关实验室、作业、阅读和讲座的问题。
+<h2>协作规范</h2>
+<p>欢迎与其他同学讨论实验（及作业），但所有书面成果和代码必须由你独立完成，并须认真注明所有来源于他人的思路，无论来自同学还是参考资料。请勿查阅他人的实验或作业代码。欢迎在 Piazza 上就实验、作业、阅读材料和课堂讲义自由提问与解答。
 </p>
 <p>
-请勿将您的实验或作业解决方案发布到可公开访问的网站（例如 GitHub）或文件空间（例如您的 Athena Public 目录）上。
+请勿将你的实验或作业答案发布到公开可访问的网站（如 GitHub）或文件空间（如你的 Athena 公共目录）。
 </p>
 <p><a name="meetings"></a>
-<h2>班级会议</h2>
-<p>讲座将于周一和周三下午 1:00 至 2:30 虚拟同步录制。录音将发布在 <a href="schedule.html">日程页面</a>。 Zoom直播讲座链接将在Piazza发布（为防止“Zoom轰炸”，此处不发布）；使用此网页顶部工具栏中的链接访问 Piazza 网站。
+<h2>课堂会议</h2>
+<p>讲座将于每周一和周三下午1:00至2:30以线上同步方式进行，并同步录制。录像将发布于 <a href="schedule.html">日程页面</a>。Zoom 直播讲座的链接将发布在 Piazza 上（为防止"Zoom 轰炸"，此处不予公开）；请使用本网页顶部工具栏中的链接访问 Piazza 网站。
 
 <p><a name="staff"></a>
-<h2>员工</h2>
+<h2>教职人员</h2>
 <p><b>讲师</b><br/>
-<a href="https://pdos.csail.mit.edu/~kaashoek/">弗兰斯·卡肖克</a><br/>
+<a href="https://pdos.csail.mit.edu/~kaashoek/">Frans Kaashoek</a><br/>
 <a href="https://pdos.csail.mit.edu/~rtm/">罗伯特·莫里斯</a><br/>
 <p><b>助教</b><br/>
 
 
-  大卫·莫尔乔恩 (dmorejon@mit.edu)<br/>
-  尼克·卡肖克 (nicolaas@mit.edu)<br/>
-<p><b>员工邮件列表</b><br/>
+  David Morejon（dmorejon@mit.edu）<br/>
+  Nick Kaashoek（nicolaas@mit.edu）<br/>
+<p><b>教职人员邮件列表</b><br/>
 <i>6s081@lists.csail.mit.edu</i>，但我们更希望您使用 Piazza。
 
 <!-- RULE: officehours -->
 <p><a name="officehours"></a>
-<h2>助教办公时间</h2>
-<p><font color="red">尚未最终确定，可能会发生变化。</font><br/>
+<h2>助教答疑时间</h2>
+<p><font color="red">尚未最终确定，可能会有所更改。</font><br/>
 
-办公时间将在 Zoom 上进行。链接将固定在广场上。<br/>
-我们的目标是尽可能复制面对面的体验，这意味着我们希望鼓励学生在等待工作人员帮助时进行协作。 <br/>
-如果您想与其他学生一起工作，请加入当天 Zoom 会议的“主房间”。当您被从队列中叫出时，助教会将您安排到分组讨论室寻求 1-1 帮助。 <br/>
+答疑时间将通过 Zoom 进行。链接将置顶于 Piazza。<br/>
+我们的目标是尽可能地还原线下课堂体验，这意味着我们希望鼓励同学们在等待工作人员帮助时相互协作。 <br/>
+如果您想与其他同学一起学习，请加入当天 Zoom 会议的"主房间"。当您从队列中被接入时，助教会将您移至一个单独的分组讨论室进行一对一辅导。 <br/>
 <a href="https://queue.mit.edu/6.S081/queue">队列</a><br/>
-所有时间均以东部时间列出。 <br/>
-周一：晚上 7 点至 9 点（大卫）<br/>
-周二：下午 4 点至 6 点（尼克）<br/>
-周三：下午 2:30-4:30（大卫）<br/>
-星期四：中午 12 点至下午 1 点（大卫和尼克）<br/>
-周五：上午 9 点至 11 点（尼克）<br/>
+所有时间均以美国东部标准时间（EST）为准。 <br/>
+周一：晚上7-9点（David）<br/>
+周二：下午4:00–6:00（Nick）<br/>
+周三：下午2:30–4:30（David）<br/>
+周四：中午12:00–1:00（David 和 Nick）<br/>
+周五：上午9:00–11:00（Nick）<br/>
 <br/>
-在所列办公时间之外与工作人员的预约可以通过电子邮件或私人广场帖子进行安排。<br/>
+如需在上述办公室答疑时间之外与教员预约，请通过电子邮件或 Piazza 私信联系。<br/>
 <!-- End Page Content -->
 <hr/>
 <font style="font-size: 12px;">
-<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<p>对 6.S081 有任何问题或意见？请发送电子邮件至课程教员：
 <a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="general.html#top">顶部</a></b> //
-<b><a href="index.html">S6.081 首页</a></b> // 
-<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:03 EDT</i>
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="general.html#top">返回顶部</a></b> //
+<b><a href="index.html">6.S081 主页</a></b> // 
+<i>最后更新于 2025年9月4日（周四）23:15:03 EDT</i>
 </p></p></font>
 </p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>

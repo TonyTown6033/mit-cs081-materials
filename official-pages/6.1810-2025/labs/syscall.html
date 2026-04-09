@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料</a></li>
@@ -76,29 +76,29 @@
 <div class="container">
 <!-- START SECTION: body -->
 <h1>实验：系统调用</h1>
-<p>在上一个实验中，您使用系统调用编写了一些实用程序。在本实验中，您将为 xv6 添加一个新的系统调用，这将帮助您了解它们的工作原理，并向您展示 xv6 内核的一些内部结构。您将在后面的实验中添加更多系统调用。
+<p>在上一个实验中，你使用系统调用编写了一些实用程序。在本实验中，你将向 xv6 添加一个新的系统调用，这将帮助你理解系统调用的工作原理，并让你接触 xv6 内核的一些内部机制。你将在后续实验中添加更多系统调用。
 
 <div class="lab-prereq">
-<p>在开始编码之前，请阅读本书的第 2 章 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a>，以及第 4 章的 4.3 和 4.4 节，以及相关源文件：
+<p>在你开始编写代码之前，请阅读第 2 章 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a>，以及第4章的第4.3节和第4.4节，以及相关源文件：
 
   <ul>
-<li> 将系统调用路由到内核的用户空间“存根”位于 <tt>user/usys.S</tt>，它是由生成的 <tt>user/usys.pl</tt> 当你跑步时 <tt>make</tt>。声明位于 <tt>user/user.h</tt>
-<li> 将系统调用路由到实现它的内核函数的内核空间代码位于 <tt>kernel/syscall.c</tt> 和 <tt>kernel/syscall.h</tt>.
+<li> 将系统调用路由到内核的用户态"桩函数"位于 <tt>user/usys.S</tt>，由以下内容生成 <tt>user/usys.pl</tt> 当你运行 <tt>make</tt>。声明位于 <tt>user/user.h</tt>
+<li> 将系统调用路由到实现它的内核函数的内核态代码位于 <tt>kernel/syscall.c</tt> 和 <tt>kernel/syscall.h</tt>.
 
-    <li> 流程相关的代码是 <tt>kernel/proc.h</tt> 和 <tt>kernel/proc.c</tt>.
+    <li> 进程相关代码位于 <tt>kernel/proc.h</tt> 和 <tt>kernel/proc.c</tt>.
 
   </li></li></li></ul>
 </p></div>
-<p>要开始实验，请切换到系统调用分支：
+<p>要开始本实验，请切换到 syscall 分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout syscall</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-<h2>使用gdb <script>g("easy")</script></h2>
-<p>在许多情况下，打印语句足以调试内核，但有时单步执行代码或获取堆栈回溯很有用。 GDB 调试器可以提供帮助。
+<h2>使用 gdb <script>g("easy")</script></h2>
+<p>在许多情况下，打印语句足以调试内核，但有时单步执行代码或获取栈回溯会更有帮助。GDB 调试器可以提供支持。
 
-<p> 为了帮助您熟悉 gdb，请运行 <kbd>make qemu-gdb</kbd> 然后在另一个窗口中启动 gdb（请参阅 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.html">指导页面</a>）。打开两个窗口后，在 gdb 窗口中输入：
+<p> 为了帮助你熟悉 gdb，请运行 <kbd>make qemu-gdb</kbd> 然后在另一个窗口中启动 gdb（参见 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.html">指南页面</a>上的 gdb 相关资料）。打开两个窗口后，在 gdb 窗口中输入：
 <pre>
 (gdb) <kbd>b syscall</kbd>
 Breakpoint 1 at 0x80002142: file kernel/syscall.c, line 243.
@@ -111,36 +111,36 @@ Thread 2 hit Breakpoint 1, syscall () at kernel/syscall.c:243
 (gdb) <kbd>layout src</kbd>
 (gdb) <kbd>backtrace</kbd>
 </pre>
-<p>的 <tt>layout</tt> 命令将窗口一分为二，显示 gdb 在源代码中的位置。 <tt>backtrace</tt> 打印堆栈回溯.
+<p>该 <tt>layout</tt> 命令将窗口分为两部分，显示 gdb 当前在源代码中的位置。 <tt>backtrace</tt> 打印栈回溯.
 
 
-<p>回答以下问题 <tt>answers-syscall.txt</tt>.
-
-  <div class="lab-question">
-    查看回溯输出，哪个函数调用了 <tt>syscall</tt>?
-  </div>
-<p> 类型 <kbd>n</kbd> 几次迈过去 <tt> struct proc *p = myproc();</tt>
-    一旦通过此语句，输入 <kbd>p /x
-    *p</kbd>，打印当前进程的 <tt>proc struct</tt>
-    （见 <tt>kernel/proc.h&gt;</tt>）以十六进制表示。
+<p>请在 <tt>answers-syscall.txt</tt>.
 
   <div class="lab-question">
-    有什么价值 <tt>p-&gt;trapframe-&gt;a7</tt> 该值代表什么？ （提示：看 <tt>user/init.c</tt>，第一个用户程序xv6启动，及其编译后的程序集 <tt> user/init.asm</tt>.)
+    查看栈回溯输出，哪个函数调用了 <tt>syscall</tt>?
   </div>
-<p>处理器运行在管理模式下，我们可以打印特权寄存器，例如 <tt>sstatus</tt>
-  （见 <a href="https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf">RISC-V 特权指令</a> 的描述）：
+<p> 输入 <kbd>n</kbd> 几次以跳过 <tt> struct proc *p = myproc();</tt>
+    跳过该语句后，输入 <kbd>p /x
+    *p</kbd>，它打印当前进程的 <tt>proc struct</tt>
+    （参见 <tt>kernel/proc.h&gt;</tt>）（十六进制格式）。
+
+  <div class="lab-question">
+    的值是什么， <tt>p-&gt;trapframe-&gt;a7</tt> 该值代表什么？（提示：查看 <tt>user/init.c</tt>，xv6 启动的第一个用户程序，以及其编译后的汇编 <tt> user/init.asm</tt>.)
+  </div>
+<p>处理器正运行在监督者模式下，我们可以打印特权寄存器，例如 <tt>sstatus</tt>
+  （参见 <a href="https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf">RISC-V 特权指令</a> 中的描述）：
 
   <pre>
     (gdb) <kbd>p /x $sstatus</kbd>
   </pre>
 <div class="lab-question">
-     CPU 之前所处的模式是什么？
+     CPU 之前处于什么模式？
    </div>
-<p>xv6 内核代码包含一致性检查，其失败会导致内核崩溃；您可能会发现您的内核修改会导致恐慌。例如，替换语句 <tt>num = p-&gt;trapframe-&gt;a7;</tt>
-与
+<p>xv6 内核代码包含一致性检查，若检查失败则会导致内核发生 panic；你可能会发现对内核的修改引发 panic。例如，将语句 <tt>num = p-&gt;trapframe-&gt;a7;</tt>
+替换为
   <tt>num = * (int *) 0;</tt>
-  开始时 <tt>syscall</tt>，运行 <kbd>make
-  qemu</kbd>，您将看到类似以下内容的内容：
+  在……的开头 <tt>syscall</tt>，运行 <kbd>make
+  qemu</kbd>，你将看到类似如下的输出：
   <pre>
 xv6 kernel is booting
 
@@ -149,14 +149,14 @@ hart 1 starting
 scause=0xd sepc=0x80001bfe stval=0x0
 panic: kerneltrap
   </pre>
-退出于 <tt>qemu</tt>.
+退出 <tt>qemu</tt>.
 
-<p>要追踪内核页面错误恐慌的根源，请搜索 <tt>sepc</tt> 为您刚刚在文件中看到的恐慌打印的值 <tt>kernel/kernel.asm</tt>，其中包含已编译内核的程序集。
+<p>要追踪内核页表错误（page-fault）panic 的来源，请在文件中搜索你刚才看到的 panic 所打印的 <tt>sepc</tt> 值 <tt>kernel/kernel.asm</tt>，该文件包含已编译内核的汇编代码。
 
   <div class="lab-question">
-    写下内核恐慌的汇编指令。变量对应哪个寄存器 <tt>num</tt>?
+    写下内核发生 panic 时所在的汇编指令。哪个寄存器对应变量 <tt>num</tt>?
   </div>
-<p>要检查错误指令处的处理器和内核的状态，请启动 gdb，并在错误处设置断点 <tt>epc</tt>，像这样：
+<p>要检查处理器和内核在出错指令处的状态，请启动 gdb，并在出错的 <tt>epc</tt>处设置断点，如下所示：
 <pre>
 (gdb) <kbd>b *0x80001bfe</kbd>
 Breakpoint 1 at 0x80001bfe: file kernel/syscall.c, line 138.
@@ -167,39 +167,39 @@ Continuing.
 
 Thread 3 hit Breakpoint 1, syscall () at kernel/syscall.c:138
 </pre>
-<p>确认有问题的组装说明与您在上面找到的组装说明相同。
+<p>确认出错的汇编指令与你在上面找到的相同。
 
   <div class="lab-question">
-    为什么内核会崩溃？提示：看文中图3-3；地址0是否映射到内核地址空间？这是否由中的值证实 <tt>scause</tt> 上面？ （参见描述 <tt>scause</tt>
+    内核为何崩溃？提示：参考教材图 3-3；地址 0 是否映射在内核地址空间中？这是否与 <tt>scause</tt> 以上？（参见 <tt>scause</tt>
     在 <a href="https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf">RISC-V 特权指令</a>)
   </div>
-<p>请注意 <tt>scause</tt> 是由上面的内核恐慌打印的，但通常您需要查看其他信息来追踪导致恐慌的问题。例如，要找出内核崩溃时哪个用户进程正在运行，您可以打印进程的名称：
+<p>注意， <tt>scause</tt> 是由上面的内核 panic 打印出来的，但通常你需要查看更多信息才能追踪到导致 panic 的问题。例如，要找出内核 panic 时正在运行的是哪个用户进程，你可以打印进程名称：
   <pre>
     (gdb) <kbd>p p-&gt;name</kbd>
   </pre>
 <div class="lab-question">
-      内核发生恐慌时正在运行的进程的名称是什么？它的进程 ID 是什么（<tt>pid</tt>)?
+      当内核发生 panic 时，正在运行的进程名称是什么？它的进程 id（<tt>pid</tt>)?
   </div>
-<p>您可能想重新访问
-  <a href="https://pdos.csail.mit.edu/6.828/2019/lec/gdb_slides.pdf">使用 GNU 调试器</a> 根据需要。的 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.html">指导页面</a> 还有调试提示。
+<p>您可能需要重新查阅
+  <a href="https://pdos.csail.mit.edu/6.828/2019/lec/gdb_slides.pdf">GNU 调试器使用指南</a> 根据需要。The <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.html">指南页面</a> 也包含调试技巧。
 
-<h2>沙箱命令<script>g("moderate")</script></h2>
+<h2>沙箱化一个命令<script>g("moderate")</script></h2>
 <p>
 <div class="lab-required">
-  在此作业中，您将“沙箱”一个进程以限制它可以进行的系统调用。例如，可以对进程进行沙箱处理以禁止打开文件。您将创建一个新的 <tt>interpose</tt>
-  系统调用将指定内核应从调用进程中拒绝哪些系统调用。 <tt>interpose</tt> 应该有两个参数：一个整数掩码和一个路径。掩码的位指定要拒绝哪些系统调用。您将在下一个作业中使用的第二个参数，在此作业中它始终是 <tt>"-"</tt>。例如，为了让进程阻止自己使用 open 系统调用，它应该调用 <tt>interpose(1 &lt;&lt; SYS_open, "-")</tt>, 其中 <tt>SYS_open</tt> 是来自的系统调用号 <tt>kernel/syscall.h</tt>。您的实现应该导致掩码被 fork 的子级继承，以便子级继承父级的限制。
+  在本次作业中，你将对进程进行"沙盒化"处理，以限制其可以发起的系统调用。例如，可以对进程进行沙盒化以禁止其打开文件。你将创建一个新的 <tt>interpose</tt>
+  该系统调用将指定内核应拒绝来自调用进程的哪些系统调用。 <tt>interpose</tt> 应接受两个参数：一个整数掩码和一个路径。掩码的二进制位指定要拒绝哪些系统调用。第二个参数将在下一个作业中使用，在本次作业中它始终为 <tt>"-"</tt>。例如，为了让一个进程阻止自己使用 open 系统调用，它应该调用 <tt>interpose(1 &lt;&lt; SYS_open, "-")</tt>，其中 <tt>SYS_open</tt> 是来自 <tt>kernel/syscall.h</tt>。你的实现应确保掩码能够被 fork 的子进程继承，以便子进程继承父进程的限制。
 							      
 </div>
 
-我们为您提供了 <tt>user/sandbox.c</tt> 分叉、调用的用户程序 <tt>interpose()</tt> 在子级中，然后在子级中执行程序。当你完成实施后 <tt>interpose()</tt>，您应该看到如下输出：
+我们已经为您提供了一个 <tt>user/sandbox.c</tt> 用户程序执行 fork，调用 <tt>interpose()</tt> 在子进程中，然后在子进程中执行（exec）一个程序。当你完成实现后 <tt>interpose()</tt>，你应该会看到如下输出：
 <pre>
 $ sandbox 32768 - cat README
 cat: cannot open README
 $  
 </pre>
-<p>在这个例子中， <tt>cat README</tt> 是正在沙盒中的命令。 32768是拒绝系统调用的掩码；在这个例子中是 <tt>1&lt;&lt;SYS_open</tt>。如果您的解决方案正确，您应该看到“cat：无法打开自述文件”。
+<p>在这个例子中， <tt>cat README</tt> 是被沙箱化的命令。32768 是要拒绝的系统调用的掩码；在此示例中，它是 <tt>1&lt;&lt;SYS_open</tt>。如果你的解答正确，你应该看到 "cat: cannot open README"。
 
-<p>如果您通过了测试，您的解决方案将获得满分 <tt>grade-lab-syscall sandbox_mask</tt>:
+<p>如果您通过以下测试，您的解决方案将获得满分： <tt>grade-lab-syscall sandbox_mask</tt>:
   <pre>
 $ ./grade-lab-syscall sandbox_mask
 == Test sandbox_mask == sandbox_mask: OK (1.5s) 
@@ -208,24 +208,24 @@ $ ./grade-lab-syscall sandbox_mask
   <ul>
 <li><p>添加 <tt>$U/_sandbox</tt> 到 Makefile 中的 UPROGS
 
-    <li><p>运行 <kbd>make qemu</kbd> 你会看到编译器无法编译 <tt>user/sandbox.c</tt>，因为用户空间存根 <tt>interpose</tt> 系统调用尚不存在：添加原型 <tt>interpose</tt> 到 <tt>user/user.h</tt>，一个存根 <tt>user/usys.pl</tt>，以及一个系统调用号 <tt>kernel/syscall.h</tt>。 Makefile 调用 perl 脚本 <tt>user/usys.pl</tt>，这会产生 <tt>user/usys.S</tt>，实际的系统调用存根，使用 RISC-V <tt>ecall</tt> 指令转换到内核。解决编译问题后，运行 <kbd>sandbox 32768 - cat README</kbd> 在 xv6 外壳中；它会失败，因为你还没有在内核中实现系统调用。
+    <li><p>运行 <kbd>make qemu</kbd> 你将看到编译器无法编译 <tt>user/sandbox.c</tt>，因为 <tt>interpose</tt> 系统调用的用户态存根尚不存在：请为 <tt>interpose</tt> 至 <tt>user/user.h</tt>添加一个原型，为 <tt>user/usys.pl</tt>添加一个存根，并为 <tt>kernel/syscall.h</tt>添加一个系统调用号。Makefile 会调用 perl 脚本 <tt>user/usys.pl</tt>，该脚本生成 <tt>user/usys.S</tt>，即实际的系统调用存根，这些存根使用 RISC-V <tt>ecall</tt> 指令切换到内核。修复编译问题后，在 <kbd>sandbox 32768 - cat README</kbd> xv6 shell 中运行；该命令将会失败，因为你尚未在内核中实现该系统调用。
 
-    <li><p>添加一个 <tt>sys_interpose()</tt> 函数于 <tt>kernel/sysproc.c</tt> 通过将掩码参数记录在新的字段中来实现新的系统调用 <tt>proc</tt> 结构（见 <tt>kernel/proc.h</tt>）。从用户空间检索系统调用参数的函数位于 <tt>kernel/syscall.c</tt>，您可以在中查看它们的使用示例 <tt>kernel/sysproc.c</tt>。添加您的新 <tt>sys_interpose</tt> 到 <tt>syscalls</tt> 数组中 <tt>kernel/syscall.c</tt>.
+    <li><p>添加一个 <tt>sys_interpose()</tt> 函数，位于 <tt>kernel/sysproc.c</tt> 通过将 mask 参数记录在 <tt>proc</tt> 结构体（参见 <tt>kernel/proc.h</tt>）。用于从用户态获取系统调用参数的函数位于 <tt>kernel/syscall.c</tt>，你可以在其中看到它们的使用示例，位于 <tt>kernel/sysproc.c</tt>. 将你的新 <tt>sys_interpose</tt> 到 <tt>syscalls</tt> 数组中 <tt>kernel/syscall.c</tt>.
    </p></li>
-<li><p>修改 <tt>kfork()</tt> （见 <tt>kernel/proc.c</tt>) 将掩码从父进程复制到子进程。
+<li><p>修改 <tt>kfork()</tt> （参见 <tt>kernel/proc.c</tt>）将掩码从父进程复制到子进程。
 
-    <li><p>修改 <tt>syscall()</tt> 函数于 <tt>kernel/syscall.c</tt> 检查系统调用是否必须被拒绝。
+    <li><p>修改 <tt>syscall()</tt> 函数，位于 <tt>kernel/syscall.c</tt> 以检查是否必须拒绝该系统调用。
 
   </p></li></p></li></p></li></p></li></ul>
-<h2>具有允许路径名的沙箱<script>g("easy")</script></h2>
+<h2>带有允许路径名的沙箱<script>g("easy")</script></h2>
 <p>
 <div class="lab-required">
-    在此作业中，您将扩展沙箱以允许屏蔽
-    <tt>open</tt> 和 <tt>exec</tt> 基于它们使用的路径名的系统调用。第二个参数 <tt>sys_interpose</tt> 是允许的路径名。如果 <tt>open</tt> 或 <tt>exec</tt> 被屏蔽但路径名与允许的路径名匹配，那么应该允许这些系统调用。
+    在本次作业中，你将扩展沙箱以允许被屏蔽的
+    <tt>open</tt> 和 <tt>exec</tt> 基于它们所使用的路径名的系统调用。的第二个参数 <tt>sys_interpose</tt> 是否为允许的路径名。如果 <tt>open</tt> 或 <tt>exec</tt> 被屏蔽但路径名与允许的路径名匹配，则这些系统调用应被允许执行。
 
 </div>
 
-完成后，您应该看到如下输出：
+完成后，你应该看到如下输出：
 <pre>
 $ sandbox 32768 README grep xv6 README
 xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
@@ -235,9 +235,9 @@ xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
 $ sandbox 32768 README grep xv6 x
 grep: cannot open x
 </pre>
-<p>在此示例中，沙箱允许 <tt>open</tt> 访问的调用 <tt>README</tt>，但不是任何其他文件（例如 x）。
+<p>在此示例中，沙箱允许 <tt>open</tt> 访问 <tt>README</tt>的调用，但不允许访问任何其他文件（例如 x）。
 
-<p>如果您的解决方案通过了沙箱测试，则它是正确的 <tt>make grade</tt>:
+<p>如果你的解决方案通过了 <tt>make grade</tt>:
   <pre>
 $ make grade
 ...
@@ -260,29 +260,29 @@ sandbox_minus: OK (1.1s)
   </pre>
 <p>一些提示：
   <ul>
-<li><p>修改 <tt>sys_interpose()</tt> 记住允许的路径名。
-	<tt>argstr</tt> 将很方便地检索路径名。您可以声明大小的缓冲区 <tt>MAXPATH</tt> 在 <tt>proc</tt> struct.
+<li><p>修改 <tt>sys_interpose()</tt> 用于记录允许的路径名。
+	<tt>argstr</tt> 将有助于获取路径名。你可以在 <tt>MAXPATH</tt> 中声明一个大小为 <tt>proc</tt> 结构体。
 	
    </p></li>
-<li><p>如果 <tt>open</tt> 或 <tt>exec</tt> 被屏蔽，检查路径名是否与允许的路径名匹配。如果是这样，则允许执行这些系统调用。 
+<li><p>如果 <tt>open</tt> 或 <tt>exec</tt> 被屏蔽时，检查路径名是否与允许的路径名匹配。若匹配，则允许执行这些系统调用。 
     </p></li>
 </ul>
-<h2>攻击xv6 <script>g("moderate")</script></h2>
-<p>xv6内核将用户程序相互隔离，并将内核与用户程序隔离。正如您在上面的作业中看到的，应用程序不能直接调用内核或另一个用户程序中的函数；相反，交互仅通过系统调用发生。但是，如果内核的系统调用实现存在错误，则攻击者可能能够利用该错误来打破隔离边界。为了了解如何利用错误，我们在 xv6 中引入了一个错误，您的目标是利用该错误从另一个进程窃取秘密。
+<h2>攻击 xv6 <script>g("moderate")</script></h2>
+<p>xv6 内核将用户程序彼此隔离，并将内核与用户程序隔离。正如你在上述作业中所看到的，应用程序无法直接调用内核或其他用户程序中的函数；所有交互只能通过系统调用进行。然而，如果内核在实现某个系统调用时存在漏洞，攻击者就可能利用该漏洞打破隔离边界。为了了解漏洞是如何被利用的，我们在 xv6 中故意引入了一个漏洞，你的目标是利用该漏洞从另一个进程中窃取一个秘密。
   
-<p>错误是调用 <tt>memset(mem, 0, sz)</tt> 在 <tt>uvmalloc()</tt>
-  在 <tt>kernel/vm.c</tt> 编译本实验时，省略了清除新分配的页面的操作。同样，编译时 <tt>kernel/kalloc.c</tt> 对于本实验，使用的两条线 <tt>memset</tt> 将垃圾放入空闲页面的操作被省略。省略这 3 行的净效果（全部由 <tt>ifndef
-  LAB_SYSCALL</tt>）是新分配的内存保留了以前使用的内容。因此，一个应用程序调用 <tt>sbrk()</tt> 分配内存可能会收到包含先前使用的数据的页面。尽管删除了 3 行，xv6 大部分工作正常；它甚至通过了大部分 <tt>usertests</tt>.
+<p>该漏洞在于，对 <tt>memset(mem, 0, sz)</tt> 在 <tt>uvmalloc()</tt>
+  在 <tt>kernel/vm.c</tt> 的调用（用于清零新分配的页面）在编译本实验时被省略了。类似地，在编译 <tt>kernel/kalloc.c</tt> 时，使用 <tt>memset</tt> 向空闲页写入垃圾数据的两行代码也被省略了。省略这 3 行代码（均以 <tt>ifndef
+  LAB_SYSCALL</tt>标记）的最终效果是：新分配的内存会保留其上次使用时的内容。因此，调用 <tt>sbrk()</tt> 分配内存的应用程序可能会收到包含历史数据的页面。尽管删除了这 3 行代码，xv6 大部分功能仍能正常运行，甚至能通过大多数 <tt>usertests</tt>.
 
   <div class="lab-required">
-<p><tt>user/secret.c</tt> 在其内存中写入一个秘密字符串，然后退出（这会释放其内存）。您的目标是添加几行代码 <tt>user/attack.c</tt> 找到先前执行的秘密 <tt>secret.c</tt> 写入内存，并单独将秘密打印在一行上。
+<p><tt>user/secret.c</tt> 将一个秘密字符串写入其内存后退出（从而释放其内存）。你的目标是在 <tt>user/attack.c</tt> 中添加若干行代码，以找到 <tt>secret.c</tt> 之前某次执行写入内存中的秘密，并将该秘密单独打印在一行上。
       
-    <p>你的 <tt>attack.c</tt> 必须与未修改的 xv6 和未修改的一起使用 <tt>secret.c</tt>。您可以更改任何内容以帮助您进行实验和调试，但必须在最终测试和提交之前恢复这些更改。
+    <p>你的 <tt>attack.c</tt> 必须与未修改的 xv6 和未修改的 <tt>secret.c</tt>配合使用。你可以做任何更改来辅助实验和调试，但在最终测试和提交前必须还原这些更改。
   </p></p></div>
 
 
-的 <tt>secret</tt> 程序将秘密作为参数。您可以测试您的 <tt>attack</tt> 通过运行程序 <tt>secret</tt> 有一些争论，然后运行 <tt>attack</tt>，并查看是否
-<tt>attack</tt> 准确打印传递给的参数 <tt>secret</tt>。这是一次成功的运行：
+该 <tt>secret</tt> 程序将密钥作为参数。你可以通过运行来测试你的 <tt>attack</tt> 程序，方法是运行 <tt>secret</tt> 并传入某个参数，然后运行 <tt>attack</tt>，并查看
+<tt>attack</tt> 是否恰好打印出传递给 <tt>secret</tt>的参数。以下是一次成功运行的示例：
 <pre>
 $ secret xyzzy
 $ attack
@@ -290,59 +290,59 @@ xyzzy
 $
 </pre>
 <p>
-根据您实施攻击的具体方式，您可能需要运行
-<tt>attack</tt> 第二次是为了让它发现这个秘密。分级机运行 <tt>attack</tt> 两次，以防万一，如果其中一个产生了秘密，则满意。
+根据你的攻击实现方式，你可能需要再次运行
+<tt>attack</tt> 才能找到密钥。评分程序会运行 <tt>attack</tt> 两次以防万一，只要其中一次能输出密钥即视为通过。
 
 <p>
-从 xv6 外部，您可以使用 <tt>./grade-lab-syscall attack</tt>, 或 <tt>make grade</tt>，看看您的攻击是否通过了我们的测试。测试生成的秘密字符串保证仅包含数字和大小写字母。
+在 xv6 外部，你可以使用 <tt>./grade-lab-syscall attack</tt>，或 <tt>make grade</tt>，以查看你的攻击是否通过我们的测试。测试生成的秘密字符串保证只包含数字以及大小写字母。
       
-<p>与此示例一样，不直接影响正确性的错误有时可能会被利用来破坏安全性。仔细的编程和广泛的测试可以减少错误的数量，但不能保证不存在错误。 xv6 过去曾出现过错误，并且可能还有更多未被发现的错误。真实内核的代码比 xv6 多得多，此类错误由来已久。例如，参见公众号 <a href="https://www.opencve.io/cve?vendor=linux&amp;product=linux_kernel">Linux 漏洞</a> 和
+<p>与此示例类似，不直接影响正确性的漏洞有时也可被利用来破坏安全性。严谨的编程和大量的测试可以减少漏洞数量，但无法保证完全消除。xv6 过去曾存在漏洞，也可能仍有尚未发现的错误。相比 xv6，真实内核的代码量大得多，此类漏洞更是由来已久。例如，请参阅公开的 <a href="https://www.opencve.io/cve?vendor=linux&amp;product=linux_kernel">Linux 漏洞</a> 和
   <a href="https://docs.kernel.org/process/security-bugs.html">如何报告漏洞</a>.
       
 <!-- START SECTION: submit -->
 <p><a name="submit"></a>
-<h2>提交实验室</h2>
+<h2>提交实验</h2>
 <h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并输入一个整数，即您在实验室上花费的小时数。
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 文件。
+<p>创建一个新文件， <tt>time.txt</tt>，并填入一个整数，表示你在本次实验上花费的小时数。
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 该文件。
 
 <h3>答案</h3>
-<p>如果本实验室有问题，请将您的答案写在 <tt>answers-*.txt</tt>.
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件。
+<p>如果本次实验包含问题，请将你的答案写入 <tt>answers-*.txt</tt>.
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件中。
 
 <h3>提交</h3>
-<p>作业提交由 Gradescope 处理。您将需要一个 MIT Gradescope 帐户。请参阅 Piazza 了解加入课程的入场代码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">这个链接</a>
-如果您需要更多帮助加入。
+<p>作业提交通过 Gradescope 处理。你需要一个 MIT Gradescope 账户。请在 Piazza 上查看加入课程的注册码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">此链接</a>
+如果您需要更多帮助以加入。
 
-<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传到相应的 Gradescope 作业。
+<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传至对应的 Gradescope 作业。
 
-<p> 如果你跑 <kbd>make zipball</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+<p> 如果您运行 <kbd>make zipball</kbd> ，且存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <tt>??</tt>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <tt>??</tt>开头的行中。您可以让 <tt>git</tt> 使用以下命令跟踪您创建的新文件
 <kbd>git add {filename}</kbd>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请跑 <kbd>make grade</kbd> 确保您的代码通过所有测试。 Gradescope 自动评分器将使用相同的评分程序为您提交的内容分配评分。</li>
-<li>运行前提交任何修改过的源代码 <kbd>make zipball</kbd>.</li>
-<li>您可以在 Gradescope 检查提交的状态并下载提交的代码。 Gradescope 实验室成绩是您最终的实验室成绩。</li>
+<li>请运行 <kbd>make grade</kbd> 以确保您的代码通过所有测试。Gradescope 自动评分器将使用相同的评分程序为您的提交评分。</li>
+<li>在运行之前，请提交所有已修改的源代码 <kbd>make zipball</kbd>.</li>
+<li>您可以在 Gradescope 上查看提交状态并下载已提交的代码。Gradescope 上的实验成绩即为您的最终实验成绩。</li>
 </ul>
 </div>
 <!-- END SECTION: submit -->
-<h2>可选的挑战练习</h2>
+<h2>可选挑战练习</h2>
 <ul>
-<li>请在 xv6 中找到一个允许攻击者破坏进程隔离或使内核崩溃的错误，并告知我们。 （诸如 Meltdown 之类的辅助渠道不在讨论范围内，尽管我们将在讲座中介绍它们。） </li>
+<li>在 xv6 中找到一个允许攻击者破坏进程隔离或使内核崩溃的漏洞，并告知我们。（Meltdown 等侧信道攻击不在范围之内，尽管我们会在课堂上讲解。） </li>
 </ul>
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

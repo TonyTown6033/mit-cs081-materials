@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料</a></li>
@@ -76,35 +76,35 @@
 <div class="container">
 <!-- START SECTION: body -->
 <h1>实验：xv6 的写时复制 fork
-<p> 虚拟内存提供了一定程度的间接性：内核可以通过将 PTE 标记为无效或只读来拦截内存引用，从而导致页面错误，并且可以通过修改 PTE 来更改地址的含义。计算机系统中有一种说法，任何系统问题都可以通过一定程度的间接解决。本实验探讨了一个示例：写时复制分叉。
+<p> 虚拟内存提供了一层间接性：内核可以通过将 PTE 标记为无效或只读来拦截内存引用，从而触发页面错误，并可以通过修改 PTE 来改变地址的含义。计算机系统中有句名言：任何系统问题都可以通过增加一层间接性来解决。本实验探索一个具体示例：写时复制 fork。
     
-<p>要启动实验室，请切换到cow分支：
+<p>要开始本实验，请切换到 cow 分支：
 <pre>
 $ <kbd>git fetch</kbd>
 $ <kbd>git checkout cow</kbd>
 $ <kbd>make clean</kbd>
 </pre>
-<h2>问题</h2>
+<h2>问题描述</h2>
 
-xv6 中的 fork() 系统调用将父进程的所有用户空间内存复制到子进程中。如果父级很大，复制可能需要很长时间。更糟糕的是，这项工作通常在很大程度上被浪费了：子进程中的 fork() 通常后面跟着 exec()，这会丢弃复制的内存，通常不会使用其中的大部分内存。另一方面，如果父级和子级都使用复制的页面，并且其中一个或两个都写入该页面，则确实需要该副本。
+xv6 中的 fork() 系统调用会将父进程的全部用户态内存复制到子进程中。如果父进程占用内存较大，复制过程可能耗费大量时间。更糟糕的是，这些工作往往大部分都是徒劳的：子进程在 fork() 之后通常紧接着调用 exec()，这会丢弃已复制的内存，而其中大部分根本未被使用。另一方面，如果父子进程都使用某个已复制的页面，且其中一方或双方对其进行写操作，那么该复制才是真正必要的。
 
 <h2>解决方案</h2>
 
-实现写时复制 (COW) fork() 的目标是推迟分配和复制物理内存页，直到实际需要副本（如果有）。
+实现写时复制（COW）fork() 的目标是：将物理内存页的分配与复制推迟到真正需要时才执行（如果确实需要的话）。
 
 <p>
-COW fork() 只为子进程创建一个页表，用户内存的 PTE 指向父进程的物理页。 COW fork() 将父级和子级中的所有用户 PTE 标记为只读。当任一进程尝试写入其中一个 COW 页时，CPU 将强制发生页错误。内核页面错误处理程序检测到这种情况，为错误进程分配物理内存页面，将原始页面复制到新页面，并修改错误进程中的相关 PTE 以引用新页面，这次 PTE 标记为可写。当页面错误处理程序返回时，用户进程将能够写入其页面副本。
+COW fork() 仅为子进程创建一个页表，其中用户内存的 PTE 指向父进程的物理页。COW fork() 将父子进程中所有用户态 PTE 均标记为只读。当任一进程尝试写入这些 COW 页时，CPU 将触发页面错误。内核的页面错误处理程序检测到该情况后，为发生错误的进程分配一个新的物理内存页，将原始页内容复制到新页中，并修改该进程中对应的 PTE 使其指向新页，同时将该 PTE 标记为可写。页面错误处理程序返回后，用户进程即可对其私有的页面副本执行写操作。
 
 <p>
-COW fork() 使得释放实现用户内存的物理页变得有点棘手。给定的物理页可能被多个进程的页表引用，并且仅当最后一个引用消失时才应释放。在像 xv6 这样的简单内核中，这种簿记相当简单，但在生产内核中，这可能很难正确执行；例如，参见
-<a href="https://lwn.net/Articles/849638/">修补直到奶牛回家</a>.
+COW fork() 使得释放实现用户内存的物理页变得稍微复杂一些。同一个物理页可能被多个进程的页表所引用，只有当最后一个引用消失时才应将其释放。在 xv6 这样简单的内核中，这种记录管理尚且直观，但在生产级内核中则难以做到正确；例如，请参见
+<a href="https://lwn.net/Articles/849638/">不停打补丁，直到写时复制实验完成</a>.
 
 <h2>实现写时复制 fork<script>g("hard")</script></h2>
 <p>
 <div class="lab-required">
-您的任务是在 xv6 内核中实现写时复制 fork。如果修改后的内核成功执行了owtest 和'usertests -q' 程序，那么您就完成了。
+你的任务是在 xv6 内核中实现写时复制 fork。如果你修改后的内核能够成功执行 cowtest 和 'usertests -q' 程序，则表示实验完成。
 </div>
-<p>为了帮助您测试您的实现，我们提供了一个名为cowtest 的xv6 程序（源代码位于user/cowtest.c 中）。 owtest 运行各种测试，但即使是第一个测试也会在未经修改的 xv6 上失败。因此，最初，您将看到：
+<p>为了帮助你测试实现，我们提供了一个名为 cowtest 的 xv6 程序（源码位于 user/cowtest.c）。cowtest 会运行多项测试，但即使是第一项测试在未修改的 xv6 上也会失败。因此，初始情况下你会看到：
 
 <pre>
 $ <kbd>cowtest</kbd>
@@ -112,10 +112,10 @@ simple: fork() failed
 $ 
 </pre>
 
-“简单”测试分配一半以上的可用物理内存，然后 fork()。分叉失败是因为没有足够的可用物理内存来为子进程提供父进程内存的完整副本。
+"simple" 测试会分配超过一半的可用物理内存，然后调用 fork()。由于没有足够的空闲物理内存为子进程提供父进程内存的完整副本，fork 会失败。
 
 <p>
-完成后，您的内核应该通过owtest和usertests -q中的所有测试。即：
+完成后，你的内核应能通过 cowtest 和 usertests -q 中的所有测试。即：
 
 <pre>
 $ <kbd>cowtest</kbd>
@@ -133,80 +133,82 @@ ALL TESTS PASSED
 $
 </pre>
 <p>
-这是一个合理的攻击计划。
+以下是一个合理的实现思路。
 
 <ol>
-<li> 修改 uvmcopy() 以将父级的物理页面映射到子级，而不是分配新页面。清除 <tt>PTE_W</tt> 在子页面和父页面的 PTE 中， <tt>PTE_W</tt> set.
+<li> 修改 uvmcopy()，将父进程的物理页映射到子进程，而不是分配新页。清除 <tt>PTE_W</tt> 在子进程和父进程中，对设置了 <tt>PTE_W</tt> 的页所对应的页表项（PTE）中的该标志位。
 
   
-<li> 修改 vmfault() 以识别页面错误。当原本可写的 COW 页发生写页错误时，使用 kalloc() 分配一个新页，将旧页复制到新页，并使用以下命令将新页安装到 PTE 中： <tt>PTE_W</tt>
-设置。原本只读的页面（未映射 <tt>PTE_W</tt>，如文本段中的页面）应保持只读并在父子之间共享；尝试写入此类页面的进程应该被终止。
+<li> 修改 vmfault()，使其能够识别缺页故障。当对一个原本可写的 COW 页发生写缺页故障时，使用 kalloc() 分配新页，将旧页内容复制到新页，并将新页安装到页表项（PTE）中，同时设置 <tt>PTE_W</tt>
+原本为只读的页（未映射为 <tt>PTE_W</tt>，例如文本段中的页面）应保持只读状态，并在父进程和子进程之间共享；试图写入此类页面的进程应被终止。
 
-<li> 确保每个物理页在最后一个 PTE 引用消失时被释放——但不是在此之前。实现此目的的一个好方法是为每个物理页保留引用该页的用户页表数量的“引用计数”。当以下情况时，将页面的引用计数设置为 1： <tt>kalloc()</tt> 分配它。当 fork 导致子进程共享页面时增加页面的引用计数，并在每次任何进程从其页表中删除页面时减少页面的计数。
-<tt>kfree()</tt> 仅当其引用计数为零时才应将页面放回空闲列表。将这些计数保存在固定大小的整数数组中是可以的。您必须制定一个如何索引数组以及如何选择其大小的方案。例如，您可以使用页面的物理地址除以 4096 来索引该数组，并为该数组提供等于放置在空闲列表上的任何页面的最高物理地址的元素数 <tt>kinit()</tt> 在 kalloc.c.请随意修改 kalloc.c（例如， <tt>kalloc()</tt> 和 <tt>kfree()</tt>）来维护引用计数。
+<li> 确保每个物理页在最后一个指向它的 PTE 引用消失时被释放——但不能提前释放。一种好的做法是，为每个物理页维护一个"引用计数"，记录有多少用户页表引用了该页。当 <tt>kalloc()</tt> 在分配页面时将其引用计数初始化为 1。当 fork 导致子进程共享该页面时，增加页面的引用计数；每当任何进程从其页表中释放该页面时，减少页面的引用计数。
+<tt>kfree()</tt> 只有当页面的引用计数为零时，才应将该页面放回空闲列表。可以将这些计数保存在一个固定大小的整数数组中。你需要设计一种方案来确定数组的索引方式及其大小。例如，可以用页面的物理地址除以 4096 作为数组索引，并将数组的元素数量设置为等于由 <tt>kinit()</tt> 在 kalloc.c 中。请随意修改 kalloc.c（例如， <tt>kalloc()</tt> 和 <tt>kfree()</tt>）来维护引用计数。
 
-<li> 修改 copyout() 以在遇到 COW 页面时使用与页面错误相同的方案。
+<li> 修改 `copyout()`，使其在遇到写时复制页面时采用与处理页错误相同的方案。
 
 </li></li></li></li></ol>
 <p>一些提示：
 
   <ul>
 <li>
-对于每个 PTE，有一种方法来记录它是否是 COW 映射可能会很有用。为此，您可以使用 RISC-V PTE 中的 RSW（为软件保留）位。
+为每个 PTE 记录其是否为写时复制映射，这样的机制可能很有用。你可以使用 RISC-V PTE 中的 RSW（reserved for software）位来实现这一点。
 
 <li>
-<tt>usertests -q</tt> 探索场景 <tt>cowtest</tt> 不进行测试，所以不要忘记检查两者的所有测试是否都通过。
+<tt>usertests -q</tt> 探索以下场景 <tt>cowtest</tt> 不会测试，因此请不要忘记检查两者的所有测试是否都能通过。
 
-<li>一些有用的宏和页表标志的定义位于 <tt>kernel/riscv.h</tt>.
+<li>`kernel/riscv.h`.
 
-<li>如果发生 COW 页面错误并且没有可用内存，则应终止该进程。
+页表标志的一些有用宏和定义位于 `kernel/riscv.h` 的末尾。 <tt>kernel/riscv.h</tt>.
+
+<li>如果发生写时复制页面错误且没有空闲内存，该进程应被终止。
 
   </li></li></li></li></ul>
 <!-- START SECTION: submit -->
 <p><a name="submit"></a>
-<h2>提交实验室</h2>
+<h2>提交实验</h2>
 <h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并输入一个整数，即您在实验室上花费的小时数。
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 文件。
+<p>创建一个新文件， <tt>time.txt</tt>，并填入一个整数，表示你在本次实验上花费的小时数。
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 该文件。
 
 <h3>答案</h3>
-<p>如果本实验室有问题，请将您的答案写在 <tt>answers-*.txt</tt>.
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件。
+<p>如果本次实验包含问题，请将你的答案写入 <tt>answers-*.txt</tt>.
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件中。
 
 <h3>提交</h3>
-<p>作业提交由 Gradescope 处理。您将需要一个 MIT Gradescope 帐户。请参阅 Piazza 了解加入课程的入场代码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">这个链接</a>
-如果您需要更多帮助加入。
+<p>作业提交通过 Gradescope 处理。你需要一个 MIT Gradescope 账户。请在 Piazza 上查看加入课程的注册码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">此链接</a>
+如果您需要更多帮助以加入。
 
-<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传到相应的 Gradescope 作业。
+<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传至对应的 Gradescope 作业。
 
-<p> 如果你跑 <kbd>make zipball</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+<p> 如果您运行 <kbd>make zipball</kbd> ，且存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <tt>??</tt>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <tt>??</tt>开头的行中。您可以让 <tt>git</tt> 使用以下命令跟踪您创建的新文件
 <kbd>git add {filename}</kbd>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请跑 <kbd>make grade</kbd> 确保您的代码通过所有测试。 Gradescope 自动评分器将使用相同的评分程序为您提交的内容分配评分。</li>
-<li>运行前提交任何修改过的源代码 <kbd>make zipball</kbd>.</li>
-<li>您可以在 Gradescope 检查提交的状态并下载提交的代码。 Gradescope 实验室成绩是您最终的实验室成绩。</li>
+<li>请运行 <kbd>make grade</kbd> 以确保您的代码通过所有测试。Gradescope 自动评分器将使用相同的评分程序为您的提交评分。</li>
+<li>在运行之前，请提交所有已修改的源代码 <kbd>make zipball</kbd>.</li>
+<li>您可以在 Gradescope 上查看提交状态并下载已提交的代码。Gradescope 上的实验成绩即为您的最终实验成绩。</li>
 </ul>
 </div>
 <!-- END SECTION: submit -->
-<h2>可选的挑战练习</h2>
+<h2>可选挑战练习</h2>
 <ul>
-<li>测量您的 COW 实现减少了多少字节 xv6 副本数及其分配的物理页数。寻找并利用机会进一步减少这些数字。
+<li>测量您的 COW 实现减少了 xv6 复制的字节数以及分配的物理页数量。寻找并利用机会进一步减少这些数量。
 
 </li></ul>
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

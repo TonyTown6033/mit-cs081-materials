@@ -1,358 +1,358 @@
-[自动汉化说明]
-本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+[AI 汉化说明]
+本文件为 AI 汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-6.S081 2020第六讲：系统调用进入/退出
+6.S081 2020 第6讲：系统调用入口/出口
 
-Today: user -> kernel transition
-  系统调用、故障、中断以同样的方式进入内核
-  对于隔离和性能很重要
-  许多精心设计和重要细节
+今天：用户态 -> 内核态转换
+  系统调用、故障、中断以相同方式进入内核
+  对隔离性和性能至关重要
+  涉及大量精心设计与重要细节
 
-当程序进行系统调用时需要发生什么，例如写（）？
-  [CPU |用户/内核图]
-  CPU 资源是为用户执行（而不是内核）而设置的
-    32个寄存器，sp，pc，特权模式，satp，stvec，sepc，...
-  需要发生什么？
-    保存32个用户寄存器和PC
-    切换到主管模式
+当程序发起系统调用（例如 write()）时，需要发生什么？
+  [CPU | 用户态/内核态示意图]
+  CPU 资源当前为用户态执行而配置（而非内核态）
+    32 个通用寄存器、sp、pc、特权模式、satp、stvec、sepc、……
+  需要做哪些事情？
+    保存 32 个用户寄存器及 pc
+    切换到超级用户模式
     切换到内核页表
-    切换到内核堆栈
-    跳转到内核C代码
-  高层次目标
-    don't let user code interfere with user->kernel transition
-      例如不要在超级用户模式下执行用户代码！
-    对用户代码透明——恢复而不打扰
+    切换到内核栈
+    跳转到内核 C 代码
+  高层目标
+    不允许用户代码干扰用户态->内核态的转换过程
+      例如，不能在超级用户模式下执行用户代码！
+    对用户代码透明——恢复执行时不造成任何干扰
 
-今天我们重点讨论用户/内核转换
-  并忽略系统调用实现在内核中所做的事情
-  但 sys 调用 impl 也必须小心且安全！
+今天我们专注于用户态/内核态的转换过程
+  暂不讨论系统调用实现在进入内核后所做的事情
+  但系统调用的实现同样需要保持谨慎与安全！
 
-CPU的“模式”保护什么？
-  即从用户到管理员的切换模式允许什么？
-  Supervisor 可以使用 CPU 控制寄存器：
-    satp——页表物理地址
-    stvec——ecall 在内核中跳转到此处；指向蹦床
-    sepc -- ecall 在此处保存用户电脑
-    sscratch -- 陷阱帧的地址
-  主管可以使用没有 PTE_U 标志的 PTE
-  但主管没有其他权力！
-    例如不能使用不在页表中的地址
-    所以内核必须仔细设置才能工作
+CPU 的"模式"保护什么？
+  即：从用户模式切换到超级用户模式会开放哪些权限？
+  超级用户模式可以使用 CPU 控制寄存器：
+    satp —— 页表物理地址
+    stvec —— ecall 在内核中跳转至此；指向 trampoline
+    sepc —— ecall 将用户态 pc 保存于此
+    sscratch —— trapframe 的地址
+  超级用户模式可以使用不带 PTE_U 标志的页表项（PTE）
+  但超级用户模式并无其他额外权限！
+    例如，不能访问不在页表中的地址
+    因此内核必须仔细配置，以确保自身能够正常运行
 
-preview:
-  write() write() 返回用户
+预览：
+  write()                        write() 返回              用户态
   -----------------------------------------------------------------
-  Trampoline.S 中的 uservec() Trampoline.S 内核中的 userret()
-  trap.c 中的 usertrap() trap.c 中的 usertrapret()
-  syscall.c 中的 syscall() ^
-  sysfile.c 中的 sys_write() ---|
+  uservec() in trampoline.S      userret() in trampoline.S   内核态
+  usertrap() in trap.c           usertrapret() in trap.c
+  syscall() in syscall.c           ^
+  sys_write() in sysfile.c      ---|
 
-让我们看一下进入/离开内核的 xv6 系统调用
-  xv6 shell 编写 $ 提示符
-  sh.c 第 137 行： write(2, "$ ", 2);
-  用户/usys.S 第 29 行
-    这是 write() 函数，仍在用户空间中
-  a7 告诉内核我们想要什么系统调用 -- SYS_write = 16
-  ecall——触发用户/内核转换
+让我们来观察 xv6 系统调用进入/离开内核的过程
+  xv6 shell 正在输出其 $ 提示符
+  sh.c line 137: write(2, "$ ", 2);
+  user/usys.S line 29
+    这是 write() 函数，仍处于用户态
+  a7 告诉内核我们需要哪个系统调用 -- SYS_write = 16
+  ecall -- 触发用户态/内核态切换
 
-让我们首先在 ecall 上放置一个断点
-  user/sh.asm 说 write() 的 ecall 位于地址 0xde6
+让我们先在 ecall 处设置断点
+  user/sh.asm 显示 write() 的 ecall 位于地址 0xde6
 
 $ make qemu-gdb
 (gdb) b *0xde6
-（gdb）c
-(gdb) 删除 1
+(gdb) c
+(gdb) delete 1
 (gdb) x/3i 0xde4
 
-让我们看看寄存器
-(gdb) 打印 $pc
-(gdb) 信息寄存器
+让我们查看寄存器
+(gdb) print $pc
+(gdb) info reg
 
-$pc and $sp are at low addresses -- user memory starts at zero
-RISC-V 上的 C 将函数参数放入 a0、a1、a2 和 c 中
-write() 参数：a0 是 fd，a1 是 buf，a2 是 n
+$pc 和 $sp 位于低地址 -- 用户内存从零开始
+RISC-V 上的 C 语言将函数参数放在 a0、a1、a2 等寄存器中
+write() 的参数：a0 是 fd，a1 是 buf，a2 是 n
 
 (gdb) x/2c $a1
 
 shell 正在打印 $ 提示符
 
-正在使用什么页表？
-  (gdb) 打印/x $satp
-        不是很有用
-  qemu：control-a c，信息内存
-    有六个页面的映射
-    指令、数据、堆栈保护（无 PTE_U）、堆栈、
-    然后是两个高神秘页面：trapframe和trampoline
-    没有内核内存、设备、物理内存的映射
+当前使用的是哪张页表？
+  (gdb) print/x $satp
+        信息不够直观
+  qemu: control-a c, info mem
+    共有六个页面的映射
+    包括指令、数据、栈保护页（无 PTE_U）、栈，
+    以及两个高地址的神秘页面：trapframe 和 trampoline
+    没有内核内存、设备及物理内存的映射
 
 让我们执行 ecall
 
-(gdb) 斯特皮
+(gdb) stepi
 
-我们在哪里？
-  (gdb) 打印 $pc
-        我们正在一个非常高的虚拟地址上执行
+我们现在在哪里？
+  (gdb) print $pc
+        我们正在一个非常高的虚拟地址处执行
   (gdb) x/6i 0x3ffffff000
-        这些是我们要执行的指令
+        这些是我们即将执行的指令
         参见 kernel/trampoline.S 中的 uservec
-        这是内核陷阱处理代码的开始
-  (gdb) 信息寄存器
-        寄存器保存用户值（$pc 除外）
-  qemu：信息内存
-        我们仍然使用用户页表
-        请注意 $pc 位于蹦床页面，即最后一页
+        这是内核陷阱处理代码的起始部分
+  (gdb) info reg
+        寄存器中保存着用户态的值（$pc 除外）
+  qemu: info mem
+        我们仍在使用用户页表
+        注意 $pc 位于跳板页（trampoline page），即最后一个页面
 
-我们在“trampoline”页面中执行，其中包含
-内核的陷阱处理代码。 ecall 不切换页表，所以
-这些内核指令必须存在于用户页面的某个位置
-表。蹦床页面就是答案：内核将其映射到
-每个用户页表的顶部。内核将 $stvec 设置为蹦床
-页面的虚拟地址。蹦床受到保护：没有 PTE_U 标志。
+我们正在"跳板"页（trampoline page）中执行，该页包含内核陷阱处理代码的起始部分。
+ecall 不会切换页表，因此这些内核指令必须存在于用户页表的某处。
+跳板页正是解决方案：内核将其映射到每个
+用户页表的顶部。内核将 $stvec 设置为跳板
+页的虚拟地址。跳板页受到保护：没有 PTE_U 标志。
 
-(gdb) 打印/x $stvec
 
-我们可以看出我们处于主管模式吗？
-  我不知道如何直接找到模式
-  但观察 $pc 正在没有 PTE_U 标志的页面中执行
-    没有崩溃意味着我们处于主管模式
+(gdb) print/x $stvec
 
-我们是怎么到这里的？
+我们如何判断当前处于特权模式（supervisor mode）？
+  我不知道有什么方法可以直接查看当前模式
+  但可以观察到 $pc 正在一个没有 PTE_U 标志的页中执行
+    没有崩溃意味着我们处于特权模式
+
+我们是如何到达这里的？
   ecall 做了三件事：
-    将模式从用户更改为管理员
-    将 $pc 保存到 $sepc 中
-      (gdb) 打印/x $sepc
-    跳转到 $stvec （即将 $pc 设置为 $stvec）
-      内核在跳转到用户空间之前预先设置了 $stvec
+    将模式从用户态切换到特权模式
+    将 $pc 保存到 $sepc
+      (gdb) print/x $sepc
+    跳转到 $stvec（即将 $pc 设置为 $stvec）
+      内核在跳转到用户态之前已预先设置好 $stvec
 
-注意：ecall 让用户代码切换到管理员模式
+注意：ecall 允许用户代码切换到特权模式
   但内核立即通过 $stvec 获得控制权
-  所以用户程序本身不能作为主管执行
+  因此用户程序本身无法以特权模式执行
 
 现在需要做什么？
-  保存32个用户寄存器值（用于以后透明恢复）
+  保存 32 个用户寄存器的值（以便之后透明地恢复执行）
   切换到内核页表
-  为内核 C 代码设置堆栈
-  跳转到内核C代码
+  为内核 C 代码设置栈
+  跳转到内核 C 代码
 
-为什么 RISC-V 设计者没有让 ecall 为我们做这些事情？
-  ecall 尽可能少做：
-  为操作系统设计人员提供非常快速的系统调用/故障/中断的空间
-    也许操作系统可以处理一些陷阱而无需切换页表
-    也许我们可以将用户和内核都映射到一个页表中
-       所以不需要页表切换
-    也许有些寄存器不需要保存
-    简单的系统调用可能不需要堆栈
+为什么 RISC-V 的设计者没有让 ecall 替我们完成这些工作？
+  ecall 尽可能少地做事：
+  是为了给操作系统设计者提供实现极快系统调用 / 缺页错误 / 中断的空间
+    也许操作系统可以在不切换页表的情况下处理某些陷阱
+    也许可以将用户态和内核态同时映射到一张页表中
+       从而无需切换页表
+    也许某些寄存器不必保存
+    也许简单的系统调用不需要栈
 
-已经为内核进入发明了许多巧妙的方案！
-  CPU 的工作量不同
+为实现内核入口，人们发明了许多巧妙的方案！
+  CPU 承担的工作量各不相同
   处理程序软件的不同策略
-  这里的性能通常非常重要
+  此处的性能往往极为重要
 
-此时我们有什么选择来保存用户寄存器？
-  我们可以把它们写在物理内存中方便的地方吗？
-    不，即使是超级用户模式也被限制为使用页表
-  我们可以先将 satp 设置到内核页表吗？
-    管理员模式允许设置 satp...
-    但此时我们还不知道内核页表的地址！
-    我们需要一个空闲寄存器来执行 csrw satp, $xx
+此时保存用户寄存器有哪些选择？
+  能否直接将它们写入物理内存中某个方便的位置？
+    不行，即使在监督模式下也只能通过页表访问内存
+  能否先将 satp 设置为内核页表？
+    监督模式确实可以设置 satp……
+    但此时我们并不知道内核页表的地址！
+    而且执行 csrw satp, $xx 本身就需要一个空闲寄存器
 
 保存 32 个用户寄存器的解决方案分为两部分：
-  1) xv6 将第二个内核页面（trapframe）映射到每个用户页表中
-     它有空间保存保存的寄存器
-     内核为每个进程提供不同的 trapframe 页
-     0x3fffffe000 处的页面是 trapframe 页面
+  1) xv6 将第二个内核页（即陷阱帧）映射到每个用户页表中
+     该页有足够的空间来保存这些寄存器的值
+     内核为每个进程分配不同的陷阱帧页
+     0x3fffffe000 处的页即为陷阱帧页
      参见 kernel/proc.h 中的 struct trapframe
-     （但我们仍然需要一个寄存器来保存陷阱帧的地址......）
-  2）RISC-V提供sscratch寄存器
-     内核将一个指向 trapframe 的指针放入 sscratch
-       进入用户空间之前
-     主管代码可以用 sscratch 交换任何寄存器
-       因此两者都掌握了 sscratch 中的值，
-       并同时保存寄存器的用户值
+     （但我们仍然需要一个寄存器来存放陷阱帧的地址……）
+  2) RISC-V 提供了 sscratch 寄存器
+     内核在进入用户态之前
+       将指向陷阱帧的指针存入 sscratch
+     监督模式代码可以将任意寄存器与 sscratch 互换
+       从而既能获取 sscratch 中的值，
+       又能同时将该寄存器的用户态值保存下来
 
-在 trapframe.S 的 uservec 开头看到这个：
-  csrrw a0、sscratch、a0
+在 trapframe.S 中 uservec 的开头可以看到这条指令：
+  csrrw a0, sscratch, a0
 
-由于 gdb 的一些怪癖，csrrw 已经被执行了......
+由于 gdb 的某个怪癖，csrrw 已经被执行了……
 
-(gdb) 打印/x $a0
+(gdb) print/x $a0
       陷阱帧的地址
-(gdb> 打印/x $sscratch
-      0x2，旧的第一个参数 (fd)
+(gdb> print/x $sscratch
+      0x2，即原来的第一个参数（fd）
 
-现在 uservec() 通过 a0 将 32 个用户寄存器保存到 trapframe
-  以便稍后当系统调用返回时可以恢复它们
-  让我们跳过它们
+现在 uservec() 通过 a0 将 32 个用户寄存器依次保存到陷阱帧中
+  以便在系统调用返回时能够恢复它们
+  我们跳过这部分
 
-（gdb）b *0x3ffffff076
-（gdb）c
+(gdb) b *0x3ffffff076
+(gdb) c
 
-现在我们正在设置能够在内核中运行 C 代码
-首先是一个堆栈
-  之前，内核放置了一个指向该进程顶部的指针
-    trapframe 中的内核堆栈
-  查看kernel/proc.h中的struct trapframe
-  “ld sp, 8(a0)”获取内核堆栈指针
-  记住a0指向trapframe
-  此时，代码可以获取的唯一内核数据
-    get at 是 trapframe，所以所有东西都必须从那里加载。
+现在我们正在准备在内核中运行 C 代码
+首先需要栈
+  之前，内核已将该进程内核栈栈顶的指针
+    存入陷阱帧
+  参见 kernel/proc.h 中的 struct trapframe
+  "ld sp, 8(a0)" 用于获取内核栈指针
+  记住 a0 指向陷阱帧
+  此时代码能访问的唯一内核数据
+    就是陷阱帧，因此所有内容都必须从那里加载。
 
-(gdb) 斯特皮
+(gdb) stepi
 
-将hart ID检索到tp中
+将 hart ID 读取到 tp 中
 
-(gdb) 斯特皮
+(gdb) stepi
 
-我们要跳转到内核C函数usertrap()，该函数
-  先前保存在 trapframe 中的内核。
-  “ld t0, 16(a0)”将其提取到 t0 中，我们稍后会使用它，
-    切换到内核页表后
+我们希望跳转到内核 C 函数 usertrap()，
+  该函数之前已由内核保存在陷阱帧中。
+  "ld t0, 16(a0)" 将其读取到 t0，稍后会用到，
+    即切换到内核页表之后
 
-(gdb) 斯特皮
+(gdb) stepi
 
-从 trapframe 加载指向内核页表的指针，
-并将其加载到 satp 中，并发出 sfence 来清除 TLB。
+从陷阱帧中加载指向内核页表的指针，
+并将其加载到 satp，同时发出 sfence 以清空 TLB。
 
-(gdb) 斯特皮
-(gdb) 斯特皮
-(gdb) 斯特皮
+(gdb) stepi
+(gdb) stepi
+(gdb) stepi
 
 为什么此时没有发生崩溃？
-  毕竟我们只是在执行时切换了页表！
-  答案：trampoline页面映射到同一个虚拟地址
-    在内核页表以及每个用户页表中
+  毕竟我们刚在执行过程中切换了页表！
+  原因：跳板页在内核页表中映射的虚拟地址
+    与所有用户页表中的虚拟地址相同
 
-(gdb) 打印 $pc
-qemu：信息内存
+(gdb) print $pc
+qemu: info mem
 
-通过内核页表，我们现在可以使用内核函数和数据
+有了内核页表，我们现在可以使用内核函数和数据了
 
-jr t0 是跳转到 usertrap() （使用从 trapframe 检索的 t0）
+jr t0 是跳转到 usertrap() 的指令（使用从陷阱帧中取出的 t0）
 
-(gdb) 打印/x $t0
+(gdb) print/x $t0
 (gdb) x/4i $t0
-(gdb) 斯特皮
-(gdb) tui 启用
+(gdb) stepi
+(gdb) tui enable
 
-我们现在位于 kernel/trap.c 的 usertrap() 中
-  各种陷阱都会来到这里，例如错误、设备中断和系统调用
-  usertrap() 在原因寄存器中查找陷阱原因
-    请参见《RISC-V 读卡器》第 102 页上的图 10.3
-  cause = 8 是系统调用
+我们现在位于 kernel/trap.c 中的 usertrap()
+  各种陷阱都会到达这里，例如错误、设备中断和系统调用
+  usertrap() 查看 scause 寄存器以确定陷阱原因
+    参见《The RISC-V Reader》第 102 页图 10.3
+  scause = 8 表示系统调用
 
-(gdb) 接下来...直到 syscall()
-（gdb）步骤
-(gdb) 下一个
+(gdb) next ... until syscall()
+(gdb) step
+(gdb) next
 
 现在我们在 syscall() kernel/syscall.c 中
-myproc() 使用 tp 检索当前 struct proc *
-p->xxx is usually a slot in the current process's struct proc
+myproc() 使用 tp 寄存器获取当前的 struct proc *
+p->xxx 通常是当前进程的 struct proc 中的某个字段
 
-syscall() 从保存的寄存器 a7 中检索系统调用号
-  p->trapframe points to the trapframe, with saved registers
-  p->trapframe->a7 holds 16, SYS_write
-  p->trapframe->a0 holds write() first argument -- fd
-  p->trapframe->a1 holds buf
-  p->trapframe->a2 holds n
+syscall() 从保存的寄存器 a7 中获取系统调用号
+  p->trapframe 指向陷阱帧，其中保存了各寄存器的值
+  p->trapframe->a7 保存的是 16，即 SYS_write
+  p->trapframe->a0 保存的是 write() 的第一个参数 —— fd
+  p->trapframe->a1 保存的是 buf
+  p->trapframe->a2 保存的是 n
 
-(gdb) 接下来...
-(gdb) 打印数字
+(gdb) next ...
+(gdb) print num
 
-然后通过 syscall[num] 调度函数表
+然后通过 syscall[num] 进行分发，该表是一个函数表
 
-(gdb) 接下来...
-（gdb）步骤
+(gdb) next ...
+(gdb) step
 
-啊哈，我们在 sys_write 中。
-此时系统调用实现是相当普通的 C 代码。
-让我们跳到最后，看看系统调用如何返回用户空间。
+好了，我们现在在 sys_write 中。
+此时系统调用的实现是相当普通的 C 代码。
+我们跳到最后，看看系统调用是如何返回用户态的。
 
-（gdb）完成
+(gdb) finish
 
-请注意 write() 产生了控制台输出（shell 的 $ 提示符）
-返回系统调用()
-the p->tf->a0 assignment causes (eventually) a0 to hold the return value
+注意 write() 产生了控制台输出（shell 的 $ 提示符）
+返回到 syscall()
+对 p->tf->a0 的赋值会（最终）使 a0 保存返回值
   RISC-V 上的 C 调用约定将返回值放在 a0 中
 
-(gdb) 下一个
+(gdb) next
 
-回到 usertrap()
+返回到 usertrap()
 
 (gdb) print p->trapframe->a0
 
-write() 返回 2 -- 两个字符 -- $ 和空格
+write() 返回了 2 —— 两个字符 —— $ 和空格
 
-(gdb) 下一个
-（gdb）步骤
+(gdb) next
+(gdb) step
 
-现在我们在 usertrapret() 中，它开始返回的过程
-  到用户程序
+现在我们在 usertrapret() 中，它开始执行返回用户程序的过程
+    
 
-we need to prepare for the next user->kernel transition
-  stvec = uservec（蹦床），用于下一个 ecall
-  traframe satp = 内核页表，用于下一个用户vec
-  traframe sp = 内核堆栈顶部
-  trapframe 陷阱 = 用户陷阱
-  trapframe Hartid = Hartid（以 tp 为单位）
+我们需要为下一次用户态→内核态的切换做准备
+  stvec = uservec（蹦床），用于下一次 ecall
+  traframe satp = 内核页表，用于下一次 uservec
+  traframe sp = 内核栈顶
+  trapframe trap = usertrap
+  trapframe hartid = hartid（存于 tp 中）
 
-最后，我们将使用 RISC-V sret 指令
-  我们需要准备一些 sret 使用的寄存器
-  sstatus -- 将“先前模式”位设置为用户
-  sepc——保存的用户程序计数器（来自陷阱条目）
+最后，我们将使用 RISC-V 的 sret 指令
+  需要提前准备 sret 所使用的几个寄存器
+  sstatus —— 将"前一模式"位设置为用户态
+  sepc —— 保存的用户程序计数器（来自陷阱入口）
 
-我们将在执行时切换到用户页表
-  在 usertrapret() 中不行，因为它没有映射到用户页表中。
-  需要一个在用户页表和内核页表中都映射的页面——蹦床。
-  跳转到trampoline.S中的userret
+我们将在执行过程中切换到用户页表
+  在 usertrapret() 中不可行，因为它未映射到用户页表中。
+  需要一个同时映射在用户页表和内核页表中的页面 —— 即蹦床。
+  跳转到 trampoline.S 中的 userret
 
-(gdb) tui 禁用
-（gdb）步骤
+(gdb) tui disable
+(gdb) step
 (gdb) x/8i 0x3ffffff090
 
-a0 持有 TRAPFRAME
-a1保存用户页表地址
-csrw satp 切换到用户地址空间
+a0 保存 TRAPFRAME
+a1 保存用户页表地址
+csrw satp 指令将切换到用户地址空间
 
-(gdb) 斯特皮
-(gdb) 斯特皮
-(gdb) 斯特皮
+(gdb) stepi
+(gdb) stepi
+(gdb) stepi
 
-csrw scrap 将用户 a0 置于 sscratch
-  在 sret 之前我们会进行交换，
-  这样a0 保存用户a0，sscratch 保存trapframe 指针。
-  这正是 uservec 所期望的。
+csrw scratch 将用户的 a0 存入 sscratch
+  就在 sret 执行前，我们将进行一次交换，
+  使得 a0 保存用户的 a0，而 sscratch 保存 trapframe 指针。
+  这正是 uservec 所期望的状态。
 
-现在 32 个从 trapframe 加载到寄存器中
-  这些恢复用户寄存器
-  让我们跳过它们
+现在从 trapframe 中将 32 个值加载到寄存器中
+  这些操作将恢复用户寄存器
+  让我们跳过这些步骤
 
 (gdb) b *0x3ffffff10a
-（gdb）c
+(gdb) c
 
-这是将 a0 与 sscratch 交换的 csrw
+这里是将 a0 与 sscratch 互换的 csrw 指令
 
-(gdb) 斯特皮
+(gdb) stepi
 (gdb) print/x $a0 -- write() 的返回值
-(gdb) print/x $sscratch -- uservec 的陷阱帧地址
+(gdb) print/x $sscratch -- 供 uservec 使用的 trapframe 地址
 
-现在我们正在执行 sret 指令
+现在我们到达了 sret 指令
 
-(gdb) 打印 $pc
-(gdb) 斯特皮
-(gdb) 打印 $pc
+(gdb) print $pc
+(gdb) stepi
+(gdb) print $pc
 
-现在我们回到用户程序（$pc = 0x0xdea）
+现在我们回到了用户程序中（$pc = 0x0xdea）
   从 write() 函数返回 2
 
-(gdb) 打印/x $a0
+(gdb) print/x $a0
 
-我们就完成了系统调用！
+我们完成了一次系统调用！
 
 总结
   系统调用的进入/退出远比函数调用复杂
-  大部分复杂性是由于隔离的要求造成的
-    以及对简单快速的硬件机制的渴望
-  需要思考的几个设计问题：
-    邪恶程序可以滥用进入机制吗？
-    你能想办法让硬件或软件变得更简单吗？
-    你能想出让陷阱更快的方法吗？
+  大部分复杂性源于对隔离的要求
+    以及对简单、高效硬件机制的追求
+  几个值得思考的设计问题：
+    恶意程序能否滥用进入机制？
+    你能否想到简化硬件或软件的方法？
+    你能否想到加快陷阱速度的方法？

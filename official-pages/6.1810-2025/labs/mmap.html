@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料</a></li>
@@ -77,10 +77,10 @@
 <!-- START SECTION: body -->
 <h1>实验：mmap <script>g("hard")</script></h1>
 
-的 <tt>mmap</tt> 和 <tt>munmap</tt> 系统调用允许 UNIX 程序对其地址空间进行详细的控制。它们可用于在进程之间共享内存，将文件映射到进程地址空间，并作为用户级页面错误方案的一部分，例如讲座中讨论的垃圾收集算法。在本实验中，您将添加 <tt>mmap</tt> 和 <tt>munmap</tt>
-到 xv6，重点关注内存映射文件。
+该 <tt>mmap</tt> 和 <tt>munmap</tt> 系统调用允许 UNIX 程序对其地址空间进行精细控制。它们可用于在进程间共享内存、将文件映射到进程地址空间，以及作为用户态缺页故障方案（如课堂上讨论的垃圾回收算法）的组成部分。在本实验中，你将添加 <tt>mmap</tt> 和 <tt>munmap</tt>
+到 xv6，专注于内存映射文件。
 
-<p>获取实验室的 xv6 源代码并查看 <tt>mmap</tt> branch:
+<p>获取本实验的 xv6 源代码并切换到 <tt>mmap</tt> branch:
 
 <pre>
   $ <kbd>git fetch</kbd>
@@ -88,45 +88,53 @@
   $ <kbd>make clean</kbd>
 </pre>
 <p>
-手册页（运行 <kbd>man 2 mmap</kbd>) 显示此声明 <tt>mmap</tt>:
+`man 2 mmap`) describes the POSIX `mmap()` function. xv6 doesn't have many features that `mmap` requires; for example, it doesn't support `MAP_PRIVATE` and may lack file system features. We've provided you with starter code in `kernel/sysfile.c` that you should use as a starting point.
+
+手册页（运行
+
+`man 2 mmap`）描述了 POSIX `mmap()` 函数。xv6 缺少 `mmap` 所需的许多特性；例如，它不支持 `MAP_PRIVATE`，也可能缺少文件系统特性。我们在 `kernel/sysfile.c` 中为你提供了起始代码，你应以此作为起点。 <kbd>man 2 mmap</kbd>）展示了该声明，内容为 <tt>mmap</tt>:
 <pre>
 void *mmap(void *addr, size_t len, int prot, int flags,
            int fd, off_t offset);
 </pre>
 <p>
-<tt>mmap</tt> 可以通过多种方式调用，但本实验仅需要其与内存映射文件相关的功能的子集。你可以假设
-<tt>addr</tt> 始终为零，这意味着内核应该决定映射文件的虚拟地址。
-<tt>mmap</tt> 返回该地址，如果失败则返回 0xffffffffffffffff。
+<tt>mmap</tt> 可以通过多种方式调用，但本实验只需实现与文件内存映射相关的功能子集。你可以假设
+<tt>addr</tt> 将始终为零，表示内核应自行决定将文件映射到哪个虚拟地址。
+<tt>mmap</tt> 返回该地址，若失败则返回 0xffffffffffffffff。
 <tt>len</tt> 是要映射的字节数；它可能与文件的长度不同。
-<tt>prot</tt> 指示内存是否应映射为可读、可写和/或可执行；你可以假设 <tt>prot</tt> 是 <tt>PROT_READ</tt> 或 <tt>PROT_WRITE</tt>
-或两者兼而有之。
-<tt>flags</tt> 将是 <tt>MAP_SHARED</tt>，这意味着对映射内存的修改应该写回文件，或者 <tt>MAP_PRIVATE</tt>，这意味着他们不应该。您不必在中实现任何其他位 <tt>flags</tt>.
-<tt>fd</tt> 是要映射的文件的打开文件描述符。你可以假设 <tt>offset</tt> 为零（它是文件中要映射的起点）。
+<tt>prot</tt> 指示内存是否应被映射为可读、可写和/或可执行；你可以假设 <tt>prot</tt> 的值为 <tt>PROT_READ</tt> 或 <tt>PROT_WRITE</tt>
+或两者兼有。
+<tt>flags</tt> 将是以下两者之一 <tt>MAP_SHARED</tt>，这意味着对映射内存的修改应写回文件，或 <tt>MAP_PRIVATE</tt>，意味着它们不应该。你不必实现 <tt>flags</tt>.
+<tt>fd</tt> 是要映射的文件的打开文件描述符。你可以假设 <tt>offset</tt> 为零（这是文件中开始映射的起始偏移量）。
 
 <p>
-您的实现应该延迟填充页表，以响应页面错误。也就是说， <tt>mmap</tt> 本身不应该分配物理内存或读取文件。相反，请在页面错误处理代码中执行此操作（或由其调用） <tt>usertrap</tt>，如在写时复制实验室中。偷懒的原因是为了确保 <tt>mmap</tt> 大文件的速度很快，而且 <tt>mmap</tt> 大于物理内存的文件是可能的。
+你的实现应当以惰性方式填充页表，以响应缺页错误。也就是说， <tt>mmap</tt> 本身不应分配物理内存或读取文件。而应在缺页错误处理代码中（或由其调用的函数中）完成这些操作， <tt>usertrap</tt>，就像在写时复制实验中一样。采用惰性方式的原因是为了确保 <tt>mmap</tt> 大文件时速度很快，以及 <tt>mmap</tt> 大于物理内存的文件是可行的。
 
 <p>
-如果映射的进程相同就可以了 <tt>MAP_SHARED</tt>
-文件做 <b>不</b> 共享物理页面。
+映射同一个 <tt>MAP_SHARED</tt>
+文件的进程 <b>不</b> 共享物理页面是可以接受的。
 
 <p>
-手册页（运行 <kbd>man 2 munmap</kbd>) 显示此声明 <tt>munmap</tt>:
+`man 2 mmap`) describes the POSIX `mmap()` function. xv6 doesn't have many features that `mmap` requires; for example, it doesn't support `MAP_PRIVATE` and may lack file system features. We've provided you with starter code in `kernel/sysfile.c` that you should use as a starting point.
+
+手册页（运行
+
+`man 2 mmap`）描述了 POSIX `mmap()` 函数。xv6 缺少 `mmap` 所需的许多特性；例如，它不支持 `MAP_PRIVATE`，也可能缺少文件系统特性。我们在 `kernel/sysfile.c` 中为你提供了起始代码，你应以此作为起点。 <kbd>man 2 munmap</kbd>）展示了该声明，内容为 <tt>munmap</tt>:
 <pre>
 int munmap(void *addr, size_t len);
 </pre>
 <p>
-<tt>munmap</tt> 应删除指定地址范围内的 mmap 映射（如果有）。如果进程修改了内存并已映射 <tt>MAP_SHARED</tt>，修改应首先写入文件。安 <tt>munmap</tt> 调用可能只覆盖 mmap 区域的一部分，但您可以假设它将在开始、结束或整个区域取消映射（但不会在区域中间打孔）。当进程退出时，它所做的任何修改 <tt>MAP_SHARED</tt> 区域应写入相关文件，就好像该进程已调用 <tt>munmap</tt>.
+<tt>munmap</tt> 应删除指定地址范围内的 mmap 映射（如有）。如果进程已修改该内存且以 <tt>MAP_SHARED</tt>方式映射，则应先将修改写入文件。 <tt>munmap</tt> 调用可能只覆盖 mmap 区域的一部分，但可以假设它只会在区域的开头、结尾或整个区域取消映射（不会在区域中间打孔）。当进程退出时，它对 <tt>MAP_SHARED</tt> 区域所做的任何修改都应写入相应文件，就如同进程调用了 <tt>munmap</tt>.
 
 <div class="lab-required">
 <p>
-你应该实施足够的 <tt>mmap</tt> 和 <tt>munmap</tt>
-功能使
-<tt>mmaptest</tt> 测试程序工作。如果 <tt>mmaptest</tt>
-不使用 <tt>mmap</tt> 功能，您不需要实现该功能。您还必须确保 <tt>usertests -q</tt> 继续工作。
+你需要实现足够的 <tt>mmap</tt> 和 <tt>munmap</tt>
+功能，以使
+<tt>mmaptest</tt> 测试程序能够正常运行。如果 <tt>mmaptest</tt>
+未使用某个 <tt>mmap</tt> 特性，则无需实现该特性。你还必须确保 <tt>usertests -q</tt> 仍能正常工作。
 </p></div>
 <p>
-完成后，您应该看到与此类似的输出：
+完成后，你应该看到类似如下的输出：
 <pre>
 $ <kbd>mmaptest</kbd>
 test basic mmap
@@ -167,77 +175,77 @@ $
 <p>以下是一些提示：
 
   <ul>
-<li>首先添加 <tt>_mmaptest</tt> 到 <tt>UPROGS</tt>, 和 <tt>mmap</tt> 和 <tt>munmap</tt> 系统调用，以获得 <tt>user/mmaptest.c</tt> 来编译。现在，只需从以下位置返回错误 <tt>mmap</tt> 和 <tt>munmap</tt>。我们定义
-      <tt>PROT_READ</tt> 等为你 <tt>kernel/fcntl.h</tt>。运行 <tt>mmaptest</tt>，这将在第一次 mmap 调用时失败。
+<li>从添加开始 <tt>_mmaptest</tt> 至 <tt>UPROGS</tt>以及 <tt>mmap</tt> 和 <tt>munmap</tt> 系统调用，以便获得 <tt>user/mmaptest.c</tt> 编译。目前，只需从以下位置返回错误： <tt>mmap</tt> 和 <tt>munmap</tt>. 我们定义了
+      <tt>PROT_READ</tt> 等供您使用 <tt>kernel/fcntl.h</tt>. 运行 <tt>mmaptest</tt>，这将在第一次 mmap 调用时失败。
       
-    <li>跟踪什么 <tt>mmap</tt> 已映射每个进程。定义一个与“应用程序的虚拟内存”讲座中描述的VMA（虚拟内存区域）相对应的结构。这应该记录由以下命令创建的虚拟内存范围的地址、长度、权限、文件等 <tt>mmap</tt>。由于 xv6 内核在内核中没有可变大小的内存分配器，因此可以声明固定大小的 VMA 数组并根据需要从该数组进行分配。 16 的大小应该足够了。
+    <li>记录 <tt>mmap</tt> 为每个进程映射了哪些内容。定义一个与"面向应用程序的虚拟内存"讲座中所描述的 VMA（虚拟内存区域）相对应的结构体。该结构体应记录由以下操作创建的虚拟内存范围的地址、长度、权限、文件等信息。 <tt>mmap</tt>由于 xv6 内核中没有可变大小的内存分配器，可以声明一个固定大小的 VMA 数组，并按需从中分配。大小为 16 应该足够。
 
-    <li>实施 <tt>mmap</tt>：在进程的地址空间中找到一个未使用的区域来映射文件，并将VMA添加到进程的映射区域表中。 VMA 应该包含一个指向 <tt>struct file</tt> 对于被映射的文件； <tt>mmap</tt> 应该增加文件的引用计数，以便在文件关闭时该结构不会消失（提示：请参阅 <tt>filedup</tt>）。运行 <tt>mmaptest</tt>：第一个 <tt>mmap</tt> 应该会成功，但是第一次访问 mmap 内存会导致页面错误并终止 <tt>mmaptest</tt>.
+    <li>实现 <tt>mmap</tt>：在进程的地址空间中找到一块未使用的区域用于映射文件，并向进程的已映射区域表中添加一条 VMA。该 VMA 应包含一个指向 <tt>struct file</tt> 用于被映射的文件； <tt>mmap</tt> 应增加文件的引用计数，以确保在文件关闭时该结构不会消失（提示：参见 <tt>filedup</tt>）。运行 <tt>mmaptest</tt>：第一个 <tt>mmap</tt> 应成功，但首次访问 mmap 映射的内存时将引发页错误并终止 <tt>mmaptest</tt>.
 
-    <li>添加代码以导致 mmap 区域中的页错误分配物理内存页，将相关文件的 4096 字节读入该页，并将其映射到用户地址空间。读取文件 <tt>readi</tt>，它采用一个偏移量参数来读取文件（但是您必须锁定/解锁传递给的 inode <tt>readi</tt>）。不要忘记在页面上正确设置权限。运行 <tt>mmaptest</tt>;它应该到达第一个 <tt>munmap</tt>.
+    <li>添加代码，使 mmap 映射区域中发生缺页错误时，能够分配一页物理内存，将相关文件的 4096 字节读入该页，并将其映射到用户地址空间。使用以下方式读取文件： <tt>readi</tt>，该函数接受一个偏移量参数用于指定在文件中的读取位置（但你需要对传入的 inode 进行加锁/解锁 <tt>readi</tt>）。不要忘记正确设置页面的权限。运行 <tt>mmaptest</tt>；它应该到达第一个 <tt>munmap</tt>.
       
-    <li>实施 <tt>munmap</tt>：找到地址范围的VMA并取消映射指定的页面（提示：使用 <tt>uvmunmap</tt>）。如果 <tt>munmap</tt> 删除以前的所有页面 <tt>mmap</tt>，它应该减少相应的引用计数 <tt>struct file</tt>。如果未映射的页面已被修改并且文件已映射 <tt>MAP_SHARED</tt>，将页面写回文件。看看 <tt>filewrite</tt> 寻求灵感。
+    <li>实现 <tt>munmap</tt>：找到该地址范围对应的 VMA 并取消映射指定页面（提示：使用 <tt>uvmunmap</tt>）。如果 <tt>munmap</tt> 移除之前所有的 <tt>mmap</tt>，应当递减相应的引用计数 <tt>struct file</tt>。若已取消映射的页面已被修改，且文件以 <tt>MAP_SHARED</tt>方式映射，则需将该页面写回文件。参考 <tt>filewrite</tt> 以获取灵感。
 
-    <li>理想情况下，您的实现只会写回
-      <tt>MAP_SHARED</tt> 程序实际修改的页面。脏点（<tt>D</tt>) 在 RISC-V PTE 中表示页面是否已被写入。然而， <tt>mmaptest</tt> 不检查非脏页是否未被写回；因此你可以不用看就可以写回页面 <tt>D</tt> bits.
+    <li>理想情况下，您的实现应仅写回
+      <tt>MAP_SHARED</tt> 程序实际修改过的页面。RISC-V PTE 中的脏位（<tt>D</tt>）表示该页面是否已被写入。但是， <tt>mmaptest</tt> 不会检查未被修改的页面是否被写回；因此，即使不查看 <tt>D</tt> 位，也可以直接写回页面。
 
-    <li>修改 <tt>exit</tt> 取消映射进程的映射区域，就像 <tt>munmap</tt> 被召唤了。运行 <tt>mmaptest</tt>;所有测试均通过 <tt>test mmap two files</tt>
-      应该通过，但可能不会 <tt>test fork</tt>.
+    <li>修改 <tt>exit</tt> 以取消进程的已映射区域，效果等同于调用 <tt>munmap</tt> 。运行 <tt>mmaptest</tt>；所有测试通过至 <tt>test mmap two files</tt>
+      应该通过，但可能不包括 <tt>test fork</tt>.
 
-    <li>修改 <tt>fork</tt> 确保子级具有与父级相同的映射区域。不要忘记增加 VMA 的引用计数 <tt>struct
-    file</tt>。在子进程的页面错误处理程序中，可以分配一个新的物理页面，而不是与父进程共享页面。后者会更酷，但需要更多的实施工作。运行 <tt>mmaptest</tt>;它应该通过所有测试。
+    <li>修改 <tt>fork</tt> 以确保子进程拥有与父进程相同的映射区域。不要忘记为 VMA 的 <tt>struct
+    file</tt>增加引用计数。在子进程的缺页处理程序中，分配一个新的物理页而非与父进程共享页面是可以接受的。后者更为优雅，但需要更多的实现工作。运行 <tt>mmaptest</tt>；它应该通过所有测试。
           
   </li></li></li></li></li></li></li></li></ul>
-<p>运行 <tt>usertests -q</tt> 以确保一切仍然有效。
+<p>运行 <tt>usertests -q</tt> 以确保所有功能仍然正常工作。
 
 <!-- START SECTION: submit -->
 <p><a name="submit"></a>
-<h2>提交实验室</h2>
+<h2>提交实验</h2>
 <h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并输入一个整数，即您在实验室上花费的小时数。
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 文件。
+<p>创建一个新文件， <tt>time.txt</tt>，并填入一个整数，表示你在本次实验上花费的小时数。
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 该文件。
 
 <h3>答案</h3>
-<p>如果本实验室有问题，请将您的答案写在 <tt>answers-*.txt</tt>.
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件。
+<p>如果本次实验包含问题，请将你的答案写入 <tt>answers-*.txt</tt>.
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件中。
 
 <h3>提交</h3>
-<p>作业提交由 Gradescope 处理。您将需要一个 MIT Gradescope 帐户。请参阅 Piazza 了解加入课程的入场代码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">这个链接</a>
-如果您需要更多帮助加入。
+<p>作业提交通过 Gradescope 处理。你需要一个 MIT Gradescope 账户。请在 Piazza 上查看加入课程的注册码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">此链接</a>
+如果您需要更多帮助以加入。
 
-<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传到相应的 Gradescope 作业。
+<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传至对应的 Gradescope 作业。
 
-<p> 如果你跑 <kbd>make zipball</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+<p> 如果您运行 <kbd>make zipball</kbd> ，且存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <tt>??</tt>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <tt>??</tt>开头的行中。您可以让 <tt>git</tt> 使用以下命令跟踪您创建的新文件
 <kbd>git add {filename}</kbd>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请跑 <kbd>make grade</kbd> 确保您的代码通过所有测试。 Gradescope 自动评分器将使用相同的评分程序为您提交的内容分配评分。</li>
-<li>运行前提交任何修改过的源代码 <kbd>make zipball</kbd>.</li>
-<li>您可以在 Gradescope 检查提交的状态并下载提交的代码。 Gradescope 实验室成绩是您最终的实验室成绩。</li>
+<li>请运行 <kbd>make grade</kbd> 以确保您的代码通过所有测试。Gradescope 自动评分器将使用相同的评分程序为您的提交评分。</li>
+<li>在运行之前，请提交所有已修改的源代码 <kbd>make zipball</kbd>.</li>
+<li>您可以在 Gradescope 上查看提交状态并下载已提交的代码。Gradescope 上的实验成绩即为您的最终实验成绩。</li>
 </ul>
 </div>
 <!-- END SECTION: submit -->
 <h2>可选挑战</h2>
 <ul>
-<li>如果两个进程具有相同的文件 mmap-ed（如在 fork 测试中），则共享它们的物理页。您将需要物理页上的引用计数。
+<li>如果两个进程 mmap 了同一个文件（如 fork 测试中所示），则共享它们的物理页。你需要对物理页维护引用计数。
 
-    <li>您的解决方案可能会为从 mmap 文件读取的每个页面分配一个新的物理页面，即使数据也在缓冲区高速缓存的内核内存中。修改您的实现以使用该物理内存，而不是分配新页面。这要求文件块的大小与页面相同（设置 <tt>BSIZE</tt> 至 4096）。您需要将 mmap 块固定到缓冲区高速缓存中。您需要担心引用计数。修复这种双重缓存的好处之一是它还有助于 <tt>read()</tt> 和 <tt>write()</tt> 符合
-        <tt>mmap</tt>。也就是说，如果有一些 <tt>mmap</tt>通过内存映射修改ed文件数据， <tt>read</tt> 应该返回这些修改，同样，如果应用程序调用 <tt>write</tt>，写入应该出现在该文件的任何活动内存映射中。您可能会发现阅读有关论文很有趣 <a href="https://www.usenix.org/legacy/publications/library/proceedings/usenix2000/freenix/full_papers/silvers/silvers.pdf">统一缓冲区高速缓存</a>.
+    <li>你的实现可能会为从 mmap 文件中读取的每一页分配一个新的物理页，即使这些数据已经存在于内核的缓冲区缓存中。修改你的实现，改为使用那些已有的物理内存，而不是分配新页。这要求文件块的大小与页面大小相同（将 <tt>BSIZE</tt> 设置为 4096）。你需要将 mmap 的块固定在缓冲区缓存中，并需要处理引用计数问题。修复这种双重缓存的一个好处是，它还有助于使 <tt>read()</tt> 和 <tt>write()</tt> 与
+        <tt>mmap</tt>保持一致。也就是说，如果某些 <tt>mmap</tt>通过内存映射修改的文件数据， <tt>read</tt> 应返回这些修改内容，同样地，如果应用程序调用 <tt>write</tt>，该写入应出现在该文件的任何活跃内存映射中。您可能会发现阅读以下论文很有趣： <a href="https://www.usenix.org/legacy/publications/library/proceedings/usenix2000/freenix/full_papers/silvers/silvers.pdf">统一缓冲区缓存</a>.
 
-    <li>消除延迟分配的实现和 mmap 文件的实现之间的冗余。 （提示：为惰性分配区域创建一个 VMA。）
+    <li>消除你的惰性分配实现与 mmap 文件实现之间的冗余。（提示：为惰性分配区域创建一个 VMA。）
 
-    <li>修改 <tt>exec</tt> 对二进制文件的不同部分使用 VMA，以便获得按需分页的可执行文件。这将使启动程序更快，因为 <tt>exec</tt> 不必从文件系统读取任何数据。
+    <li>修改 <tt>exec</tt> 以便为二进制文件的不同段使用 VMA，从而实现按需分页的可执行文件。这将使程序启动更快，因为 <tt>exec</tt> 将不需要从文件系统中读取任何数据。
 
-    <li>实现页出和页入：当物理内存不足时，让内核将进程的某些部分移至磁盘。然后，当进程引用调出的内存时，对其进行分页。
+    <li>实现页面换出与换入：当物理内存不足时，让内核将进程的某些部分移至磁盘；当进程访问已换出的内存时，再将其换入。
       
   </li></li></li></li></li></ul>
 <!--  LocalWords:  mmap munmap macOS addr prot fd unmap mmaptest VMA
@@ -251,7 +259,7 @@ Untracked files will not be handed in.  Continue? [y/N]
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>

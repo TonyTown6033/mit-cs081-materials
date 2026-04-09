@@ -5,7 +5,7 @@
 <html lang="zh-CN">
 <head><meta charset="utf-8"/>
 <title>
-6.1810 / 2025 年秋季
+6.1810 / 2025年秋季
 </title>
 <meta content="no-cache" http-equiv="pragma"/>
 <meta content="IE=edge" http-equiv="X-UA-Compatible"/>
@@ -16,7 +16,7 @@
 <link href="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/labs.css" rel="stylesheet" type="text/css">
 <script src="https://pdos.csail.mit.edu/6.1810/2025/labs/labs/guidance.js"></script>
 </link></head>
-<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为 AI 汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译已尽量统一，但少数地方仍建议结合原文与源码阅读。</div>
 <!-- Fixed navbar -->
 <div class="navbar navbar-default navbar-fixed-top" role="navigation">
 <div class="container-fluid">
@@ -61,7 +61,7 @@
 <ul class="dropdown-menu" role="menu">
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6.html">xv6</a></li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a></li>
-<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 src 小册子</a></li>
+<li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/xv6-src-booklet-rev5.pdf">xv6 源码手册</a></li>
 </ul>
 </li>
 <li><a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料</a></li>
@@ -76,44 +76,44 @@
 <div class="container">
 <!-- START SECTION: body -->
 <h1>实验：陷阱</h1>
-<p>本实验探讨如何使用陷阱实现系统调用。您将首先使用堆栈进行热身练习，然后将实现用户级陷阱处理的示例。
+<p>本实验探讨如何使用陷阱实现系统调用。你将首先完成一个关于栈的热身练习，然后实现一个用户态陷阱处理的示例。
 
 <div class="lab-prereq">
-<p>在开始编码之前，请阅读第 4 章 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a>，以及相关源文件：
+<p>开始编写代码之前，请阅读 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/xv6/book-riscv-rev5.pdf">xv6 书</a>以及相关源文件：
   
   <ul>
-<li> <tt>kernel/trampoline.S</tt>：涉及从用户空间到内核空间以及返回的程序集
+<li> <tt>kernel/trampoline.S</tt>：从用户态切换到内核态再返回所涉及的汇编代码
       
     <li> <tt>kernel/trap.c</tt>：处理所有中断的代码
   
   </li></li></ul>
 </p></div>
-<p>要开始实验，请切换到 trap 分支：
+<p>要开始本实验，请切换到 trap 分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout traps</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-<h2>RISC-V 组装 <script>g("easy")</script></h2>
-<p>了解一些 RISC-V 汇编非常重要，您在 6.1910 (6.004) 中接触过它。有一个文件
-  <tt>user/call.c</tt> 在你的 xv6 仓库中。  <kbd>make fs.img</kbd> 编译它并生成该程序的可读汇编版本
+<h2>RISC-V 汇编 <script>g("easy")</script></h2>
+<p>理解一些 RISC-V 汇编非常重要，你在 6.1910（6.004）中已经接触过这部分内容。你的 xv6 仓库中有一个文件
+  <tt>user/call.c</tt> 。  <kbd>make fs.img</kbd> 会对其进行编译，并在以下文件中生成该程序对应的可读汇编版本：
   <tt>user/call.asm</tt>.
 
-<p>阅读call.asm中的函数代码 <tt>g</tt>, <tt>f</tt>, 和 <tt>main</tt>。 RISC-V 的说明手册位于 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考页</a>。回答以下问题 <tt>answers-traps.txt</tt>:
+<p>阅读 call.asm 中以下函数的代码 <tt>g</tt>, <tt>f</tt>以及 <tt>main</tt>。RISC-V 指令手册位于 <a href="https://pdos.csail.mit.edu/6.1810/2025/labs/reference.html">参考资料页</a>。请在以下文件中回答下列问题 <tt>answers-traps.txt</tt>:
 
   <div class="lab-question">
-    哪些寄存器包含函数的参数？例如，哪个寄存器在 main 调用中保存 13 <tt>printf</tt>?
+    哪些寄存器用于存放函数的参数？例如，在 main 调用 <tt>printf</tt>?
   </div>
 <div class="lab-question">
-    函数调用在哪里 <tt>f</tt>
-    在 main 的汇编代码中？电话在哪里 <tt>g</tt>？ （提示：编译器可能内联函数。）
+    在 main 的汇编代码中，对函数 <tt>f</tt>
+    的调用在哪里？对 <tt>g</tt>的调用在哪里？（提示：编译器可能会对函数进行内联展开。）
   </div>
 <div class="lab-question">
-    At what address is the function <tt>printf</tt> located?
+    函数 <tt>printf</tt> located?
   </div>
 <div class="lab-question">
-    寄存器中的值是什么 <tt>ra</tt>
-    就在之后 <tt>jalr</tt> 到 <tt>printf</tt> 在 <tt>main</tt>?
+    在寄存器 <tt>ra</tt>
+    之后立即存放的值是什么 <tt>jalr</tt> 至 <tt>printf</tt> 在 <tt>main</tt>?
   </div>
 <div class="lab-question">
 <p>运行以下代码。
@@ -122,39 +122,39 @@
 	printf("H%x Wo%s", 57616, (char *) &amp;i);
       </pre>
       输出是什么？
-      <a href="https://www.asciitable.com/">这是一个 ASCII 表</a> 将字节映射到字符。
+      <a href="https://www.asciitable.com/">以下是一张 ASCII 表</a> 将字节映射到字符的
 
-    <p>输出取决于 RISC-V 是小尾数这一事实。如果 RISC-V 是大尾数，你会设置什么 <code>i</code> 为了产生相同的输出？你需要改变吗
-      <code>57616</code> 到不同的值？</p>
+    <p>你需要设置什么，取决于 RISC-V 是小端序这一事实。如果 RISC-V 改为大端序，你会将 <code>i</code> 为了产生相同的输出，需要修改哪些内容？你是否需要修改
+      <code>57616</code> 改为不同的值？</p>
 <p>
-<a href="http://www.webopedia.com/TERM/b/big_endian.html">这是小端和大端的描述</a>
+<a href="http://www.webopedia.com/TERM/b/big_endian.html">以下是关于小端序和大端序的说明</a>
       和
-      <a href="https://www.rfc-editor.org/ien/ien137.txt">更异想天开的描述</a>.
+      <a href="https://www.rfc-editor.org/ien/ien137.txt">一个更天马行空的描述</a>.
     </p>
 </p></div>
 <div class="lab-question">
-<p>在下面的代码中，之后将打印什么
-      <code>'y='</code>？ （注：答案不是具体值。）为什么会出现这种情况？
+<p>在以下代码中，以下内容之后将打印什么
+      <code>'y='</code>？（注意：答案不是一个具体的值。）为什么会发生这种情况？
 
       <pre>
 	printf("x=%d y=%d", 3);
       </pre>
 </p></div>
 <h2>回溯 <script>g("moderate")</script></h2>
-<p>对于调试来说，回溯通常很有用：堆栈上错误发生点上方的函数调用列表。为了帮助回溯，编译器生成机器代码，在堆栈上维护与当前调用链中每个函数相对应的堆栈帧。每个堆栈帧由返回地址和指向调用者堆栈帧的“帧指针”组成。注册
-  <tt>s0</tt> 包含一个指向当前堆栈帧的指针（它实际上指向堆栈上保存的返回地址的地址加8）。你的 <tt>backtrace</tt>
-  应该使用帧指针遍历堆栈并打印每个堆栈帧中保存的返回地址。
+<p>为了调试，回溯（backtrace）往往非常有用：它是一个函数调用列表，记录了从错误发生点往上的整个调用栈。为了支持回溯，编译器会生成机器码，在栈上为当前调用链中的每个函数维护一个栈帧。每个栈帧由返回地址和指向调用者栈帧的"帧指针"组成。寄存器
+  <tt>s0</tt> 包含一个指向当前栈帧的指针（它实际上指向栈上已保存的返回地址加 8 的地址）。你的 <tt>backtrace</tt>
+  应使用帧指针遍历栈，并打印每个栈帧中保存的返回地址。
 
 <div class="lab-required">
 <p>
-  实施一个 <tt>backtrace()</tt> 函数于 <tt>kernel/printf.c</tt>。插入对此函数的调用 <tt>sys_pause</tt>，然后运行 <kbd>bttest</kbd>，这称为 <tt>sys_pause</tt>。您的输出应该是具有以下形式的返回地址列表（但数字可能会有所不同）：
+  实现一个 <tt>backtrace()</tt> 函数，位于 <tt>kernel/printf.c</tt>。在 <tt>sys_pause</tt>中插入对该函数的调用，然后运行 <kbd>bttest</kbd>，它调用了 <tt>sys_pause</tt>。你的输出应该是一个返回地址列表，格式如下（但具体数字可能不同）：
   <pre>
     backtrace:
     0x0000000080002cda
     0x0000000080002bb6
     0x0000000080002898
   </pre>
-  之后 <tt>bttest</tt> 退出 qemu。在终端窗口中：运行 <tt>addr2line -e kernel/kernel</tt> （或 <tt>riscv64-unknown-elf-addr2line -e kernel/kernel</tt>）并剪切并粘贴回溯中的地址，如下所示：
+  在 <tt>bttest</tt> 退出 qemu。在终端窗口中：运行 <tt>addr2line -e kernel/kernel</tt> （或 <tt>riscv64-unknown-elf-addr2line -e kernel/kernel</tt>），并将你的回溯中的地址粘贴进去，如下所示：
   <pre>
     $ <kbd>addr2line -e kernel/kernel</kbd>
     0x0000000080002de2
@@ -162,7 +162,7 @@
     0x0000000080002bfc
     Ctrl-D
   </pre>
-  你应该看到这样的东西：
+  你应该会看到类似如下的内容：
   <pre>
     kernel/sysproc.c:74
     kernel/syscall.c:224
@@ -171,8 +171,8 @@
 </p></div>
 <p>一些提示：
  <ul>
-<li>添加您的原型 <tt>backtrace()</tt> 到 <tt>kernel/defs.h</tt> 这样你就可以调用 <tt>backtrace</tt> 在 <tt>sys_pause</tt>.
- <li>GCC编译器将当前执行函数的帧指针存储在寄存器中 <tt>s0</tt>。在 #ifndef __ASSEMBLER__ ... #endif 标记的部分中，添加以下函数 <tt>kernel/riscv.h</tt>:
+<li>为你的 <tt>backtrace()</tt> 至 <tt>kernel/defs.h</tt> 添加原型声明，以便你可以调用 <tt>backtrace</tt> 在 <tt>sys_pause</tt>.
+ <li>GCC 编译器将当前正在执行的函数的帧指针存储在寄存器 <tt>s0</tt>中。在 #ifndef __ASSEMBLER__ ... #endif 标记的部分内，将以下函数添加到 <tt>kernel/riscv.h</tt>:
  <pre>
 static inline uint64
 r_fp()
@@ -182,34 +182,34 @@ r_fp()
   return x;
 }
 </pre>
- 并在中调用这个函数 <tt>backtrace</tt> 读取当前帧指针。  <tt>r_fp()</tt> 用途 <a href="https://gcc.gnu.org/onlinedocs/gcc/Using-Assembly-Language-with-C.html">在线组装</a> 阅读 <tt>s0</tt>.
+ 并在 <tt>backtrace</tt> 以读取当前帧指针。  <tt>r_fp()</tt> 使用 <a href="https://gcc.gnu.org/onlinedocs/gcc/Using-Assembly-Language-with-C.html">内联汇编</a> 以读取 <tt>s0</tt>.
  <li>这些
- <a href="https://pdos.csail.mit.edu/6.1810/2023/lec/l-riscv.txt">讲义</a> 有堆栈帧布局的图片。请注意，返回地址位于距堆栈帧的帧指针的固定偏移量 (-8) 处，并且保存的帧指针位于距帧指针的固定偏移量 (-16) 处。
- <li>你的 <tt>backtrace()</tt> 将需要一种方法来识别它已经看到最后一个堆栈帧，并且应该停止。一个有用的事实是，为每个内核堆栈分配的内存由单个页面对齐的页面组成，因此给定堆栈的所有堆栈帧都位于同一页面上。您可以使用
+ <a href="https://pdos.csail.mit.edu/6.1810/2023/lec/l-riscv.txt">讲义</a> 中有栈帧布局的示意图。注意，返回地址位于栈帧帧指针的固定偏移量（-8）处，而保存的帧指针位于帧指针的固定偏移量（-16）处。
+ <li>你的 <tt>backtrace()</tt> 需要一种方法来识别已到达最后一个栈帧，并应停止回溯。一个有用的事实是，每个内核栈所分配的内存由一个页对齐的单页组成，因此某个栈的所有栈帧都位于同一页上。你可以使用
  <tt>PGROUNDDOWN(fp)</tt>
- （见 <tt>kernel/riscv.h</tt>）来标识帧指针所引用的页面。
+ （参见 <tt>kernel/riscv.h</tt>）来确定帧指针所指向的页。
  </li></li></li></li></ul>
-<p>一旦你的回溯开始工作，就可以从 <tt>panic</tt>
-  在 <tt>kernel/printf.c</tt> 这样你就可以在内核崩溃时看到它的回溯。
+<p>一旦你的回溯功能正常工作，请在 <tt>panic</tt>
+  在 <tt>kernel/printf.c</tt> 中调用它，以便在内核发生 panic 时显示回溯信息。
 
-<h2>报警 <script>g("hard")</script></h2>
+<h2>Alarm <script>g("hard")</script></h2>
 <div class="lab-required">
 <p>
-在本练习中，您将向 xv6 添加一项功能，该功能会在进程使用 CPU 时间时定期发出警报。这对于想要限制其消耗的 CPU 时间的计算密集型进程，或者想要计算但也想要执行一些定期操作的进程可能很有用。更一般地说，您将实现用户级中断/故障处理程序的原始形式；例如，您可以使用类似的方法来处理应用程序中的页面错误。如果您的解决方案通过了alarmtest和“usertests -q”，则它是正确的
+在本练习中，你将为 xv6 添加一项功能，使其能够在进程使用 CPU 时间时周期性地发出提醒。这对于希望限制自身 CPU 占用的计算密集型进程，或者在执行计算的同时希望周期性执行某些操作的进程来说非常有用。更广泛地说，你将实现一种用户态中断/故障处理程序的基本形式；例如，你可以使用类似的机制在应用程序中处理缺页错误。如果你的解决方案能够通过 alarmtest 和 `usertests -q`，则说明解答正确。
 </p></div>
 <p>
-你应该添加一个新的 <tt>sigalarm(interval, handler)</tt> 系统调用。如果应用程序调用 <tt>sigalarm(n, fn)</tt>，然后每次之后
-<tt>n</tt> 程序消耗的CPU时间的“滴答声”，内核应该引起应用程序功能
-<tt>fn</tt> 被召唤。当 <tt>fn</tt> 返回时，应用程序应从中断处恢复。时钟周期是 xv6 中相当任意的时间单位，由硬件计时器生成中断的频率决定。如果应用程序调用 <tt>sigalarm(0, 0)</tt>，内核应该停止生成周期性警报调用。
+您应该添加一个新的 <tt>sigalarm(interval, handler)</tt> 系统调用。如果应用程序调用 <tt>sigalarm(n, fn)</tt>，然后在每次
+<tt>n</tt> "ticks" 是程序消耗的 CPU 时间单位，内核应触发应用程序函数
+<tt>fn</tt> 被调用。当 <tt>fn</tt> 返回时，应用程序应从中断处继续执行。tick 是 xv6 中一个相当任意的时间单位，由硬件定时器产生中断的频率决定。如果应用程序调用 <tt>sigalarm(0, 0)</tt>，内核应停止生成周期性的警报调用。
 
 <p>
-你会发现一个文件 <tt>user/alarmtest.c</tt> 在您的 xv6 存储库中。将其添加到 Makefile 中。在添加之前它不会正确编译 <tt>sigalarm</tt> 和 <tt>sigreturn</tt>
+你将找到一个文件 <tt>user/alarmtest.c</tt> 在你的 xv6 代码仓库中。将其添加到 Makefile。在你添加 <tt>sigalarm</tt> 和 <tt>sigreturn</tt>
 系统调用（见下文）。
 
 <p>
-<tt>alarmtest</tt> 来电 <tt>sigalarm(2, periodic)</tt>
-在 <tt>test0</tt> 要求内核强制调用 <tt>periodic()</tt> 每 2 个刻度，然后旋转一段时间。你可以在user/alarmtest.asm中看到alarmtest的汇编代码，这可能会方便调试。当以下情况时，您的解决方案是正确的：
-<tt>alarmtest</tt> 产生这样的输出，并且 usertests -q 也可以正确运行：
+<tt>alarmtest</tt> 调用 <tt>sigalarm(2, periodic)</tt>
+在 <tt>test0</tt> 请求内核强制调用 <tt>periodic()</tt> 每隔 2 个时钟滴答触发一次，然后自旋一段时间。你可以在 user/alarmtest.asm 中查看 alarmtest 的汇编代码，这对调试很有帮助。当满足以下条件时，你的解决方案即为正确：
+<tt>alarmtest</tt> 产生如下输出，且 usertests -q 也能正确运行：
 
 <pre>
 $ <kbd>alarmtest</kbd>
@@ -238,119 +238,119 @@ $ <kbd>usertests -q</kbd>
 ALL TESTS PASSED
 $
 </pre>
-<p>完成后，您的解决方案将只有几行代码，但要正确执行可能会很困难。我们将使用原始存储库中的alarmtest.c 版本来测试您的代码。您可以修改alarmtest.c来帮助您调试，但要确保原始alarmtest表明所有测试都通过。
+<p>完成后，你的解决方案只需几行代码，但要正确实现可能有些棘手。我们将使用原始仓库中的 alarmtest.c 版本来测试你的代码。你可以修改 alarmtest.c 来辅助调试，但请确保原始的 alarmtest 显示所有测试均通过。
 
 <h3>test0：调用处理程序</h3>
-<p>首先修改内核以跳转到用户空间中的警报处理程序，这将导致 test0 打印“alarm!”。不用担心“警报”之后会发生什么！输出;如果您的程序在打印“alarm!”后崩溃，现在没关系。以下是一些提示：
+<p>通过修改内核以跳转到用户态的报警处理程序来开始，这将使 test0 打印出 "alarm!"。暂时不必担心输出 "alarm!" 之后会发生什么；如果你的程序在打印 "alarm!" 后崩溃，目前也是可以接受的。以下是一些提示：
 
 <ul>
-<li>您需要修改 Makefile 才能导致 <tt>alarmtest.c</tt>
-编译为 xv6 用户程序。
+<li>您需要修改 Makefile 以使 <tt>alarmtest.c</tt>
+将被编译为一个 xv6 用户程序。
 
-<li>放置正确的声明 <tt>user/user.h</tt> are:
+<li>应放入的正确声明位于 <tt>user/user.h</tt> are:
 <pre>
     int sigalarm(int ticks, void (*handler)());
     int sigreturn(void);
 </pre>
-<li>更新 user/usys.pl （生成 user/usys.S）、kernel/syscall.h 和 kernel/syscall.c 以允许 <tt>alarmtest</tt> 调用 sigalarm 和 sigreturn 系统调用。
+<li>更新 user/usys.pl（用于生成 user/usys.S）、kernel/syscall.h 和 kernel/syscall.c，以允许 <tt>alarmtest</tt> 用于调用 sigalarm 和 sigreturn 系统调用。
 
-<li>现在，您的 <tt>sys_sigreturn</tt> 应该只返回零。
+<li>目前，您的 <tt>sys_sigreturn</tt> 应直接返回零。
 
-<li>你的 <tt>sys_sigalarm()</tt> 应将警报间隔和指向处理函数的指针存储在新字段中 <tt>proc</tt>
-结构（在 <tt>kernel/proc.h</tt>).
+<li>你的 <tt>sys_sigalarm()</tt> 应将报警间隔和处理函数指针存储在 <tt>proc</tt>
+结构体（位于 <tt>kernel/proc.h</tt>).
 
-<li>您需要跟踪自上次调用进程的警报处理程序以来已经经过了多少个滴答声（或直到下一次调用为止）；你需要一个新领域 <tt>struct proc</tt> 也为此。你可以初始化 <tt>proc</tt> 领域在 <tt>allocproc()</tt>
+<li>你需要跟踪自上次调用（或距下次调用）进程报警处理函数以来经过的 tick 数；你还需要在 <tt>struct proc</tt> 中为此新增一个字段。你可以在 <tt>proc</tt> 中的字段在 <tt>allocproc()</tt>
 在 <tt>proc.c</tt>.
 
-<li>每个滴答声，硬件时钟都会强制产生一个中断，该中断在 <tt>usertrap()</tt> 在 <tt>kernel/trap.c</tt>.
+<li>每个 tick，硬件时钟强制触发一个中断，该中断在 <tt>usertrap()</tt> 在 <tt>kernel/trap.c</tt>.
 
 
-<li>如果存在计时器中断，您只想操纵进程的警报滴答声；你想要类似的东西
+<li>仅当存在定时器中断时，才应操作进程的报警 tick；你需要类似这样的逻辑：
 <pre>
     if(which_dev == 2) ...
 </pre>
-<li>仅当进程有未完成的计时器时才调用警报函数。请注意，用户警报函数的地址可能为 0（例如，在 user/alarmtest.asm 中， <tt>periodic</tt> 位于地址 0)。
+<li>仅当进程有待处理的定时器时才调用报警函数。注意，用户报警函数的地址可能为 0（例如，在 user/alarmtest.asm 中， <tt>periodic</tt> 位于地址 0）。
 
  <li>你需要修改
-  <tt>usertrap()</tt> 这样当进程的警报间隔到期时，用户进程就会执行处理函数。当 RISC-V 上的陷阱返回到用户空间时，什么决定了用户空间代码恢复执行的指令地址？
+  <tt>usertrap()</tt> 使得当进程的报警间隔到期时，用户进程能够执行处理函数。当 RISC-V 上的陷阱返回用户态时，是什么决定了用户态代码恢复执行时的指令地址？
 
-<li>如果您告诉 qemu 仅使用一个 CPU，那么使用 gdb 查看陷阱会更容易，您可以通过运行
+<li>如果让 QEMU 仅使用一个 CPU，用 gdb 查看陷阱会更方便，可以通过运行以下命令实现：
 <pre>
     make CPUS=1 qemu-gdb
 </pre>
-<li>如果alarmtest打印出“alarm!”，那么你就成功了。
+<li>如果 alarmtest 打印出 "alarm!"，则说明你已成功。
 
 </li></li></li></li></li></li></li></li></li></li></li></li></ul>
-<h3>test1/test2()/test3()：恢复中断的代码</h3>
-<p>有可能alarmtest 在打印“alarm!”后在test0 或test1 中崩溃，或者alarmtest（最终）打印“test1 失败”，或者alarmtest 退出而不打印“test1 通过”。要解决此问题，必须确保当警报处理程序完成时，控制返回到用户程序最初被定时器中断中断的指令。您必须确保寄存器内容恢复到中断时所保存的值，以便用户程序在报警后可以不受干扰地继续运行。最后，您应该在每次警报计数器响起后“重新启动”警报计数器，以便定期调用处理程序。
+<h3>test1/test2()/test3()：恢复被中断的代码</h3>
+<p>alarmtest 很可能在打印 "alarm!" 后于 test0 或 test1 中崩溃，或者 alarmtest（最终）打印 "test1 failed"，或者 alarmtest 在未打印 "test1 passed" 的情况下退出。要解决此问题，你必须确保当警报处理程序执行完毕后，控制权能返回到用户程序最初被定时器中断时所在的指令处。你必须确保寄存器内容恢复为中断发生时的值，以便用户程序能够在不受干扰的情况下继续运行。最后，你应在每次警报触发后"重置"警报计数器，以便处理程序能被周期性地调用。
 
-<p>作为起点，我们为您做出了一个设计决策：用户警报处理程序需要调用 <tt>sigreturn</tt>
-当他们完成时系统调用。看看
-<tt>periodic</tt> 在 <tt>alarmtest.c</tt> 举个例子。这意味着您可以将代码添加到 <tt>usertrap</tt> 和
-<tt>sys_sigreturn</tt> 它们相互配合，使用户进程在处理警报后正确恢复。
+<p>作为起点，我们已为你做出了一个设计决策：用户警报处理程序在完成后须调用 <tt>sigreturn</tt>
+系统调用。请参阅
+<tt>periodic</tt> 在 <tt>alarmtest.c</tt> 中的示例。这意味着你可以在 <tt>usertrap</tt> 和
+<tt>sys_sigreturn</tt> 中添加代码，相互配合，使用户进程在处理完警报后能正确恢复执行。
 
 
 <p>
   一些提示：
   <ul>
-<li>您的解决方案将要求您保存和恢复寄存器——您需要保存和恢复哪些寄存器才能正确恢复中断的代码？ （提示：会很多）。
-    <li>有 <tt>usertrap</tt> 保存足够的状态
-      <tt>struct proc</tt> 当计时器响起时 <tt>sigreturn</tt> 可以正确返回被中断的用户代码。
+<li>你的解决方案需要保存和恢复寄存器——为了正确恢复被中断的代码，你需要保存和恢复哪些寄存器？（提示：数量会很多。）
+    <li>让 <tt>usertrap</tt> 在定时器触发时将足够的状态保存到
+      <tt>struct proc</tt> 中，以便 <tt>sigreturn</tt> 能够正确返回到被中断的用户代码。
 
     <li>防止对处理程序的重入调用——如果处理程序尚未返回，内核不应再次调用它。 <tt>test2</tt>
-      测试这个。
+      对此进行测试。
 
-    <li>确保恢复a0。  <tt>sigreturn</tt> 是一个系统调用，其返回值存放在a0中。
+    <li>确保恢复 a0。  <tt>sigreturn</tt> 是一个系统调用，其返回值存储在 a0 中。
       
   </li></li></li></li></ul>
-<p>一旦你通过了 <tt>test0</tt>, <tt>test1</tt>, <tt>test2</tt>, 和 <tt>test3</tt>
-  跑 <tt>usertests -q</tt> 确保您没有破坏内核的任何其他部分。
+<p>一旦你通过 <tt>test0</tt>, <tt>test1</tt>, <tt>test2</tt>以及 <tt>test3</tt>
+  运行 <tt>usertests -q</tt> 以确保你没有破坏内核的其他部分。
 
 
 <!-- START SECTION: submit -->
 <p><a name="submit"></a>
-<h2>提交实验室</h2>
+<h2>提交实验</h2>
 <h3>花费时间</h3>
-<p>创建一个新文件， <tt>time.txt</tt>，并输入一个整数，即您在实验室上花费的小时数。
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 文件。
+<p>创建一个新文件， <tt>time.txt</tt>，并填入一个整数，表示你在本次实验上花费的小时数。
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 该文件。
 
 <h3>答案</h3>
-<p>如果本实验室有问题，请将您的答案写在 <tt>answers-*.txt</tt>.
-<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件。
+<p>如果本次实验包含问题，请将你的答案写入 <tt>answers-*.txt</tt>.
+<kbd>git add</kbd> 和 <kbd>git commit</kbd> 这些文件中。
 
 <h3>提交</h3>
-<p>作业提交由 Gradescope 处理。您将需要一个 MIT Gradescope 帐户。请参阅 Piazza 了解加入课程的入场代码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">这个链接</a>
-如果您需要更多帮助加入。
+<p>作业提交通过 Gradescope 处理。你需要一个 MIT Gradescope 账户。请在 Piazza 上查看加入课程的注册码。使用 <a href="https://help.gradescope.com/article/gi7gm49peg-student-add-course#joining_a_course_using_a_course_code">此链接</a>
+如果您需要更多帮助以加入。
 
-<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传到相应的 Gradescope 作业。
+<p>当您准备好提交时，运行 <kbd>make zipball</kbd>，这将生成 <tt>lab.zip</tt>。将此 zip 文件上传至对应的 Gradescope 作业。
 
-<p> 如果你跑 <kbd>make zipball</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
+<p> 如果您运行 <kbd>make zipball</kbd> ，且存在未提交的更改或未跟踪的文件，您将看到类似如下的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <tt>??</tt>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
+请检查上述内容，确保您的实验解答所需的所有文件均已被跟踪，即不出现在以 <tt>??</tt>开头的行中。您可以让 <tt>git</tt> 使用以下命令跟踪您创建的新文件
 <kbd>git add {filename}</kbd>.
 </p>
 <p>
 <div class="warning">
 <ul>
-<li>请跑 <kbd>make grade</kbd> 确保您的代码通过所有测试。 Gradescope 自动评分器将使用相同的评分程序为您提交的内容分配评分。</li>
-<li>运行前提交任何修改过的源代码 <kbd>make zipball</kbd>.</li>
-<li>您可以在 Gradescope 检查提交的状态并下载提交的代码。 Gradescope 实验室成绩是您最终的实验室成绩。</li>
+<li>请运行 <kbd>make grade</kbd> 以确保您的代码通过所有测试。Gradescope 自动评分器将使用相同的评分程序为您的提交评分。</li>
+<li>在运行之前，请提交所有已修改的源代码 <kbd>make zipball</kbd>.</li>
+<li>您可以在 Gradescope 上查看提交状态并下载已提交的代码。Gradescope 上的实验成绩即为您的最终实验成绩。</li>
 </ul>
 </div>
 <!-- END SECTION: submit -->
-<h2>可选的挑战练习</h2>
+<h2>可选挑战练习</h2>
 <ul>
-<li>打印函数名称和行号 <tt>backtrace()</tt> 而不是数字地址 <script>g("hard")</script>.</li>
+<li>打印函数名称和行号，位于 <tt>backtrace()</tt> 而非数字地址 <script>g("hard")</script>.</li>
 </ul>
 <!-- END SECTION: body -->
 <hr/>
 <font style="font-size: 12px;">
-<p>有关 6.1810 的问题或意见？发送电子邮件给课程工作人员：
+<p>对 6.1810 有疑问或意见？请发送电子邮件至课程教师组：
       <a href="mailto:61810-staff@lists.csail.mit.edu"><i>61810-staff@lists.csail.mit.edu</i></a>.
 
       <p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a>
