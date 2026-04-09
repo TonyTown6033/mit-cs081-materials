@@ -1,0 +1,324 @@
+6.1810 2025 L9: Paging to Disk, Superpages
+
+Practical, transparent operating system support for superpages,
+Navarro, Iyer, Druschel, and Cox, OSDI 2002.
+
+outline:
+  Classic O/S paging
+  TLB considerations
+  Today's paper
+
+important point from previous lecture:
+  page allocation is usually lazy (much more than on xv6)
+  when program starts, its page table may be entirely empty
+  when it allocates memory, its page table generally does not change!
+  when a program first *accesses* a page:
+    page fault
+    kernel allocates a physical page, initializes (zero, or read from file)
+    maps into the page table
+  why?
+    transparent fast start
+    a program can ask for lots of memory w/o worrying about RAM size
+
+original purpose of page tables:
+  support applications that are bigger than RAM
+  just one, or many with large total
+  dates back to a time when memory was relatively very expensive
+  still useful and worth knowing (and part of today's paper's context)
+  "paging" or "paging to disk"
+
+how does paging to disk work?
+  i.e. how to let programs think they have more memory than there is RAM?
+
+toy example: machine has just two pages of RAM,
+  but a program wants to use 4 pages of data
+
+diagram:
+  page table: 4 PTEs
+  RAM: two pages of phys mem
+    initially free
+  disk: 4 pages of "paging" storage, one-page executable file
+
+read page fault on va 0
+  kernel handles the page fault transparently
+  allocate phys page #1
+  read from executable file
+  PTE0 -> pa1
+
+write page fault on va 2 (really va 0x2000, 3rd page)
+  allocate phys page #0
+  zero it
+  PTE2 -> pa0
+
+write page fault on va 1
+  no free RAM: now what?
+  choose a NON-FREE physical page, let's say phys page #0
+  write phys page #0 to disk page 2
+    we know we must save it b/c PTE2 will have dirty bit set
+    PTE2 -> invalid
+    remember where va 2 is on the disk
+    "eviction" or "page-out" or "replacement"
+  initialize phys page #0 for va 1
+  PTE1 -> pa0
+
+page fault on va 2 (read or write)
+  let's evict physical page #1 (va 0)
+    write page #1 to disk block #1
+    PTE0 invalid
+  let's "page in" virtual page 2 to physical page #1
+  PTE2 -> pa1
+
+we're using RAM as a cache, disk for "backing store"
+
+memories are huge now, why does e.g. Linux support paging to disk?
+  when paging invented, memory tiny (< 1 MB) and expensive
+  now computers are individually cheap, have GBs of memory
+  but memory is still a huge expense e.g. in datacenters
+    total memory cost typically more than CPU
+  and programs and data keep growing larger
+  thus still important for O/S to optimize RAM use
+  page replacement still important:
+    manage file cache
+    very big programs
+    memory-map huge files
+    avoid hard edges
+
+eviction strategy matters a lot:
+  if we evict a page that's itself about to be used,
+    that will cause another page fault and a disk read
+  a disk read takes around a millisecond
+  that's a million instructions!
+  faulting process has to wait...
+  a bad eviction policy can cause a lot of time-consuming page faults
+
+idea: evict the page that will next be used the longest time from now
+  sadly, in general a kernel cannot predict which page this will be
+  so we need eviction heuristics that are possible to implement
+  people have invented lots of eviction strategies
+
+a common eviction policy: least recently used (LRU)
+  kernel keeps an LRU list of all physical page numbers
+  kernel periodically scans all physical pages
+    finds PTE(s) for each, looks at "Accessed" bit
+    if Accessed bit is set, move page to the head of the LRU list
+    and clear the Accessed bit
+  so if a page is used a lot, it keeps being moved to the head of the LRU list
+  when a page-fault needs a physical page of memory,
+    take it from the tail of the LRU list
+
+when evicting a page, need to invalidate all PTEs that refer to it
+  may be more than one: copy-on-write fork, memory-mapped files, shared memory
+  typically kernel has a "reverse map" mapping PA to list of page tables and VAs
+
+better to evict a clean page than a dirty one
+  clean == there's already an identical copy on the disk
+    either from a previous page-out, or in a read-only executable file
+  we can re-use a clean page without first having to write it to disk
+    just need to zero it out, and adjust old and new PTEs
+  page faults will be faster if we can re-use (evict) clean pages
+
+a more elaborate LRU scheme (the FreeBSD scheme in the paper's Section 5.1)
+  three LRU lists:
+    Active
+    Inactive
+    Cache
+  periodic scan; if Accessed (on any list), move to head of Active
+  if memory is tight:
+    move tail of Active to Inactive
+    write dirty Inactive pages to disk
+    move clean tail of Inactive list to Cache list
+  so Cache list contains only clean pages that haven't been used for a while
+    it's the Cache pages that are allocated for page faults
+
+important to keep Cache list non-empty for fast page faults
+  if "memory pressure", scan faster, write dirty pages to disk faster
+  memory pressure = Cache LRU list too short
+
+when does paging to disk work well?
+  if applications use only a fraction of their memory at any given time
+    so that active memory can be kept in RAM, the rest paged out to disk
+  "locality of reference"
+  "working set"
+  working set may change over time, but hopefully slowly
+  this is true of many programs, but not all
+
+what if a program's working set is too big?
+  or there are too many programs running?
+  kernel will evict pages that will soon be needed
+  lots of memory accesses will incur page faults and disk reads and writes
+  disk is so much slower than RAM that system will be dramatically slower
+  "thrashing"
+
+is LRU a good plan?
+  LRU is effectively a prediction: recently used => will be used again soon
+  usually works well
+  but sometimes quite badly!
+  example: repeated sequential scan through huge memory 
+  the program will probably fault on *every* page
+    the least-recently-used page will be the one the program is about to access!
+  so, for this program, LRU is a terrible replacement strategy
+  thus some systems use random replacement, or offer it as an option
+
+how big should pages be?
+  assuming just one size
+  CPU designers choose the page size, kernel has to live with it
+  long ago: small, e.g. 512 bytes
+  now often 4096 (but paper uses 8k, some are larger)
+  why prefer big?
+    less memory consumed by page tables
+      16 GB -> 32 MB of PTEs if 4k pages
+    less CPU and memory for kernel book-keeping
+      free lists, reverse map, VMAs
+    fewer page faults (assuming good locality of reference)
+  why prefer small?
+    less wasted RAM for pages that are only partially used
+      so less RAM may be needed for a given workload
+    finer granularity for PTE Accessed and Dirty bits
+      so kernel can more precisely keep just needed data in RAM
+    less disk I/O per page-in and page-out, so lower page-fault delay
+  both big and small have compelling properties
+  today's paper is about O/S support for *both*
+
+a final piece of background for today's paper: TLB
+  Translation Lookaside Buffer
+  CPU cache of virtual to physical address translations
+  it's a va,pa table
+  [diagram: core, L1, L2, RAM, then add TLB]
+
+every memory reference requires a va to pa lookup
+  ld, st, instruction fetch
+  so CPU needs to be able to do roughly one per cycle -- nanosecond
+
+TLB is typically small
+  since it must be extremely fast
+  paper: 128 entries
+  modern CPUs: 128 L1 entries, 1024 L2 entries
+
+what is the "reach" of a TLB?
+  128 entries, 4k pages: half a megabyte!
+  1024 entries: four megabytes
+  that's tiny on the scale of machines and programs with >= 16 GB of RAM
+  a program that regularly uses more memory will miss in the TLB
+
+what's the cost of a TLB miss?
+  RISC-V CPU walks the multi-level page table to fetch leaf PTE
+    (the RISC-V hardware handles TLB miss, not the kernel)
+  that's a couple of memory fetches, at up to 100 ns each
+    hundreds of cycles (though CPU data caches may help)
+  CPU may stall until TLB fills
+  so a TLB miss may increase instruction time by around 100x
+
+larger pages are a way to increase TLB reach
+  128 TLB entries * 2MB pages = 1/4 GB
+  and indeed modern CPUs have superpages at least that big
+
+but huge pages can waste lots of RAM!
+  since some programs only use a small fraction of each page
+  being able to mix small and super pages is attractive
+  you are all familiar with the basic idea!
+  
+today's paper
+  goal: kernel automatically chooses between base and super pages
+    to increase TLB reach, decrease time wasted in TLB misses
+  adapt to program characteristics, including changes in behavior
+  cope with big and small programs, tight and loose memory pressure
+  do it transparently -- a classic kernel strategy
+
+giving a process a 2MB superpage is effectively a prediction:
+  process will use that 2MB fairly intensively in the near future
+  rather than e.g. only using a few kilobytes of the 2MB
+  if wrong -> wasted RAM
+  tension: fewer TLB misses vs wasted RAM
+
+Three puzzling design questions
+  tackled by today's paper, follow-on research, real kernels e.g. Linux
+
+* when should kernel give application a superpage (PTE and 2MB of RAM)?
+  when app calls sbrk()?
+    hard to guess situation from sbrk() size argument.
+    sbrk(2MB) may not mean process will use the memory.
+    sbrk(4096) may be first page in full 2MB allocation.
+  when app takes the first page fault in a 2MB area?
+    (this is one of Linux's approaches)
+    at least then we know it will use some of the RAM
+    but perhaps not all, leading to wasted RAM
+    application will get immediate benefit from superpages
+    this is a bet that superpages are usually appropriate
+      may be a good plan, esp if lots of RAM, a few big apps
+  when app has taken page faults on all pages in a 2MB area?
+    convert area to a superpage
+    (this is the paper's approach)
+    good: we know it used 100% of the 2 MB superpage
+    bad: we let it execute for quite a while without superpage benefits
+    this is a conservative approach, prioritizes not wasting memory
+
+* how can kernel find suitable 2MB area of RAM?
+  must be contiguous, 2MB-aligned, and free
+  2MB-long free runs rarely occur by accident!
+    phys mem typically "fragmented" -- used and free 4k pages interspersed
+    no problem for 4k pages, big problem if using both 4k and 2MB
+  allocate some 2MB areas of RAM at boot?
+    (this is what the lab suggests, for simplicity)
+    but how many?
+    what if more, or fewer, are needed?
+  move (copy) physical pages around to clear out 2MB when needed?
+    "compaction" or "de-fragmentation"
+    and patch up PTEs of moved pages
+    (this is one of Linux's approaches)
+    causes allocation or first use to be slow, uses CPU to compact
+
+the paper suggests a clever allocation plan (Section 4.1)
+  on first fault in a new 2MB area,
+    create one ordinary PTE, allocate and initialize just the one page
+  but also reserve 2MB of pages, from the LRU "Cache" list
+    these are clean pages that have not been used for a while
+  the paper doesn't actually allocate or initialize or map those pages
+    so they still hold their cached content
+    in case their original mappings are used
+  as more faults are taken in the superpage, allocate more of
+    those reserved pages, and initialize them
+  when all ordinary pages in 2MB area have faulted, promote
+    to a superpage
+  The Question: why is this arrangement good?
+
+* kernel sometimes needs to demote superpages
+  if memory is tight; smaller pages likely to require less RAM
+    which superpages should be demoted?
+  problem:
+    2MB-granularity Access bits make it hard to tell what's really in use
+    so break superpages up to get finer-grained Access bits
+  also:
+    maybe if a process writes to a superpage
+    don't want a single write to (later) cause page-out of entire 2MB
+    so read-protect superpages, demote on first write, then
+      can benefit from finer-granularity Dirty bits
+
+Performance?
+  Table 1
+  a wide array of different benchmarks, mostly real programs
+  typical improvement from superpages is 10%
+    sometimes higher
+  however: Table 1 is "plenty of memory is available"
+    sometimes true in real life, sometimes not
+
+Current status?
+  Easiest to track for Linux; many posts on the web.
+  Very valuable for some applications.
+  But "transparent huge pages" waste lots of memory in other situations,
+    due to only a fraction of 2MB actually used.
+  So the design details have changed a lot over time.
+    And careful applications often explicitly allocate their superpages.
+  Still actively evolving.
+  Perhaps the underlying issue is that the gains are often pretty
+    modest, but the costs (in memory waste) can be very large.
+
+next week: neat application-level use of page tables
+
+--------------
+
+Some more recent information about superpages:
+https://lwn.net/Articles/423584/
+https://lwn.net/Articles/1025629/
+https://lwn.net/Articles/1032199/
+https://www.usenix.org/system/files/conference/osdi16/osdi16-kwon.pdf
+https://www.usenix.org/system/files/atc20-zhu-weixi_0.pdf

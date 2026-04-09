@@ -1,0 +1,287 @@
+6.1810 2025 Lecture 11: Device drivers, interrupts
+
+Topic: device drivers
+  a CPU needs attached devices: storage, communication, display, &c
+    OS device drivers control these devices
+  device handling can be hard:
+    devices often have rigid and complex interfaces
+    devices and CPU run in parallel -- concurrency
+    interrupts
+      hardware wants attention now!
+        e.g., pkt arrived
+      software must set aside current work and respond
+        on RISC-V use same trap mechanism as for syscalls and exceptions
+      interrupts can arrive at awkward times
+   most code in production kernels is device drivers
+     you will write one for a network card
+   
+Where are devices?
+  [CPU, bus, RAM, disk, net, uart]
+
+Programming devices: memory-mapped I/O
+  device hardware has some control and status registers
+  device registers live at a physical "memory" address
+  ld/st to these addresses read/write device control registers
+  platform designer decides devices' addresses
+
+example device: UART
+  Universal Asynchronous Receiver Transmitter
+  serial interface, input and output
+  "RS232 port", e.g. qemu console
+  a uart is hardware -- transistors
+  qemu emulates the common 16550 uart chip
+    data sheet: 16550.pdf link on schedule page, or web search
+    data sheet details physical, electrical, and programming
+  [rx wire, receive shift register, receive FIFO]
+  [transmit FIFO, transmit shift register, tx wire]
+  16-byte FIFOs
+  memory-mapped 8-bit registers at physical address UART0=0x10000000:
+    (page 9 of 16550.pdf)
+    0: RHR / THR -- receive/transmit holding register
+    1: IER -- interrupt enable register, 0x1 is receive enable, 0x2 transmit
+    ...
+    5: LSR -- line status register, 0x1 is receive data ready
+
+how does a kernel device driver use these registers?
+  simple example: uartgetc() in kernel/uart.c
+  ReadReg(RHR) turns into *(char*)(0x10000000 + 0)
+
+why does the UART have FIFO buffers?
+
+device driver must cope with times when device is not ready
+  read() but rx FIFO is empty
+  write() but tx FIFO is full
+  LSR bits: Data Ready, Transmitter Empty
+
+how should device drivers wait?
+
+perhaps a "busy loop":
+  while((LSR & 1) == 0)
+    ;
+  return RHR
+OK if waiting is unlikely -- if input is sure to arrive soon
+but too wasteful for the console!
+  often no input (keystrokes) are waiting in FIFO
+  many devices are like this -- may need to wait a long time for I/O
+
+a solution: interrupts
+  when device needs driver attention, device raises an interrupt
+  UART interrupts if:
+    rx FIFO goes from empty to not-empty, or
+    tx FIFO goes from full to not-full
+
+how does kernel see interrupts?
+  [add PLIC to diagram, connected to address bus and devices]
+  device -> PLIC -> CPU -> trap -> usertrap()/kerneltrap() -> devintr()
+  PLIC chooses src device and dst core, since more than one of both
+  trap.c devintr()
+  scause high bit indicates the trap is from a device interrupt
+  a PLIC register indicates which device interrupted
+    the "IRQ" -- UART's IRQ is 10
+    IRQs are defined by the platform -- qemu in this case
+
+an interrupt is usually just a hint that device state might have changed
+  the real truth is in the device's status registers
+    device driver must read them to decide action, if any
+  for UART, check LSR to see if rx FIFO non-empty, tx FIFO non-full
+    as in uartgetc()
+    one interrupt may signal multiple actions needed
+
+xv6 must ask both the device and the RISC-V for interrupts:
+  uartinit() uart.c:71
+    WriteReg(IER, IER_TX_ENABLE | IER_RX_ENABLE);
+  intr_on() / intr_off() riscv.h:289
+    w_sstatus(r_sstatus() | SSTATUS_SIE);
+    for places where an interrupt would break kernel code
+
+Let's look at the shell reading input from the console/UART.
+Example of thread / interrupt cooperation.
+
+% make qemu-gdb
+% gdb
+(gdb) c
+(gdb) tbreak sys_read
+(gdb) c
+<press return>
+(gdb) tui enable
+(gdb) where
+sys_read()
+  fileread()
+    consoleread()
+      (gdb) ptype cons
+      "producer/consumer buffer"
+      [diagram: buf, r, w]
+      (gdb) print cons
+      there's nothing to read yet...
+      sleep()
+
+sh is now waiting for the uart to interrupt.
+
+now let's look at uart interrupt handling.
+I'm going to press return.
+
+Q: where should I tell gdb to put a breakpoint to see the interrupt?
+
+(gdb) print/x $stvec
+(gdb) print kernelvec
+(gdb) tb kernelvec
+(gdb) c
+<press return>
+
+what happened?
+  UART -> PLIC -> stvec -> kernelvec
+  (gdb) where
+  in kernel; no process was running; scheduler()
+
+kernelvec.S:
+  if a process had been executing in user space, trap would
+    have gone to trampoline and usertrap(), which we've seen
+  kernelvec like trampoline, but for traps while kernel is executing
+  saves registers on current stack;  which stack?
+    in this case, special scheduler stack
+    if executing system call in kernel, some proc's kernel stack
+  if in kernel, and interrupts enabled, $sp and stack guaranteed valid
+  kernelvec ends by jumping to kerneltrap() -- C code
+
+(gdb) tb kerneltrap
+(gdb) c
+all kinds of traps arrive at kerneltrap(), code needs to decide cause.
+(gdb) next ... into devintr()
+  devintr()
+    (gdb) p/x $scause
+    scause high bit means it's an interrupt
+      p. 96 / Table 22 in riscv privileged manual
+    plic_claim() to find IRQ (which device)
+    (gdb) p irq
+      the PLIC generates IRQ 10 for the UART
+    uartintr()
+      uartgetc()
+      what's in the LSR?
+        (gdb) x/1bx 0x10000005
+        16550.pdf page 9 says low bit is Data Ready
+      if LSR says data ready, fetch from RHR
+      x/1bx 0x10000005 -- note low bit no longer set
+      consoleintr()
+        backspace/newline/&c processing
+        print cons
+        x/3b cons.buf
+        wakeup()
+return through devintr, plic_complete(), kerneltrap
+
+scheduler will now resume sh's read() system call
+  since woken up
+  let's break in sh's consoleread() -- just after sleep()
+  (gdb) tb console.c:105
+  (gdb) c
+  (gdb) where
+  consoleread() sees our character in cons.buf[cons.r]
+  sh's read returns, with my typed newline character
+
+General device-driver pattern: bottom-half and top-half
+  [diagram: system call calls bottom-half, interrupt is top-half]
+  bottom half:
+     called by a process's system call, e.g. write() or read()
+     may tell the device to start output or input
+     may wait for input to be ready, or output to complete
+  shared information (buffer)
+  top half:
+     the interrupt handler
+     reads input, or sends more output, from/to device hardware
+     interacts with "bottom half" process
+       put input where bottom half can find it
+       tell bottom half that input has arrived
+       or that more output can be sent
+     does *not* run in context of bottom-half process
+       maybe on different core
+       maybe interrupting some other process
+     so interactions must be arms-length -- buffers, sleep()/wakeup()
+
+What if multiple devices ask to interrupt at the same time?
+  The PLIC distributes interrupts among cores
+    Different interrupts can be handled in parallel on different cores
+  Each interrupt is claimed by first core to call plic_claim()
+  Each individual device has at most one interrupt in play
+    PLIC knows done via plic_complete()
+    
+If enabled, a device interrupt can occur between any two instructions
+  Example:
+    suppose the kernel is counting something in a global variable n
+    bottom half: n = n + 1
+    interrupt top half: n = n + 1
+    the machine code for n=n+1 looks like this:
+      lw a4, n
+      add a4, a4, 1
+      sw a4, n
+    what if an interrupt occurs between lw and add?
+      and interrupt handler also says n = n + 1?
+  One solution: briefly disable interrupts in bottom half
+    intr_off()
+    n = n + 1
+    intr_on()
+    intr_off(): w_sstatus(r_sstatus() & ~SSTATUS_SIE);
+  Good, but not enough: interrupt could arrive on a different CPU
+    More on this when we look at locking
+
+What happens to interrupts while SSTATUS_SIE is zero?
+  PLIC/CPU remember pending interrupts
+  deliver when kernel re-enables interrupts
+
+Production and consumption are usually decoupled -- concurrent
+  Input from device:
+    Can arrive at time when reader not waiting
+    Can arrive faster, or slower, than reader can read
+    Buffering and batching help match speeds, increase efficiency
+  Output to device:
+    If device is slow, want to buffer output so process can continue
+    If device is fast, want to send in batches for efficiency
+  So producer/consumer buffers are common
+  We've seen this at two levels:
+    UART internal FIFOs, for device and driver -- plus interrupts
+    cons.buf, for bottom-half and top-half -- plus sleep/wakeup
+  We'll see this again:
+    pipes
+    net lab
+
+Interrupts incur overhead
+  around a microsecond
+  "overhead" == cost *excluding* useful device driver work
+  the time required for CPU trap, save registers, maybe
+    switch page table, decide which device,
+    and later restore everything and return
+  pipelines, large register sets, cache/TLB misses, slow RAM
+
+What if interrupt rate is high? 
+  Example: ethernet can deliver millions of packets / second
+  At that rate, big fraction of CPU time in interrupt *overhead*
+  
+Polling: an event notification strategy for high rates
+  Tell device (or PLIC) not to generate interrupts for the device
+  Check for input periodically, e.g. in scheduler() or timer interrupt
+  Then process everything accumulated since last poll
+  More efficient than interrupts at high rates
+  Perhaps switch strategies based on measured rate
+
+DMA (direct memory access) can move data efficiently
+  the xv6 uart driver reads bytes one at a time in software
+    CPUs are not efficient for this:
+      off chip, not cacheable, 8 bits at a time
+    OK only for low-speed devices
+  most fast devices automatically copy batches of input to RAM -- DMA
+    then interrupt
+    input is already in ordinary RAM
+    CPUs read/write RAM efficiently
+
+Interrupt evolution over time
+  Decades ago:
+    Interrupt overhead was a few cycles
+    so: simple h/w, smart s/w, lots of interrupts
+  Now:
+    Overhead is 1000s of cycles
+    so: smart h/w, does lots of work for each interrupt
+
+Interrupts and device handling a continuing area of concern
+  Special fast interrupt paths (also for page faults, sys calls)
+  Spread device work over CPUs
+  User-space device drivers -- avoid kernel altogether
+
+Next week: networking

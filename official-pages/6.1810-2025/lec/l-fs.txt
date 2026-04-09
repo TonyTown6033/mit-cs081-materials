@@ -1,0 +1,342 @@
+6.1810 2025 Lecture 17: File System
+
+why are file systems useful?
+  durability across restarts
+  naming and organization
+  sharing among programs and users
+  device independence (hard disk, flash, EBS)
+
+why interesting?
+  crash recovery
+  performance
+  security
+  API generalizes: pipes, devices, /proc, /afs, Plan 9
+    so FS-oriented apps work with many kinds of objects
+  topic of two labs
+
+API affects design / implementation.
+  Example -- UNIX/Posix/Linux/xv6/&c:
+  fd = open("x/y", -);
+  write(fd, "abc", 3);
+  link("x/y", "x/z");  -- now file has two names!
+  unlink("x/y");
+  write(fd, "def", 3);
+  close(fd);
+  // file y/z contains abcdef
+
+high-level choices visible in the UNIX FS API
+  objects: files (vs raw disk space, DB records)
+  content: byte array (vs rows/columns, BTree)
+  size: can append at any time; disk space not pre-allocated
+  naming: human-readable (vs object IDs)
+  organization: directory hierarchy
+  synchronization: none (no locking, no versions)
+    does not prevent applications from modifying concurrently!
+  each of these decisions has been made differently in some other FSs!
+
+a few implications of the API:
+  fd refers to something
+    that is preserved even if file name changes
+    or if file is deleted while open!
+  a file can have multiple "hard" links
+    i.e. occur in multiple directories
+    no one of those occurences is special
+    so file must have info stored somewhere other than directory
+  thus:
+    FS records file info in an "inode" on disk
+    FS refers to inode with i-number
+    inode must have link count (tells us when to free)
+    inode must have count of open FDs
+    inode deallocation deferred until last link and FD are gone
+
+let's talk about xv6
+
+FS software layers
+  system calls
+  names | FDs
+  inodes
+  inode cache
+  log
+  buffer cache
+  virtio_disk driver
+
+data on disk means that data is persistent
+  persistent = data preserved even when powered off
+    (RAM data is lost w/o power)
+  many kinds of "disks":
+    hard drives (big but slow, inexpensive)
+    solid state drives (smaller, but fast, and more expensive)
+  common interface: array of sectors, often 512 bytes
+
+hard disk drives (HDD)
+  disk spins at a constant rate (e.g. 7200 RPM)
+  concentric tracks
+  each track is a sequence of sectors
+  to read/write a block:
+    seek the head to the right track
+    wait for sector to rotate under the head
+    random access is slow (5 or 10ms, due to seek+rotate) 
+    sequential access is much faster (100 MB/second)
+      b/c bits very dense on disk
+  ECC on each sector (Reed-Solomon, a few hundred bits)
+  can only read/write whole sectors
+  thus: sub-sector writes are slow (read-modify-write)
+
+solid state drives (SSD)
+  non-volatile "flash" memory
+  random access: 100 microseconds
+  sequential: 500 MB/second
+  internally complex -- hidden except sometimes performance
+    flash must be erased, in big blocks, before it's re-written
+    limit to the number of times a flash block can be written
+    SSD maintains an internal level of indirection -- remapped blocks
+
+for both HDD and SSD:
+  interfaces are compatible -- array of blocks
+  sequential access has much higher throughput than random
+  big reads/writes are faster than small ones
+  both of these influence FS design and performance
+  
+block size
+  most o/s filesystems use big blocks, e.g. 4 KB blocks = 8 sectors
+  to reduce book-keeping and seek overheads
+  xv6 uses 1024-byte blocks (2 sectors)
+
+on-disk layout
+  xv6 treats disk as an array of blocks
+  0: unused
+  1: super block (size, ninodes)
+  2: log for transactions (31 blocks)
+  33: array of inodes, 64 bytes each, packed 16 per block
+  46: block in-use bitmap (0=free, 1=used)
+  47: file/dir content blocks...
+  exact numbers depend on # inodes, # blocks
+
+"meta-data"
+  everything on disk other than file content
+  super block, i-nodes, bitmap, directory content
+
+xv6's mkfs program generates this layout for an empty file system
+  the layout is static for the file system's lifetime
+  mkfs puts sizes &c that the kernel needs in the superblock
+
+superblock
+  [kernel/fs.h]
+  sizes and locations of the log, inodes, bitmap, content areas
+  the kernel reads this when it boots
+
+on-disk inode
+  [kernel/fs.h]
+  type (free, file, directory, device)
+  nlink
+  size
+  addrs[12+1]
+
+direct and indirect blocks
+  indirect block holds 256 block #s
+  so max file size is 12+256 blocks, or 268 kbytes
+
+example:
+  how to find disk block # of file's byte 8000?
+  logical block 7 = 8000 / BSIZE (=1024)
+  inode.addrs[7] holds disk block #
+
+each i-node has an i-number
+  easy to find i-node on disk given i-number
+  inode is 64 bytes long
+  byte address on disk: 33*BSIZE + 64*inum
+
+directory contents
+  directory implemented as an i-node with type T_DIR
+    shares lots of implementation with files
+  content is array of dirents
+  dirent:
+    [kernel/fs.h]
+    inum
+    14-byte file name
+  dirent is free if inum is zero
+  applications can read directory to find file names
+    applications cannot directly write directories
+
+root directory (/) is i-number 1, created by mkfs
+  so xv6 knows where to find it
+
+you should view FS as an on-disk data structure
+  [tree: root inode, dirents, inodes, blocks]
+  with two allocation pools: inodes and blocks
+
+the xv6 disk layout is low-performance on a hard drive
+  suppose you grep (search) for something in a directory full of files
+  long seeks between i-node + file content, and successive file blocks
+  there are better layouts
+    e.g. allocate a file's blocks near each other
+    e.g. spread the i-nodes out over the disk, near content
+
+let's look at xv6 in action
+  focus on disk writes
+  illustrate on-disk data structures via how updated
+
+Q: how does xv6 create a file?
+
+rm fs.img ; make qemu
+
+$ echo > x
+  // create
+  bwrite 34 ialloc   // allocate inode in 2nd inode block
+  bwrite 34 iupdate  // update inode (e.g., set nlink)
+  bwrite 47 writei   // write directory entry, adding "x" by dirlink()
+  bwrite 33 iupdate  // update directory inode, because inode may have changed
+  bwrite 34 iupdate  // itrunc new inode (even though nothing changed)
+
+First, what is in those blocks?
+  34? 
+  47? 
+  33? 
+
+Second, what does the code look like?
+
+call graph:
+  sys_open        sysfile.c
+    create        sysfile.c
+      ialloc      fs.c
+      iupdate     fs.c
+      dirlink     fs.c
+        writei    fs.c
+	  iupdate fs.c
+    itrunc        sysfile.c
+      iupdate     fs.c
+
+Q: how does xv6 write data to an existing file?
+
+$ echo a > x
+  bwrite 34 iupdate  // open / itrunc
+  // write()
+  bwrite 46 balloc   // allocate a block in bitmap block
+  bwrite 914 bzero   // zero the allocated block
+  bwrite 914 writei  // write to it (hi)
+  bwrite 34 iupdate  // update inode (length and new block)
+  // write()
+  bwrite 914 writei  // write to it (\n)
+  bwrite 34 iupdate  // update inode
+
+First, what is in those blocks?
+  34?
+  46? 
+  914?
+
+Second, what does the code look like?
+  first iupdate() is open()'s truncate for "> x"
+  then sys_write...
+
+call graph:
+  sys_write       sysfile.c
+    filewrite     file.c
+      writei      fs.c
+        bmap
+          balloc
+            bzero
+        iupdate
+
+Q: why the bzero?
+
+Q: how does xv6 delete a file?
+
+$ rm x
+bwrite 47 writei    // from sys_unlink; directory content
+bwrite 33 iupdate   // from writei of directory content
+bwrite 34 iupdate   // from sys_unlink; link count of file
+bwrite 46 bfree     // from itrunc, from iput
+bwrite 34 iupdate   // from itrunc; zeroed length
+bwrite 34 iupdate   // from iput; marked free
+
+First, what is in those blocks?
+  47?
+  33?
+  34?
+  46?
+
+Second, what does the code look like?
+
+call graph:
+  sys_unlink
+    writei
+    iupdate
+    iunlockput
+      iput
+        itrunc
+          bfree
+          iupdate
+        iupdate
+
+What about caching, since disk is so slow?
+  xv6 FS caches at two levels:
+    Cache of disk blocks in bio.c
+    Cache of active i-nodes in fs.c
+
+Let's look at the block cache in bio.c
+   block cache holds just a few recently-used blocks
+   bcache at start of bio.c
+
+FS calls bread, which calls bget
+   bget looks to see if block already cached
+   if present, lock (may wait) and return the block
+     may wait in sleeplock until current using processes releases
+     sleep lock puts caller to sleep, if already locked
+   if not present, re-use an existing buffer
+   b->refcnt++ prevents buf from being recycled while we're waiting
+   invariant: one copy of a disk block in memory
+
+Two levels of locking here
+  bcache.lock protects the description of what's in the cache
+  b->lock protects just the one buffer
+
+Q: what is the block cache replacement policy?
+   prev ... head ... next
+   bget re-uses bcache.head.prev -- the "tail"
+   brelse moves block to bcache.head.next
+
+Q: is that the best replacement policy?
+
+Q: why does it make sense to have a double copy of I/O?
+   disk to buffer cache
+   buffer cache to user space
+   can we fix it to get better performance?
+
+Q: how much RAM should we dedicate to disk buffers?
+
+Why bget()'s acquiresleep(&b->lock)?
+  i.e. why does bget() return a locked block?
+
+What if there are concurrent calls to ialloc?
+   will they get the same inode?
+   no: ialloc gets a lock on the bitmap block
+   note bread / write / brelse in ialloc
+   bread locks the block, perhaps waiting, and reads from disk
+   brelse unlocks the block
+   (similar story for allocating blocks from bitmap)
+
+Pathname lookup
+  Traverse a pathname element at the time
+  Potentially many blocks involved:
+    inode of top directory
+    data of top directory
+    inode of next-level down
+    .. and so on ..
+  Each one of them might result in a cache miss
+    disk access are expensive
+  => Allow parallel pathname lookup
+    If one process blocks on disk, another process may proceed with lookup
+    Challenging: unlink may happen concurrent with lookup
+
+Let's look at namex() (kernel/fs.c)
+  ilock(): locks current directory
+  find next directory inode
+  then unlock current directory
+  another process may unlink the next inode
+    but inode won't be deleted, because inode's refcnt > 0
+  risk: next points to same inode as current (lookup of ".")
+    unlock current before getting lock on next
+    key idea: getting a reference separately from locking
+
+Next week:
+  what if the power fails mid-way through one of the operations?

@@ -1,0 +1,285 @@
+
+<HTML>
+<HEAD>
+<TITLE>
+6.S081 / Fall 2020
+</TITLE>
+<META HTTP-EQUIV="pragma" CONTENT="no-cache">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+<link rel="stylesheet" type="text/css" href="css/style.css">
+<link rel="stylesheet" href="labs/labs.css" type="text/css" />
+
+</HEAD>
+
+<BODY BGCOLOR=#ffffff TEXT=#000000>
+
+    <!-- Fixed navbar -->
+    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="index.html">6.S081: Operating System Engineering</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+	    <li><a href="schedule.html">Schedule</a></li>
+	    <li class="dropdown">
+              <a href="general.html#" class="dropdown-toggle" data-toggle="dropdown">Class<span class="caret"></span></a>
+	      <ul class="dropdown-menu" role="menu">
+                <li><a href="overview.html">Overview</a></li>
+                <li><a href="general.html">Administrivia</a></li>
+		<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">Handin website</a>
+		<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
+	      </ul>
+	    </li>
+            <li class="dropdown">
+              <a href="general.html#" class="dropdown-toggle" data-toggle="dropdown">Labs<span class="caret"></span></a>
+              <ul class="dropdown-menu" role="menu">
+		<li><a href="tools.html">Tools</a></li>
+		<li><a href="labs/guidance.html">Guidance</a></li>
+                <li><a href="labs/util.html">Lab Utilities</a></li>
+		<li><a href="labs/syscall.html">Lab System calls</a></li>
+		<li><a href="labs/pgtbl.html">Lab Page tables</a></li>
+		<li><a href="labs/traps.html">Lab Traps</a></li>
+                <li><a href="labs/lazy.html">Lab Lazy allocation</a></li>
+		<li><a href="labs/cow.html">Lab Copy on-write</a></li>
+		<li><a href="labs/thread.html">Lab Multithreading</a></li>
+		<li><a href="labs/lock.html">Lab Lock</a></li>
+		<li><a href="labs/fs.html">Lab File system</a></li>
+		<li><a href="labs/mmap.html">Lab mmap</a></li>
+		<li><a href="labs/net.html">Lab network driver</a></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+              <a href="general.html#" class="dropdown-toggle" data-toggle="dropdown">xv6<span class="caret"></span></a>
+	      <ul class="dropdown-menu" role="menu">
+		<li><a href="xv6.html">xv6</a></li>
+		<li><a href="xv6/book-riscv-rev1.pdf">xv6 book</a></li>
+	      </ul>
+	    </li>
+	    <li><a href="reference.html">References</a></li>  
+	    <li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
+          </ul>
+	  <ul class="nav navbar-nav navbar-right">
+	    <p class="navbar-text">2020</p>
+	  </ul>
+        </div>
+      </div>
+    </div>
+
+
+<div class="container">
+
+
+
+
+
+
+<H1>
+General Information
+</H1>
+<p>
+<b><a href="general.html#audience">Who should take 6.S081</a></b> //
+<b><a href="general.html#communication">Communication</a></b> //
+<b><a href="general.html#grading">Grading</a></b> //
+<b><a href="general.html#labs">Labs</a></b> //
+<b><a href="general.html#textbook">Text books</a></b> //
+<b><a href="general.html#homework">Homework</a></b> //
+<b><a href="general.html#collaboration">Collaboration</a></b> //
+<b><a href="general.html#meetings">Class meetings</a></b> //
+<b><a href="general.html#staff">Staff</a></b> //
+<b><a href="general.html#officehours">TA office hours</a></b>
+</p>
+
+<p><a name="audience"></a>
+<h2>Who should take 6.S081</h2>
+
+<p> It is intended for undergraduates who enjoyed 6.004 and want to
+  learn about design and implementation of operating systems, and
+  their use as a foundation for systems programming.
+
+<p><a name="communication"></a>
+<h2>Communication</h2>
+
+<p>We will distribute assignments on
+  the <a href="http://pdos.csail.mit.edu/6.S081/">course web site</a>,
+  and make all announcements through piazza.
+  The course web site has
+  the schedule for the term on the <a href="schedule.html">schedule page</a>.
+
+<p><a name="grading"></a>
+  <h2>Grading policy</h2>
+
+<p>Grades in 6.S081 will be based on the results of:
+  <ul>
+
+   <li> The labs (70%). The score for an individual lab is the output
+     of <tt>make grade</tt>.  All labs are weighted equally, except
+     for the last one, which will count as two labs.
+
+   <li> Check-off meetings (20%).  During the check-off meetings we
+   will ask you a few questions about your lab solution.  We expect to
+   hold 3 check-off meetings per student for
+   randomly-selected labs. The check-off
+   meetings will be graded on scale of 0 to 5.
+
+   <li> Home-work assignments and class/piazza participation (together
+   10%).
+
+  </ul>
+
+<p>You must submit all labs in order to pass the class.
+
+<p>There will be no quizzes and exams.
+
+<p><a name="labs"></a>
+<h2>Labs</h2>
+
+<p>To turn in each lab, run <tt>make handin</tt> in your lab
+directory. The handin must be received by 11:59pm on the day that the
+lab is due. You can turn in as many times as you like before the
+deadline. We grade your final submission using <tt>make grade</tt> and
+publish your grade on
+the <a href="https://6828.scripts.mit.edu/2020/handin.py/">handin website</a>.</p>
+
+<p> You have a total of 72 late hours for the semester. Each hour late in
+excess of 72 hours will penalize your total lab grade by 1&#37;, up to a maximum of 50%.
+Late hours are allocated greedily, so they are allocated to earlier labs before
+later labs. Due to institute regulations, late hours may not be used for the
+last lab (due in the last full week of classes).</p>
+
+<p>Late hours are intended for cases
+where you fall behind due to illness, job interviews, MIT athletic events,
+deadlines in other classes, etc. For extensions under extenuating circumstances
+(e.g., you are sick for a week), we require a letter from one of the student
+deans.</p>
+
+<!-- That is, the lab component of the overall grade drops by
+       ceil((cumulative late - 72 hours)/1 day)
+     letter grades. -->
+
+<h2 id="homework">Lecture questions/Homeworks</h2>
+
+<p>The lecture questions/homeworks are intended to make you think
+about the lecture topic. They are due before the start of lecture
+(i.e., 1pm) on the specified due dates.  We would appreciate if you
+submit lecture questions well before 1p (e.g., the night before) so
+that we can prepare to answer your questions during lecture.  We do
+not grade your answers for correctness, but merely check-off that you
+put reasonable effort into them.  You can miss a few lecture
+questions/homeworks over the semester without any penalty.</p>
+
+<h2 id="textbook">Textbooks</h2>
+
+<p>6.S081 relies on the following books:
+<ul>
+
+  <li><a href="xv6/book-riscv-rev1.pdf">xv6: A simple, Unix-like teaching operating
+      system</a> by R. Cox, F. Kaashoek, and R. Morris.
+
+  <li>The C programming language (second edition)</i> by Kernighan
+and Ritchie. Prentice Hall, Inc., 1988. ISBN 0-13-110362-8, 1998.
+
+</ul>
+
+<p><a name="collaboration"></a>
+<h2>Collaboration</h2>
+
+<p>You are welcome to discuss the labs (and homeworks) with other
+students, but all of your written work and code must be your own and
+must carefully acknowledge all contributions of ideas by others,
+whether from classmates or from sources you have read. Please don't
+look at anyone else's code for the labs or homework.  Please feel free
+to ask and answer questions on Piazza, about labs, homework, readings,
+and lectures.
+</p>
+
+<p>
+Do not post your lab or homework solutions on publicly accessible web
+sites (such as GitHub) or file spaces (such as your Athena Public
+directory).
+</p>
+
+<p><a name="meetings"></a>
+<h2>Class meetings</h2>
+
+<p>Lectures will be held on Monday and Wednesday from 1:00pm to 2:30pm
+  virtually and synchronously recorded.  The recordings will be posted
+  on the <a href="schedule.html">schedule page</a>.  The live Zoom
+  lecture link will be posted in Piazza (not posted here to prevent
+  "Zoom-bombing"); use the link in the top toolbar of this web page to
+  access the Piazza site.
+
+<p><a name="staff"></a>
+<h2>Staff</h2>
+
+<p><b>Lecturer</b><br>
+  <a href="https://pdos.csail.mit.edu/~kaashoek/">Frans Kaashoek</a><br>
+  <a href="https://pdos.csail.mit.edu/~rtm/">Robert Morris</a><br>
+
+<p><b>Teaching assistants</b><br>
+
+
+  David Morejon (dmorejon@mit.edu)<br>
+  Nick Kaashoek (nicolaas@mit.edu)<br>
+
+<p><b>Staff mailing list</b><br>
+<i>6s081@lists.csail.mit.edu</i>, but we would prefer that you
+use Piazza.
+
+<!-- RULE: officehours -->
+<p><a name="officehours"></a>
+
+<h2>TA office hours</h2>
+
+<p><font color="red">Not finalized, subject to change.</font><br>
+
+Office hours will be held on Zoom. Links will be pinned on Piazza.<br>
+We're aiming to replicate the in-person experience as much as possible, meaning
+that we want to encourage student collaboration while you wait for staff help. <br>
+If you want to work with other students, join the "main room" of the Zoom session for that day. When
+you are claimed from the queue, the TA will put you in a breakout room for 1-1 help. <br>
+<a href="https://queue.mit.edu/6.S081/queue">Queue</a><br>
+All times are listed in EST. <br>
+Monday: 7-9pm (David)<br>
+Tuesday: 4-6pm (Nick)<br>
+Wednesday: 2:30-4:30pm (David)<br>
+Thursday: 12-1pm (David and Nick)<br>
+Friday: 9-11am (Nick)<br>
+
+<br>
+Appointments with staff outside of the listed office hours can be setup via
+email or private Piazza post.<br>
+
+<!-- End Page Content -->
+
+<hr>
+
+<font style="font-size: 12px;">
+<p>Questions or comments regarding S6.081?  Send e-mail to the course staff at
+<A
+HREF="mailto:6s081@lists.csail.mit.edu"><I>6S081@lists.csail.mit.edu</I></A>.
+
+<p><a rel="license" href="https://creativecommons.org/licenses/by/3.0/us/"><img
+alt="Creative Commons License" style="border-width:0"
+src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" ></a> <B><A HREF="general.html#top">Top</A></B> //
+<B><A HREF="index.html">S6.081 home</A></B> // 
+<i>Last updated Thursday, 04-Sep-2025 23:15:03 EDT</i>
+</font>
+
+</div>
+
+<script src="js/jquery-1.10.2.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+
+</BODY>
+</HTML>
+

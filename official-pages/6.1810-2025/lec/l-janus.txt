@@ -1,0 +1,147 @@
+6.1810 2025 Lecture 7: System call interposition
+
+Different styles of research papers.
+  First paper ("A Secure Environment"): researchers articulating an
+    important problem, proposing an approach for solving it.
+  Second paper ("Traps and Pitfalls"): reflections on why the approach
+    turned out to be quite challenging; lessons learned.
+      Not hard performance numbers but instead unexpected issues.
+  Somewhat different from the L4 paper we read last week.
+    L4 researchers trying to demonstrate they have good ideas.
+    Empirical results.
+
+Problem: application code not fully trusted.
+  Buggy.
+  Malicious.
+
+Example motivation: web browser (Netscape) running ghostscript to view ps file.
+  Analogous to running Acrobat Viewer to view a PDF file.
+  ghostscript allowed ps files to read/write other files, spawn processes, etc.
+  Similar issues exist with PDF files, which can contain Javascript code.
+  Adversary could trick user into viewing a maliciously constructed ps file.
+
+Goal: minimize damage from possibly adversarial process.
+
+Approach: limit what system calls can be issued.
+  Process can corrupt files it should access, but not other files.
+  Should not be able to kill / corrupt other processes.
+
+Why syscalls?
+  Convenient, existing security boundary.
+  Protects important resources: other processes, files, network.
+  Doesn't require worrying about state of the process itself.
+    OK for untrusted process to corrupt its own memory.
+  Doesn't require fixing the application.
+    Hard to rewrite every application to be secure.
+
+Could we have the kernel support sandboxing directly?
+  Kernel typically provides some security checks (not xv6, but Unix and others).
+  Unix checks designed to isolate users in a time-sharing system.
+    Untrusted process can't corrupt other users' data, but can corrupt this user.
+    One example of how design choices influence what applications can/cannot do.
+    Various research projects explored flexible OS security mechanisms.
+  Putting Janus in the kernel seemed not so great to these authors.
+    Hard to deploy, requires administrator to install, could be buggy, ..
+  Retrospectively, many OSes now support sandboxing mechanisms in the kernel.
+    Linux, Windows, MacOS, ...
+    Partly to avoid the kinds of traps/pitfalls the paper talks about.
+    Sufficiently important use case for kernel to support it.
+
+Could we sandbox at a library level -- e.g., calls to ulib?
+  E.g., allow printf, deny write?
+  No isolation between ulib/printf and rest of application.
+  Application could corrupt stack, global variables, malloc, ...
+  Important that syscall interface is already designed for isolation.
+
+How might you go about sandboxing syscalls?
+  sandbox from syscall lab is a good starting point to keep in mind.
+  Unix baseline: ptrace.
+    Suffers from many limitations, better alternatives exist.
+  Linux: Seccomp/BPF (better performance).
+  Linux: AppArmor (tighter integration with kernel state).
+  Linux: Firejail (user-configurable security configuration).
+  MacOS: Seatbelt.
+  many others.
+
+Demo: Firejail on Linux.
+  echo foo > ~/foo.txt
+  echo bar > ~/bar.txt
+  echo qux > ~/qux.txt
+  cat example.profile
+  firejail --profile=example.profile sh
+  ls
+  cat foo.txt
+  cat bar.txt
+  echo hello > foo.txt
+  echo hello > bar.txt
+
+Janus design: kernel module + userspace policy.
+  Intercept syscalls, some flagged as sensitive (probably not read/write).
+    Performance optimization for performance-critical non-sensitive syscalls.
+  Send sensitive syscalls to special Janus process: policy engine.
+  Decides whether to allow/deny.
+  Common design pattern: in-kernel stub with user-space helper process.
+  User-space process: easier development, mitigates bugs, user configurable.
+  Kernel part: direct access to kernel state that's not otherwise possible.
+  Requires designing special syscall interface between these two parts.
+
+Why is it hard to do sandboxing at the syscall level?
+
+Overarching challenge: syscall doesn't have all of the information to decide.
+  Is pointer 0x1234 good or bad?  Depends on what's in the caller's address space.
+  Is file "x" good or bad?  Depends on current working directory.
+  Is path "a/b/c" good or bad?  Depends on what "a" and "a/b" and "a/b/c" are.
+  Is file descriptor 5 good or bad?  Depends on what's in that FD table entry.
+
+Unix syscalls have some nice aspects.
+  More information than, say, L4 syscalls (mostly send/recv).
+  Pathname operations separate from accessing an open file descriptor.
+    Interpose on file open, then allow any open FD read/write.
+    Block calls to create network sockets, still allow FD read/write.
+
+Challenge: duplicating kernel code / state.
+  Can try to maintain a copy of kernel state to make decisions.
+  E.g., track file descriptors.
+  E.g., track current working directory.
+  E.g., implement path traversal logic.
+  But subtle corner cases can cause state divergence.
+
+Challenge: wide interface, unexpected interactions.
+  Crashing causes kernel to write core dump to "core" file.  No open syscall.
+  File descriptor passing.  Bypasses checks on open syscalls.
+  Helper processes (outside just the kernel) that might bypass policy.
+
+Challenge: TOCTTOU.
+  State changes while making the decision.
+  Symlinks.
+  Directory traversal while directory renamss are happening.
+  Current working directory.
+  Memory arguments.
+  File descriptors.
+
+Challenge: enforcing a subset of syscall API.
+  Deny creating symlinks.
+  Deny renaming symlinks.
+  Deny access through symlinks (O_NOFOLLOW).
+  Problem: symlinks during path traversal before final component.
+  Recent API: openat2 RESOLVE_NO_SYMLINKS.
+
+Challenge: blocking important syscalls.
+  Blocking syscalls can change program behavior.
+  Can cause a well-behaved program to do the wrong thing.
+  E.g., could prevent it from dropping its own privileges, closing fd, etc.
+
+Which of these could be problems in xv6?
+
+Syscall interposition is often used in practice.
+  Big win: does not require modifying applications.
+  Big win: monitoring / enforcement even if app is malicious.
+  Isolation, auditing, intrusion detection, ...
+
+How to avoid these pitfalls?
+  In-kernel interposition instead of userspace ptrace.
+  Copy user memory before using it as syscall argument.
+  Integrate with kernel code paths instead of checking before operation.
+  Enforce "good behavior" by modifying sandboxed application.
+    Unfold path traversal into steps that are easy to check/sandbox.
+    Doesn't work for every syscall, but can work for some applications.

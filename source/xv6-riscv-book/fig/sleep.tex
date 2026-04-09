@@ -1,0 +1,27 @@
+\begin{tikzpicture}
+
+  \node (code0) at (0,0) {
+    \begin{lstlisting}[]
+      piperead() {
+        acquire(&pipe->lock);         
+        while(no data in pipe->buffer) {
+          sleep(&pipe, &pipe->lock) {
+            // in sleep()
+            acquire(&p->lock)
+            release(&pipe->lock)
+            p->state = SLEEPING
+            ...
+            swtch() {
+              // in scheduler()
+              release(&p->lock)
+              ...
+    \end{lstlisting}
+
+    %% this line is important
+   };
+
+    \draw[<->,thick] (4.7,2.5) -- (4.7,-0.3);
+    \draw[<->,thick] (4.9,0.7) -- (4.9,-2.6);
+    \node at (6.5, 1.5) {Holding pipe->lock};
+    \node at (6.5, -1.3) {Holding p->lock};
+\end{tikzpicture}

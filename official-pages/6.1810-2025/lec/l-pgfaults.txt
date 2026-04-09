@@ -1,0 +1,171 @@
+6.1810 2025 Lecture 8: Page faults
+
+* plan: cool things you can do with vm
+  - Better performance/efficiency
+    e.g., one zero-filled page
+    e.g., copy-on-write fork
+  - Convenience for application programmer
+    e.g., lazy allocation
+    e.g., memory-mapped files
+  
+* virtual memory: several views
+  * primary purpose: isolation
+    each process has its own address space
+  * Virtual memory provides a level-of-indirection
+    provides kernel with opportunity to do cool stuff
+	already some examples:
+	- shared trampoline page
+	- guard page
+	- upid
+        - super pages
+	but more possible...
+	
+* Key idea: change page tables on page fault
+  Page fault is a form of a trap (like a system call)
+  Xv6 panics on page fault
+    But you don't have to panic!
+  Instead:
+    update page table instead of panic
+	restart instruction (see userret() from traps lecture)
+  Combination of page faults and updating page table is powerful!
+	
+* RISC-V page faults
+  3 of 16 exceptions are related to paging
+  Exceptions cause controlled transfers to kernel
+    See traps lecture
+	
+* Information we might need at page fault to do something interesting:
+  1) The virtual address that caused the fault
+    See stval register; page faults set it to the fault address
+  2) The type of violation that caused the fault
+    See scause register value (instruction, load, and Store page fault)
+  3) The instruction and mode where the fault occurred
+    User IP: tf->epc
+    U/K mode: implicit in usertrap/kerneltrap
+
+* lazy/on-demand page allocation
+  * xv6 user address space (fig 3-4)
+    sbrk() grows heap
+  * sbrk() is old fashioned;
+    applications often ask for memory they need
+    - for example, the allocate for the largest possible input but
+      an application will typically use less
+    if they ask for much, sbrk() could be expensive
+    - for example, if all memory is in use, have to wait until
+      kernel has evicted some pages to free up memory
+    sbrk allocates memory that may never be used.
+  * moderns OSes allocate memory lazily
+    plan:
+      allocate physical memory when application needs it
+      adjust p->sz on sbrk, but don't allocate
+      when application uses that memory, it will result in page fault
+      on pagefault allocate memory
+      resume at the fault instruction
+    may use less memory
+      if not used, no fault, no allocation
+    spreads the cost of allocation over the page faults instead of upfront in sbrk()
+
+* demo: xv6's sbrklazy()
+  the only example of page faults in xv6 but many labs involve page  faults
+  * user/lazy.c
+    sbrklazy() grows address space but doesn't allocate memory
+      see sysproc.c
+    lazy allocates buf for the worst-case input length
+    but perhaps for most inputs less memory is needed
+    in those cases the pages used by buf will be allocated
+    in example, only 3 of 10 pages are used
+  * comment out vmfault in trap.c 
+    run lazy and observe a page fault (the read of buf[0])
+    see stval, cause, and epc
+  * let's see what vmfault() does
+    checks if va is with lazy's address space
+    walks lazy's page table to find pte
+    allocate memory and call mappages() to update the faulting pte
+    when lazy returns, va is mapped and now lazy can read buf[0]
+  * complication: copyout and copyin
+    lazy may call read/write passing in buf
+      kernel cannot write to the physical page for buf, because it doesn't have one
+    copyout/copyin check if buf is mapped
+      if not, call vmfault
+    after vmfault returns, buf has a physical page to which the kernel can write
+      note: the physical address is in kernel's page table
+        kernel maps all physical memory one-on-one
+  * all transparent to lazy!
+    lazy doesn't know it faulted
+    insert printf statements in vmfault: 3 faults
+    3 times through uservec, trap, vmfault, and userret
+
+* one zero-filled page (zero fill on demand)
+  * applications often have large part of memory that must zero
+    global arrays, etc.
+    so common that elf binary has "block starting symbol" (bbs) segment
+      doesn't contain data; it is exec's job to fill it with zeros
+  * thus, kernel must often fill a page with zeros
+  * idea: memset *one* page with zeros
+    map that page copy-on-write when kernel needs zero-filled page
+    on write make copy of page and map it read/write in app address space
+
+* demo: vmfault0
+  extends vmfault to allocate 1 zero page and maps it wo PTE_W 
+  on write to zero page, allocate a new page
+  for lazy, saves one page and one memset
+    buf[4096] doesn't require a new page
+  buf[8192] results in two faults
+    the first one maps the zero page
+    the second one allocates a page to be written
+    a more clever implementation would allocate page on first fault
+      read is false on the first fault
+
+* copy-on-write fork
+  * observation:
+    xv6 fork copies all pages from parent (see fork())
+    but fork is often immediately followed by exec
+  * idea: share address space between parent and child
+    modify fork() to map pages copy-on-write
+      use extra available system bits (RSW) in PTEs
+    on page fault, make copy of page and map it read/write
+    need to refcount physical pages
+    relative easy in xv6 (see cow lab)
+      but can be challenging in real OSes
+      for example, see https://lwn.net/Articles/849638/
+
+* demand paging
+  * observation: exec loads the complete file into memory (see exec.c)
+    expensive: takes time to do so (e.g., file is stored on a slow disk)
+    unnecessary: maybe not the whole file will be used
+  * idea: load pages from the file on demand
+    allocate page table entries, but mark them on-demand
+    on fault, read the page in from the file and update page table entry
+    need to keep some meta information about where a page is located on disk
+      this information is typically in structure called virtual memory area (VMA)
+  * challenge: file larger than physical memory (see next idea)
+
+* use virtual memory larger than physical memory
+  * observation: application may need more memory than there is physical memory
+  * idea: store less-frequently used parts of the address space on disk
+    page-in and page-out pages of the address address space transparently
+    don't write out pages that haven't been modified
+      the D(irty) bit in PTE helps with this
+  * works when working sets fits in physical memory
+    most popular replacement strategy: least-recently used (LRU)
+    the A(cess) bit in the PTE helps the kernel implementing LRU
+  * replacement policies huge topic in OS literature
+    many OS allow applications to influence its decisions (e.g., using
+    madvise and mlock).
+  * demo: run top and vmstat
+    on laptop and dialup.athena.mit.edu
+    see VIRT RES MEM SHR columns
+  
+* memory-mapped files
+  * idea: allow access to files using load and store
+    can easily read and writes part of a file
+    e.g., don't have to change offset using lseek system call
+  * Unix systems a new system call for m-mapped files:
+    void *mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset);
+  * kernel page-in pages of a file on demand
+    when memory is full, page-out pages of a file that are not frequently used
+
+* Summary
+  paging plus page tables provide a powerful layer of indirection
+  You will implement COW and memory-mapped files
+  xv6 is simple, but you have enough information to extrapolate

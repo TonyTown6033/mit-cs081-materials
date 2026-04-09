@@ -1,0 +1,242 @@
+6.1810 2025 Lecture 22: Kernel extensibility via BPF
+
+Note: demos from this lecture are available at
+  https://pdos.csail.mit.edu/6.1810/2025/lec/bpf/
+
+Paper: "The BSD Packet Filter" by McCanne, Jacobson
+
+Motivation: monitoring raw network packets
+  Userspace processes needs to check incoming network packets
+    Not a specific TCP connection / UDP ports
+    Multiple apps: tcpdump, arpwatch, rarpd, ..
+  Each process wants different types of packets
+    Kernel developer doesn't know upfront what packets to pass along
+
+[ demo: tcpdump ]
+  # tcpdump -n -i wlan0 udp
+  # tcpdump -n -i wlan0 udp and port 123
+
+Challenge: performance
+  Expensive to send each packet to userspace
+    Need to make a copy of packet in kernel
+    Need to send packet to userspace app
+  App will discard packets it doesn't care about
+    Wasted work copying those packets
+
+Goal: specify what packets kernel should copy or discard
+  Check in-kernel, based on specified rules
+  Avoid cost of copying if app doesn't want packet
+  Paper: efficient and general way of specifying such filters
+
+Paper's idea: specify filter as a program in a simple bytecode language ("BPF")
+  Application can translate its requirements into filter program
+  Bytecode language flexible to specify many different kinds of packets
+  Kernel can efficiently execute filter program
+  Could run filter in the interrupt handler when receiving packet
+
+[ demo: tcpdump bpf ]
+  # tcpdump -n -i wlan0 -d udp
+
+[ Diagram: tcpdump translates expr into bpf, sends to kernel, kernel runs bpf ]
+
+Turns out to be a powerful approach for extending the kernel
+  Flexible, safe, low-overhead way for kernel to run user-supplied code
+  Different isolation model from the usual process-level isolation
+    Sometimes called "software fault isolation"
+    Common techniques with systems like WebAssembly, even Javascript
+  Some restrictions compared to processes
+    Code must be in BPF language
+    Code must return right away (no sleeping, no threads, ..)
+    No virtual memory
+    No standard system calls
+  Big win from the restrictions: performance, enables new use cases
+
+[ demo: seccomp ]
+  (install https://aur.archlinux.org/packages/seccomp-tools)
+  $ cd bpf
+  $ make seccomp.bpf
+  $ seccomp-tools disasm seccomp.bpf
+  $ bwrap --bind / / --seccomp 5 5<seccomp.bpf -- sh
+  $$ ls
+  $$ mkdir d
+
+Interesting technical challenges to get this working
+  How to make sure the filter program doesn't crash (corrupt memory)?
+  How to make sure the filter program doesn't leak (read other data)?
+  How to make sure the filter program doesn't run forever?
+  How to execute the filter program with high performance?
+
+So, how can the kernel run BPF safely and efficiently?
+
+Plan 1: write an interpreter.
+  Similar to what the paper is talking about.
+  Loop over instructions, switch statement for each instruction.
+  Let's look at a toy version of BPF with just a few instructions.
+
+[ demo: bpf interp ]
+  $ cd bpf/engine
+  $ cat bpf.h
+  $ cat interp.c
+
+What safety checks does the interpreter need?
+  Cannot access memory beyond the packet buffer size.
+  Cannot run BPF opcodes beyond the valid instructions.
+  Cannot run unknown opcodes.
+  Must initialize state (a=0), otherwise could read leftover kernel data.
+
+How do we know the BPF interpreter will always finish?
+  Jumps are unsigned 8-bit offsets, so always jumping forward by 0 or more.
+  Each instruction advances PC by 1 (and maybe more for jumps)
+  If PC advances past the end of the BPF program, interpreter catches error.
+  Interpreter runs bounded number of BPF opcodes (at most nins).
+  Each opcode does a simple bounded step.
+  So, execution of whole BPF program by interpreter will finish "quickly".
+
+[ demo: bpf interp perf ]
+  $ cat main.c
+  $ time ./run_interp ../seccomp.bpf
+  bpf_run: 0x7fff0000
+
+  real	0m2.392s
+  user	0m2.384s
+  sys	0m0.002s
+
+Already pretty good: ~24 nsec per invocation.
+  For comparison, switching to userspace (e.g., getpid) would be ~100 nsec.
+  This is why BPF was a big win for the paper's authors.
+  Also pretty good for seccomp use case: cheaper than syscall overhead!
+
+Plan 2: faster interpreter by avoiding checks in critical path.
+  Part of the reason why interpreter is slow is that it's performing checks.
+  But those checks are independent of the packet we're filtering!
+
+[ demo: bpf fast interp ]
+  $ cat fast_interp.c
+
+Why is it safe for bpf_run to skip checking memory load, PC, etc?
+  Validate BPF program upfront: bpf_prepare().
+
+Validation rules:
+  Must be at least 1 instruction (so we can start running).
+  Last instruction must be a return (so we don't run off the end).
+  Loads must be within packet bounds.
+    Kernel knows how big the packet buffer will be, even before it has a packet.
+  Jumps must not go past the end of instructions.
+
+[ demo: bpf fast interp perf ]
+  $ time ./run_fast_interp ../seccomp.bpf
+  bpf_run: 0x7fff0000
+
+  real	0m1.650s
+  user	0m1.645s
+  sys	0m0.002s
+
+Significant win: 16 nsec instead of 24 nsec!
+  Worth validating the program upfront, if it will run many times.
+
+Plan 3: translate BPF bytecode into hardware instructions ("JIT").
+  BPF bytecode already looks similar to real CPU instructions.
+  Can we translate BPF instructions to CPU instructions, and run those?
+  This is similar to what qemu does in order to run RISC-V on x86 or ARM.
+
+[ demo: bpf jit ]
+  $ cat jit.c
+  $ seccomp-tools disasm ../seccomp.bpf   (in another terminal on the right)
+  $ gdb --args ./run_jit ../seccomp.bpf
+  (gdb) b bpf_run
+  (gdb) r
+  (gdb) p runner->f
+  (gdb) x/20i runner->f
+
+Need to have a plan for what registers will contain what state.
+  On x86-64, first function call arg goes into %rdi.
+  Let's use that to store pointer to packet.
+  On x86-64, return value from function goes into %eax.
+  Will put the value from return opcode there.
+  On x86-64, the %eax register is callee-saved (i.e., function can modify it).
+  So, let's use that to store BPF's "A" register.
+
+How do we figure out the instruction encodings?
+
+[ demo: assembly snippets, in another terminal on the side ]
+  $ vi snippets.S
+  $ objdump -d snippets.o | less
+
+What does the JIT need to do?
+  Still need the same safety checks as our fast interpreter.
+  For each instruction, need to fill in the corresponding x86 code.
+    Need to encode specific constants and offsets into the instruction.
+  Need to know where to jump.
+    BPF code specifies the BPF instruction number.
+    Generated x86 code needs x86 code offset.
+    Two passes to fill in the right jump offsets.
+    First, generate the x86 code, perhaps with wrong jumps, but right size.
+    Remember the x86 instruction offset for each BPF instruction.
+    Second, generate the x86 code again, this time with correct jumps.
+  Need to fill in initial x86 code to zero out the %eax register.
+    Otherwise, BPF code (and generated x86 code) could read uninitialized %eax.
+  After JIT setup, running filter is just jumping to the generated code.
+    bpf_run.
+
+[ demo: bpf jit perf ]
+  $ time ./run_jit ../seccomp.bpf
+  bpf_run: 0x7fff0000
+
+  real	0m0.380s
+  user	0m0.377s
+  sys	0m0.002s
+
+Big win over interpreter: 3.8 nsec instead of 16 nsec!
+
+Is there more room for optimizations?
+  Could use more efficient instruction encodings (short jumps).
+  Could eliminate the clearing of %eax.
+    Need to check that BPF program loads before use, on every execution path.
+    Different kind of analysis pass: depends on branch choices.
+
+Linux supports a more sophisticated version of BPF called eBPF.
+  Richer opcodes for performance (multiple registers).
+  Allows some loops (requires a more sophisticated validator).
+  Allows access to some shared state (like a hash table).
+  Allows calls into some kernel code (again, sophisticated validator).
+  Translated into native code with a JIT for performance.
+
+[ demo: bpftrace ]
+  # pacman -S bpftrace
+  # bpftrace -l
+  # bpftrace -vl tracepoint:syscalls:sys_enter_mkdir
+  # bpftrace -e 'tracepoint:syscalls:sys_enter_mkdir { printf("PID %d calling mkdir(%s)\n", pid, str(args.pathname)); }'
+  $ mkdir x
+  # bpftrace -vl tracepoint:irq:irq_handler_entry
+  # bpftrace -e 'tracepoint:irq:irq_handler_entry { printf("intr %d: %s\n", args.irq, str(args.name)); }'
+  # bpftrace -e 'tracepoint:irq:irq_handler_entry { if (args.irq == 1) { printf("intr %d: %s\n", args.irq, str(args.name)); } }'
+  # bpftrace -d dis -e 'tracepoint:irq:irq_handler_entry { if (args.irq == 1) { printf("intr %d: %s\n", args.irq, str(args.name)); } }'
+
+  More examples: https://bpftrace.org/tutorial-one-liners
+
+[ demo: xdp ]
+  # pacman -S bpf
+
+  $ cd bpf
+  $ cat drop_icmp.c
+  $ make
+  # ip link set wlan0 xdp object drop_icmp.o
+  # ping -n 8.8.8.8
+  # bpftool prog show
+  # bpftool prog dump jited id NNN
+  # ip link set wlan0 xdp off
+
+  $ cat set_ttl.c
+  # ping -n 8.8.8.8
+  # ip link set wlan0 xdp object set_ttl.o
+  # ip link set wlan0 xdp off
+
+  (comment out data_end check from set_ttl.c)
+  $ make
+  # ip link set wlan0 xdp object set_ttl.o
+
+eBPF validator is highly sophisticated, active area of research + kernel development.
+  [ demo: kernel/bpf/verifier.c ]
+
+Other references:
+  https://github.com/zoidyzoidzoid/awesome-ebpf

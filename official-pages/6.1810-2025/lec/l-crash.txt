@@ -1,0 +1,318 @@
+6.1810 2025 Lecture 18: Crash Recovery, Logging
+
+Plan
+  problem: crash recovery
+    crash leads to inconsistent on-disk file system
+  solution:
+    write-ahead logging
+
+# Why crash recovery
+
+What is crash recovery?
+  process creates files, directories, etc.
+  then the power fails
+  you reboot
+  is your file system still usable?
+
+file system reminder
+  a file system is a on-disk data structure
+    tree of directories containing files
+    each file is an inode and tree of blocks
+  on-disk layout in xv6: 
+    0: unused
+    1: super block (size, ninodes)
+    2: log for transactions (31 blocks)
+    33: array of inodes, 64 bytes each, packed 16 per block
+    46: block in-use bitmap (0=free, 1=used)
+    47: file/dir content blocks...
+  modifications to the file system require multiple disk write
+    removing a file f involves
+      - marking inode free
+      - marking its data blocks as free
+      - update the directory to remove f
+
+problem: crash during system call that writes several blocks
+  risk: may leave FS invariants violated
+    e.g., crash during unlink
+      inode marked free but file still in directory
+  after reboot:
+    bad: crash again due to corrupt FS
+    worse: no crash, but reads/writes incorrect data
+
+examples:
+  create:
+  
+    $ echo > x
+    // create trace from last lecture:
+    log_write: block 34 by ialloc   // allocate inode in 2nd inode block
+    log_write: block 34 by iupdate  // update inode (e.g., set nlink)
+    log_write: block 47 by writei   // write directory entry, adding "x" by dirlink()
+    log_write: block 33 by iupdate  // update directory inode, because inode may have changed
+    log_write: block 34 by iupdate  // itrunc new inode
+
+    crash between iupdate and writei
+      allocate file inode
+      crash: inode not free but not used -- not so bad
+
+    what if the file system first performed the writes to 47 and 33 and then 34
+      that is, first create the directory entry and then the file
+      if crash between 33 and 34, then dirent points to free inode -- disaster!
+      crash again, or worse if inode is allocated for something else
+
+    a real file system gives a batch of writes to disk to achieve higher performance
+      so after crash some may have happened, some not
+
+  write:
+    inode addrs[] and len
+    indirect block
+    block content
+    block free bitmap
+    crash: inode refers to free block -- disaster!
+    crash: block not free but not used -- not so bad
+    
+  unlink:
+    free block
+    free inode
+    erase dirent
+    crash: dirent refers to free inode -- disaster!
+
+what can we hope for?
+  after rebooting and running recovery code
+  1. FS internal invariants maintained
+     e.g., no block is both in free list and in a file
+  2. all but last few operations preserved on disk
+     e.g., data I wrote yesterday are preserved
+     but perhaps not data I was writing at time of crash
+     so user might have to check last few operations
+  3. no order anomalies
+     echo 99 > result ; echo done > status
+
+correctness and performance often conflict
+  disk writes are slow!
+  safety => write to disk ASAP
+  speed => don't write the disk (e.g., batch, write-back cache)
+
+crash recovery is a recurring problem
+  arises in all storage systems, e.g. databases
+  a lot of work has gone into solutions over the years
+  many clever performance/correctness tradeoffs
+
+# Logging solution
+
+most popular solution: logging (== journaling)
+  goal: atomic system calls w.r.t. crashes
+  goal: fast recovery (no hour-long fsck)
+
+will introduce logging in two steps
+  first xv6's log, which only provides safety and fast recovery
+  then Linux EXT3, which is also fast in normal operation
+
+the basic idea behind logging
+  you want atomicity: all of a system call's writes, or none
+    let's call an atomic operation a "transaction"
+    kernel developer must mark begin and end of a transaction
+  record all writes the sys call *will* do in the log on disk (log)
+  then record "done" on disk (commit)
+    this operation must be atomic
+    a commit happens or doesn't happen (no 1/2 commit)
+  then do the FS disk writes  (install)
+  on crash+recovery:
+    if "done" in log, replay all writes in log
+    if no "done", ignore log
+  this is a WRITE-AHEAD LOG
+
+write-ahead log rule
+  install *none* of a transaction's writes to disk
+  until *all* writes are in the log on disk,
+  and the logged writes are marked committed.
+
+why the rule?
+  once we've installed one write to the on-disk FS,
+  we have to do *all* of the transaction's other
+  writes -- so the transaction is atomic. we have
+  to be prepared for a crash after the first installation
+  write, so the other writes must be still available
+  after the crash -- in the log.
+
+logging is magic
+  crash recovery of complex mutable data structures is generally hard
+  logging can often be layered on existing storage systems
+  and it's compatible with high performance (topic for next lecture)
+
+# Overview of xv6 logging
+
+xv6 log representation
+  [diagram: buffer cache, in-memory log block # array,
+            FS tree on disk, log header and blocks on disk]
+  on write add blockno to in-memory array
+  keep the data itself in buffer cache (pinned)
+  on commit:
+    write buffers to the log on disk
+    WAIT for disk to complete the writes ("synchronous")
+    write the log header sector to disk
+      block numbers
+      non-zero "n"
+  after commit:
+    install (write) the blocks in the log to their home location in FS
+    unpin blocks
+    write zero to "n" in the log header on disk
+
+the "n" value in the log header on disk indicates commit
+  non-zero == committed, log content valid and is a complete transaction
+  zero == not committed, may not be complete, recovery should ignore log
+  write of non-zero "n" is the "commit point"
+  
+Let's look at an example.
+  I've modified log_write() and bwrite() to print low-level disk writes,
+  i.e. the disk writes that occur during transaction commit.
+
+  $ echo > x
+  log_write 34
+  log_write 34
+  log_write 47
+  log_write 33
+  log_write 34
+  // no disk writes until commit!
+  bwrite 3    // block w. x inode 34
+  bwrite 4    // directory block 47
+  bwrite 5    // block w. dir inode 33
+  bwrite 2    // commit
+  bwrite 34   // install inode for x 
+  bwrite 47   // install directory content
+  bwrite 33   // update dir inode
+  bwrite 2    // mark log empty
+  // multiple writes to same block become one write
+  // every block written twice: log and install
+
+What would have happened if we crashed during a transaction?
+  memory is lost, leaving only the disk as of the crash
+  kernel calls recover_from_log() during boot, before using FS
+    if log header block says "done":
+      copy blocks from log to real locations on disk
+  what is in the on-disk log?
+    crash before commit
+    crash during commit -- commit point
+      bwrite 2 must be atomic; a single sector
+      so, either committed or not
+    crash during install_trans()
+    crash just after reboot, while in recover_from_log()
+  note: it is OK to replay the log more than once!
+    as long no other activity intervenes
+  
+let's look at code and walk through the create transaction
+  sysfile.c: sys_open()
+    begin_op/end_op: mark transaction
+  sysfile.c: create
+    ialloc() allocates inode
+      log_write
+
+  begin_op() in log.c:
+    need to indicate which group of writes must be atomic!
+    need to check if log is being committed
+    need to check if our writes will fit in remainder of log
+  log_write():
+    add sector # to in-memory array
+    bpin() will pin block in buffer cache, so that bio.c won't evict it
+  end_op():
+    if no outstanding operations, commit
+  commit():
+    copy updated blocks from cache to log on disk
+    record sector #s and "done" in on-disk log header
+    install writes -- copy from on-disk log to on-disk FS
+      bunpin() will unpin from cache --- now it can be evicted
+    erase "done" from log
+
+note xv6 assumes the disk is fail-stop
+  it either does the write correctly, or does not do the write
+    i.e. perhaps it can't do the last write due to power failure
+  thus:
+    no partial writes (each sector write is atomic)
+    no wild writes
+    no decay of sectors (no read errors)
+    no read of the wrong sector
+
+# Challenges
+  
+challenge: prevent write-back from cache
+  a system call can safely update a *cached* block,
+    but the block cannot be written to the FS
+    until the transaction commits
+  tricky because e.g. cache may run out of space,
+    and be tempted to evict some entries in order
+    to read and cache other data.
+  consider create example:
+    write dirty inode to log
+    write dir block to log
+    evict dirty inode
+    commit
+  xv6 solution:
+    ensure buffer cache is big enough
+    pin dirty blocks in buffer cache
+    after commit, unpin block
+  
+challenge: system's call data must fit in log
+  xv6 solution:
+  - compute an upper bound of number of blocks each system call writes
+    set log size >= upper bound
+  - break up some system calls into several transactions
+    for example, large write()s
+    thus: large write()s are not atomic
+      but a crash will leave a correct prefix of the write
+	
+challenge: allowing concurrent system calls
+  must allow writes from several calls to be in log
+  on commit must write them all
+  BUT cannot write data from calls still in a transaction
+
+xv6 solution
+  allow no new system calls to start if their data might not fit in log
+    must wait for current calls to complete and leave enough space in log
+    or, wait until concurrent calls have committed, which frees up log
+  when number of in-progress calls falls to zero
+    commit
+    free up log space
+    wake up waiting calls
+
+challenge: a block may be written multiple times in a transaction
+  log_write() affects only the cached block in memory
+  so a cached block may reflect multiple uncommitted transactions
+  but install only happens when there are no in-progress transactions
+    so installed blocks reflect only committed transactions
+  good for performance: "write absorbtion"
+
+challenge: orphaned files/directories
+  inode has refcnt = 0 but some process has still has an open fd for it
+    cannot delete just yet
+  but crash may happen before close(fd)
+    file is on disk but no dirent points to it
+
+xv6 solution:
+  ireclaim: on reboot check for orphaned files
+
+challenge: when does an process know its writes are on disk?
+  e.g., when write() returns, the updates may not have been committed
+    another transaction was in progress and delayed the commit 
+
+typical solution: sync() system call 
+  returns only when all dirty blocks are on the disk
+  xv6 doesn't have a sync call
+    
+# Summary
+
+what is good about xv6's log design?
+  correctness due to write-ahead log
+  good disk throughput: log naturally batches writes
+    but data disk blocks are written twice
+  concurrency
+  
+what's wrong with xv6's logging?
+  not very efficient:
+    every block is written twice (log and install)
+    logs whole blocks even if only a few bytes modified
+    writes each log block synchronously
+      could write them as a batch and only write head synchronously 
+    log writes and install writes are eager
+      both could be lazy, for more write absorbtion
+      but must still write the log first
+  trouble with operations that don't fit in the log
+    unlink might dirty many blocks while truncating file

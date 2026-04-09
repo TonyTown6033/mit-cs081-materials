@@ -1,0 +1,203 @@
+6.1810 2025 Lecture 16: High-performance networking and scheduling
+
+Reading: "Shenango: achieving high CPU efficiency for
+         latency-sensitive datacenter workloads (NSDI 2019)
+
+this lecture
+  O/S network performance
+  Tail latency
+  Kernel-by-pass
+  Shenango
+    research paper, not a production system
+    state-of-the-art paper, not easy to understand every detail
+    scheduling is interesting in the context of high-performance networking
+
+Linux network software structure
+  [diagram]
+  NIC DMAs received packet into rx ring
+  NIC interrupts kernel
+  kernel processes packet (TCP, UDP, etc.)
+    copies from ring to destination socket queue
+    wakes up application's read
+  application sends packet
+    inserts packet into tx ring
+    NIC sends packet
+
+how does network software structure affect performance?
+
+let's focus on high-performance network servers
+  e.g., memcached, an in-memory key/value storage server
+  high request rate
+  short requests / responses
+    set/get take ~1usec
+    (the application isn't the bottleneck)
+  lots of clients, lots of potential parallelism
+
+performance metrics
+  low latency (under low load and high load)
+    avg latency
+    tail latency
+
+tail latency
+  https://cacm.acm.org/research/the-tail-at-scale/
+    famous Google paper; changed how people measure latency
+    focus on latency at tail
+  Google has many machines under high load
+    say typical response is 10ms
+    but 1 in 100 takes 1s (99% tail is 1s)
+  sources of delay
+    machines are shared between several applications
+      contention for CPU cores, etc.
+    background processes (daemons) periodically run
+    packets are queued because burst
+    etc.
+  user requests may fan out to many machines
+    if each user req fans out to 100 machines, then *many* request suffers 1s delay 
+  important that 99% tail latency is low  
+
+latency ingredients:
+  low load: sum of a sequence of steps to process packet
+    network speed-of-light and switch round-trip time
+    interrupt
+    queue operations
+    sleep/wakeup
+    system calls
+    inter-core data movement
+    RAM fetches
+  high load:
+    latency is largely determined by wait time -- queuing
+    bursty arrivals increase queuing time
+    bursty service times increase queuing time
+    structural problems can increase queuing time
+      load imbalance, or no-one serving a queue
+    latency under high load is hard to reason about
+
+what are the relevant h/w limits?
+  10 gigabit ethernet: ~10 million 100-byte packets/second
+  1 2.4 Ghz core: 240 cycles per packet
+    if we have 8 cores, 1920 cycles per packet
+  system calls: a few million per second
+  interrupts: a million per second
+  too slow!
+
+solution approach: kernel-by-pass 
+  Linux kernel gives Shenango NIC queues and dedicated cores
+    then Linux isn't involved much
+  Shenango user-space library (fig 2)
+     accesses NIC packet rings directly
+     implements TCP/IP stack
+     schedules multiple threads on dedicated cores
+     it is a small operating system, implemented as a library
+  good for low tail latency
+    dedicated resources for an application
+    no contention for shared resources
+
+kernel-by-pass networking
+  NICs have many packet rings/queues
+  Use page tables to map rings into application's address space
+  Program NIC to steer packets to specific queues
+    hash <src ip, dst ip, src pn, dst pn>  -> queue
+    "flow-consistent hashing" or "receive-side scaling" (RSS)
+    a new connection is given to the core determined by the NIC's hash
+      hopefully uniform and results in balanced load
+  Use polling
+    apps have dedicated cores
+    continuously check NIC rings for new input
+      interrupts are redundant if always likely to be input waiting
+  Each connection handled by one core
+    no lock contention
+      each core has its own packet free list
+      each core has its own TCP data structures
+    no data movement between cores
+
+evaluation
+  what should we look for?
+  low latency
+  low tail latency
+
+fig 3
+  setup:
+    16 queues
+    8 cores with 2 hyperthreads
+    6 machines to generate load
+      each one has 200 connections
+  graph
+    x-axis: offered load
+    focus on top two graphs
+    ZygOS: pure kernel-by-pass
+    Ignore Arachne 
+  Linux medium and tail latency under low load
+    ~35us and 300-400us
+    at 800K req/s, Linux cannot keep up
+  Shenango and ZygOS do better
+    tail latency good under low load and high load
+    why does line go up at right end of graph?
+    why does Shenango's line go up earlier?
+
+utilization
+  high load
+    cores are busy processing network packets
+    high utilization
+  low load
+    cores are dedicated and cannot be used by other apps
+    low utilization
+  see left-end of bottom graph
+    there is an application to run
+    Linux runs it (time-shares cores)
+    ZygOS doesn't run it (since all cores are reserved)
+    Shenango runs it too! how come?
+  common for data centers to run at low utilization to achieve low tail latency
+
+paper's solution: I/O kernel
+  a Linux process with root privileges
+  it allocates remaining cores to Shenango applications
+  applications reserve a minimium # of cores
+    I/O kernel allows other application to burst on "reserved cores", if unused
+    if load goes up, preempt bursting application and give core back
+    for example, the background process in fig 3
+  challenge: avoid "compute congestion"
+    work is delayed by a few microseconds because application doesn't have enough cores
+    I/O kernel must make a quick decision
+
+I/O kernel sits between NIC and applications
+  It handles all network I/O
+    it scans input queues and puts packet on application's core queue 
+    it scans all application's output queues, and sends packets   
+  It monitors network queues and thread queues every 5us
+    if it detects compute congestion, it allocates core to application
+    it steers input packets to that core
+      I/O kernel steers because reprogramming NIC to steer is expensive (100s us)
+      also allows cores to steal packets from other cores, good for load balancing
+  I/O kernel introduces some latency
+    See Fig 6
+ 
+Detecting compute congestion (Algorithms 1)
+  Congestion:
+    if a packet is still in input queue on next queue scan
+    if a uthread is still in runtime's uthread queue
+   
+Core allocation (Algorithm 2)
+   Prefer core on which application already has a hyperthread
+   Prefer core most recently-yielded by application
+   Pick any idle core (if there is one)
+   Preempt a random core from a bursting app
+
+Shenango implementation
+  Complicated because uses Linux without modifying it
+    a core is pthread thread, which Linux implements using a kernel thread
+      Shenango "pins" pthread to a core
+    shared-memory queues between I/O kernel and application processes
+    I/O kernel uses DPDK to interact efficiently with NIC
+  Runtime implements OS in user space
+    e.g., has its own TCP implementation
+
+How well does Shenango respond to changes in load?
+  from fig 3 we know it does well
+  from fig 5 directly answers the question
+
+Summary
+  High-performance networking is hard!
+    low latency and high utilization are hard to achieve
+  Papers in essence proposes a new OS
+    cleverly implemented on top of Linux
+    Shenango libOS isn't as general-purpose as Linux

@@ -1,0 +1,383 @@
+6.1810 2025 L21: Containers and virtual machines
+
+Paper: Blending Containers and Virtual Machines: a study of
+Firecracker and gVisor (VEE 2020) by Anjali et al.
+
+Goal: "jail" untrusted code
+  OS isolation is based on kernel + processes + virtual memory
+    Compromise of kernel breaks isolation
+  Modern OS have a wide system call interface 
+    syscalls have many shared names spaces (fs, pid, etc.)
+  Paper surveys techniques for stronger isolation
+    reduce access to system calls and name spaces
+  
+Motivation: serverless computing
+  Tenants provide applications to provider
+  Provider wants to run apps on possibly same server to achieve high utilization
+  Isolation challenge: arbitrary code, need to isolate apps from different tenants
+  Performance challenge: load might vary widely
+    Can vary from a small fraction of machine to many machines
+    Can vary quickly, so need to start new instances quickly  
+  Many of the specific isolation techniques are used more broadly too.
+    Android phones, web servers, Chrome web browser, OpenSSH, ...
+
+Isolation approaches
+  Linux processes with chroot
+  Containers, using Linux namespaces + cgroups
+  "User-space kernel" or "library OS" (gVisor, Drawbridge)
+  VMs
+
+Linux processes
+  User IDs
+  Per-file permissions
+  Intended for fine-grained sharing between users, rather than coarse isolation
+  Note: xv6 has no user ids, permissions
+
+Why is isolation challenging in Linux?
+  Lots of shared state ("resources") in the kernel.
+  System calls access shared state by naming it.
+    PIDs.
+    File names.
+    IP addresses / ports.
+    (Even user IDs, in some form.)
+  Typical access control revolves around user IDs (e.g., file permissions).
+    Hard to use permissions to enforce isolation between two applications.
+    Lots of files with permissions.
+    Applications create shared files by accident or on purpose (e.g., world-writable).
+
+Unix/Linux mechanism: chroot <dir>
+  Change the root directory of a process to the directory <dir>
+    / names <dir>
+  Benefit: "jails" the process
+    limits the files that one application can name
+      doesn't matter if an application accidentally creates world-writable files
+        jailed process cannot access it
+  Challenge: don't allow process to escape the jail
+    risk: .., symlinks, etc.
+  Good starting point for better isolation, but shortcomings
+    many system calls still available in jail with access to other shared resources
+    e.g., kill <pid>
+ 
+Namespaces provide a way of scoping the resources that can be named in syscall
+  [[ Ref: https://blog.quarkslab.com/digging-into-linux-namespaces-part-1.html ]]
+  Process belongs to a particular namespace (for each namespace kind)
+    New processes inherit namespace of the parent process
+    E.g., PID namespace limits the PIDs that a process can name
+  Name spaces: PIDs, IPC (shared-memory, etc), NET, UTS (hostname), USER, etc
+  Coarse-grained isolation, not subject to what application might do
+  A better-designed chroot for different kinds of resources (not just file system)
+
+Challenge: process in jail needs to run
+  It needs:
+    dynamically-linked libraries
+    configuration files (timezone, etc.)
+    maybe python interpreter or other programs
+    ..
+  It needs a Linux environment
+  Sol: Open Container Initiative (OCI) has a standard container format.
+    [[ Ref: https://opencontainers.org/ ]]
+    E.g., Alpine Linux, a small Linux environment
+  Popular: Linux containers, gvisor, and Firecracker use it
+
+Linux containers
+  Namespaces enable control over what files, processes, etc, are visible.
+  Container image for a per-process Linux environment
+  Cgroups control resource use for performance isolation.
+  Note word "container" can mean two things
+  - a container image (in OCI format)
+  - an isolation technique using namespaces and cgroups
+
+Containers provide jailed process with its "own" Linux environment
+  Its own dynamically-linked libraries, etc.
+  Useful even without isolation: what if two apps need different libssl versions?
+    Open Container Initiative (OCI) has a standard container format.
+    Docker container can run with Linux container isolation or gVisor.
+      Even support for running Docker containers on Firecracker.
+      [[ Ref: https://github.com/weaveworks/ignite ]]
+  Container isolation built on two Linux mechanisms: namespaces and cgroups.
+
+Linux cgroups.
+  Limit / scheduling for resource use.
+  Memory, CPU, disk I/O, network I/O, etc.
+  Applies to processes, much like namespaces.
+    New processes inherit cgroup of the parent process.
+  Not a security boundary, but important for preventing DoS attacks.
+    E.g., one process or VM tries to monopolize all CPU or memory
+
+Why might namespaces/containers not be enough?
+  Shared Linux kernel.
+  Wide attack surface: 350+ system calls, many specialized functions under ioctl...
+  Large amount of code, written in C.
+    Bugs (buffer overflows, use-after-free, ...) continue to be discovered.
+    No isolation within the Linux kernel itself.
+  Kernel bugs let adversary escape isolation ("local privilege escalation" or LPE).
+    Relatively common: new LPE bugs every year.
+
+Additional security mechanism: seccomp-bpf.
+  Idea: filter what system calls can be invoked by a process.
+    See Janus lecture earlier in the term
+  Might help us address the wide attack surface of the Linux kernel.
+  Common pattern: rarely-used syscalls or features are more likely to be buggy.
+  Every process is (optionally) associated with a system call filter.
+    Filter written as a little program in the BPF bytecode language.
+    Linux kernel runs this filter on each syscall invocation, before running syscall.
+    Filter program can decide if syscall should be allowed or not.
+    Can look at syscall#, arguments, etc.
+    New processes inherit syscall filter of parent process: "sticky".
+  Can use seccomp-bpf to prevent access to suspect syscalls.
+  Used by some container implementations.
+    Set up bpf filter to disallow suspect system calls.
+  Why might this not be good enough?
+    Restricting syscalls could limit compatibility.
+    Could break application code that uses uncommon syscalls.
+    But still might not be enough for security (lots of code/bugs in common syscalls).
+  Containers: all system calls, except 44 (see Table 1)
+
+Challenge: reduce number of systems calls available
+  Constraint: applications should work
+  Idea: give container is own Linux kernel
+  Two approaches: gvisor and VMs  (see fig 2 and fig 3)
+  VMs and gvisor make systems calls to host but jailed application doesn't
+    See Table 1: 36 systems calls to implement firecracker VM
+
+What is a virtual machine?
+  simulation of a computer, accurate enough to run an O/S
+  Diagram: h/w, host/VMM, guest linux and apps
+    VMM might be stand-alone, or
+    VMM might run in a host O/S, e.g. Linux
+  Why is this better than containers?
+    Smaller attack surface: no complex syscalls, just x86 + virtual devices.
+    Fewer bugs / vulnerabilities: VM escape bugs discovered less than once a year.
+
+VMs have a long history
+  1960s: IBM used VMs to share big expensive machines
+  1980s: (computers got small and cheap)
+         (then machine rooms got full)
+  1990s: VMWare re-popularized VMs, for x86 hardware
+  2000s: widely used in cloud, enterprise
+
+Slow VMs: emulate hardware
+  VMM interprets each guest instruction
+  maintain virtual machine state for the guest
+    32 registers, satp, mode, RAM, disk, net, &c
+  pro: this works; we use it in the labs
+    xv6 kernel runs on top of QEMU
+    VMs useful beyond isolation
+      e.g., run Windows on top of Linux (or the other way around)
+  con: slow
+
+Idea: execute guest instructions directly on the CPU -- fast!
+  observation: guest OS and application use same instruction set (x86)
+    [not true for xv6]
+  run add instructions using CPUs add instruction instead of emulating it
+    fast!
+  what if the guest kernel executes a privileged instruction?
+    e.g. guest loads a new page table into satp
+
+Idea: run the guest kernel in user mode
+  similar to running the guest kernel as a user process
+    of course the guest kernel assumes it is in supervisor mode
+  ordinary instructions work fine
+    adding two registers, function call, &c
+  privileged x86/RISC-V instructions are illegal in user mode
+    will cause a trap, to the VMM
+  VMM trap handler emulates privileged instruction
+    maybe apply the privileged operation to the "virtual state"
+      e.g. read/write sepc
+    maybe transform and apply to real hardware
+      e.g. assignment to satp
+  "trap-and-emulate" 
+     better but still slow: lots of traps into VMM
+
+Example: RISC-V trap and emulate
+  guest user code executes ecall to make a system call?
+  [diagram: guest user, guest kernel, VMM, virtual state, real sepc]
+  CPU traps into the VMM (ecall always generates a trap)
+    h/w saves guest's PC in (real) sepc
+  VMM trap handler:
+    examine the guest instruction
+    virtual sepc <- real sepc
+    virtual mode <- supervisor
+    virtual scause <- 8 "system call"
+    real sepc <- virtual stvec
+    [[ ignore page table for now; what do with guest kernel's non PTE_U entries? ]]
+    sret: return from trap (sets real mode to user)
+
+VT-x/VMX/SVM: hardware supported virtualization
+  modern Intel (and AMD) CPUs support virtualization in hardware
+    guest can execute privileged instructions without trapping!
+    can modify control registers, change page table, handle exceptions!
+    can switch to user mode, and receive system call traps
+    etc.
+  faster than trap-and-emulate, and simpler VMM software
+  widely used to implement virtual machines (e.g., KVM)
+
+(How can this possibly be secure?)
+
+Some terminology
+  Each CPU is in either root mode -- running the host
+    or in non-root mode -- running the guest (kernel + user processes)
+    execution switches back and forth
+  VMCS (VM Control Structure)
+    configuration,
+    save/restore of guest privileged state
+      e.g., virtual sepc, mode, scause, stvec
+  Special instructions switch VT-x mode
+    VMLAUNCH/VMRESUME: host -> guest
+      CPU uses guests spec, mode, scause, stvec
+      system calls require no switch to host! 
+    VMCALL: guest -> host
+
+the VMCS memory area holds saved host state
+  VMLAUNCH and VMRESUME save all of host privileged state (registers &c)
+  and restore all of guest's (previously saved) state
+  exit from guest to host restores host's state
+    so guest cannot disturb host's privileged state
+  Thus: if the host configures things properly, the guest cannot escape
+    Can host allow guest to use host's satp?
+    VT-x must prevent host from reading/writing outside of its memory!
+
+VT-x's EPT (extended page table) constrains guest memory access
+  problem:
+    we want to let the guest kernel control its own page table,
+    we also want to restrict the guest to just its allowed physical memory,
+  CPU's MMU has *two* layers of address translation in VT-x guest mode
+    first, %cr3/satp page table maps guest va -> guest pa (as usual)
+    second, EPT maps guest pa -> host pa
+  VMM sets up EPT to have only mappings for guest's own memory
+  guest cannot see or change the EPT
+  so:
+    guest can freely read/write %cr3, change PTEs, read D bits, &c
+    VMM can still provide isolation via EPT
+
+Linux KVM (Kernel-based virtual machines).
+  [[ Ref: https://lwn.net/Articles/658511/ ]]
+  [[ Ref: https://www.kernel.org/doc/html/latest/virt/kvm/api.html ]]
+  Abstraction for using hardware support for virtualization.
+  Manages virtual CPUs, virtual memory.
+  Corresponding hardware support: extend page tables.
+  QEMU:
+    implements virtual devices
+    implements purely-virtual devices (virtio).
+    implements emulation of CPU instructions.
+      Mostly not needed when using hardware support.
+      But still used for instructions that hardware doesn't support natively.
+      E.g., CPUID, INVD, ..
+      [[ Ref: https://revers.engineering/day-5-vmexits-interrupts-cpuid-emulation/ ]]
+    provides some BIOS implementation to start running the VM.
+
+What's the downside VMs?
+  High start-up cost: takes a long time to boot up VM
+  High overhead: large memory cost for every running VM
+  Rigid/coarse resource allocation and sharing (VM memory; virtual disk; vCPU)
+  Potential bugs in VMM itself (QEMU): 1.4M lines of C code.
+
+Firecracker design.
+  Figure 3 in the paper.
+  Use KVM for virtual CPU and memory.
+  Re-implement QEMU, in Rust.
+  Support minimal set of devices.
+    virtio network, virtio block (disk), keyboard, serial.
+  Block devices instead of file system: stronger isolation boundary.
+    File system has complex state.
+      Directories, files of variable length, symlinks / hardlinks.
+    File system has complex operations.
+      Create/delete/rename files, move whole directories, r/w range, append, ...
+    Block device is far simpler:
+      4 KByte blocks.
+      Blocks are numbered 0 through N, which is the size of the disk.
+      Read and write a whole block.  (And maybe flush / barrier.)
+  Do not support instruction emulation.
+    (Except for necessary instructions like CPUID, VMCALL/VMEXIT, ..)
+  Do not support any BIOS at all.
+    Just load the kernel into VM at initialization and start running it.
+
+Firecracker implementation: Rust.
+  Memory-safe language (modulo "unsafe" code).
+  50K lines of code: much smaller than QEMU.
+  Makes it unlikely that VMM implementation has bugs like buffer overflows.
+  [[ Ref: https://github.com/firecracker-microvm/firecracker ]]
+
+Firecracker VMM runs in a "jailed" process.
+  chroot to limit files that can be accessed by VMM.
+  namespaces to limit VMM from accessing other processes and network.
+  running as a separate user ID.
+  seccomp-bpf to limit what system calls the VMM can invoke.
+  All to ensure that, if bugs in VMM are exploited, hard to escalate attack.
+
+gVisor plan: re-implement the OS syscall interface in a separate user-space process.
+  Figure 2 in the paper.
+  Intercept syscalls from processes running in the container (using ptrace or KVM).
+  User-space process that implements those syscalls, written in Go.
+    Again, better language than C for avoiding buffer overflows, other mistakes.
+  Benefit: less likely to have memory management bugs in Go code.
+  Benefit: bugs aren't in kernel code, likely contained by Linux process.
+    Use seccomp-bpf to limit what syscalls the gVisor emulator can invoke.
+  Benefit: finer-grained sharing.
+    Could share specific files or directories.
+  Benefit: finer-grained resource allocation.
+    Not just a monolithic virtual disk or entire VM memory allocation.
+    Perhaps important for running a small application in isolation.
+  Downside: performance overheads could be significant.
+    Every system call must be redirected to gVisor process.
+    Context-switch overhead, data copying overhead, etc.
+  Possible downside (or upside): compatibility (real Linux vs gVisor)
+    gVisor does a credible job faithfully implementing Linux syscalls, though!
+    Could make it possible to emulate new syscalls on old host
+
+Security comparison: syscalls accessible.
+  Total of ~350 syscalls
+  LXC (Docker): blocks 44 syscalls (so 300+ allowed)
+  Firecracker: 36 syscalls allowed for VMM
+  gVisor: 53-68 syscalls allowed for Sentry
+
+What are some potential benefits or downsides of each of the platforms?
+  Linux: simple, least code being executed, least overhead.
+  LXC: isolation and container abstraction, flexible sharing, near-native perf.
+  gVisor: strong isolation but still flexible sharing, resource allocation.
+  Firecracker: strong isolation, better perf than gVisor, but
+  coarse-grained.
+
+--- demo
+
+chroot
+  https://community.hetzner.com/tutorials/setup-chroot-jail
+  chroot . /bin/bash
+  pwd, ls
+
+arch minimal jail
+  sudo mkdir /mnt/myjail
+  sudo pacstrap /mnt/myjail base
+  sudo arch-chroot /mnt/myjail
+  chroot . /bin/bash
+  pwd, ls, ps
+  run top outside of jail
+  kill it from inside jail
+
+name spaces
+  sudo nshare --fork --pid --mount-proc bash
+  chroot . /bin/bash
+  combine with minimal jail
+  ps
+  top inside jail
+  ps outside of jail
+
+docker
+  systemctl start docker.service
+  docker image ls
+  docker run -it --rm bash
+  cat /etc/os-release
+  ls /lib
+  uname -a
+  top
+  ps outside of container
+
+vm
+  download arch linux image from https://gitlab.archlinux.org/archlinux/arch-boxes
+  without kvm:
+   qemu-system-x86_64 -m 2G arch-linux.qcow2	
+  with kvm:
+   qemu-system-x86_64 -enable-kvm -m 2G arch-linux.qcow2 
+  login: arch/arch
+  top
+  uname -a

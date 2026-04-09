@@ -1,0 +1,30 @@
+\begin{tikzpicture}
+
+  \node at (0, 1.5) {CPU C1};
+  \node at (5, 1.5) {CPU C2};
+   
+ \node (code0) at (0,0) {
+  \begin{lstlisting}[]
+   acquire(&A);
+   acquire(&B);
+   ...
+   release(&B);
+   release(&A);
+  \end{lstlisting}
+
+    %% this line is important
+  };
+
+  \node (code1) at (5,0.0) {
+    \begin{lstlisting}[]
+    acquire(&B);
+    acquire(&A);
+    ...
+    release(&A);
+    release(&B);
+    \end{lstlisting}
+
+    %% this line is important
+  };
+
+\end{tikzpicture}
