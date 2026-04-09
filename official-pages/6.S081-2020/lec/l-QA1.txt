@@ -1,136 +1,139 @@
-6.S081 2020 Lecture 7: Q&A
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Plan: answering your questions
+6.S081 2020第七讲：问答
+
+计划：回答你的问题
   Approach:
-    walk through staff solutions
-    start with pgtbl lab because it was the hardest
-    your questions are at bottom of this file
+    浏览员工解决方案
+    从 pgtbl 实验室开始，因为它是最难的
+    您的问题位于此文件的底部
 
-Pgtbl lab comments
-  few lines of code, but difficult-to-debug bugs
-  - worst case: qemu/xv6 stops running
-  - "best" case: kernel panic
-  hard to debug for staff too
-  - there are so many possible reasons why
-  - you discovered once we hadn't seen yet
-  likely to be the most challenging lab
-  - historically the first VM lab is hard
-  - this year too, even though we made a new lab to provide a gentler intro to VM
+Pgtbl实验室评论
+  代码很少，但是bug很难调试
+  - 最坏的情况：qemu/xv6 停止运行
+  - “最佳”情况：内核恐慌
+  工作人员也很难调试
+  - 有很多可能的原因
+  -你发现了我们还没有见过的地方
+  可能是最具挑战性的实验室
+  - 历史上第一个虚拟机实验室很难
+  - 今年也是如此，尽管我们建立了一个新实验室来提供对 VM 的更温和的介绍
 
-Part 1 of pgtbl lab
-  Explain vm output in terms of fig 3-4
+pgtbl实验室第1部分
+  用图 3-4 解释 vm 输出
 
-   page table 0x0000000087f67000
+   页表 0x0000000087f67000
     ..0: pte 0x0000000021fd8c01 pa 0x0000000087f63000 fl 0x0000000000000001
     .. ..0: pte 0x0000000021fd8801 pa 0x0000000087f62000 fl 0x0000000000000001
     .. .. ..0: pte 0x0000000021fd901f pa 0x0000000087f64000 fl 0x000000000000001f
-    .. .. ..1: pte 0x0000000021fd840f pa 0x0000000087f61000 fl 0x000000000000000f
+    .. .. ..1：pte 0x0000000021fd840f pa 0x0000000087f61000 fl 0x000000000000000f
     .. .. ..2: pte 0x0000000021fd801f pa 0x0000000087f60000 fl 0x000000000000001f
     ..255: pte 0x0000000021fd9801 pa 0x0000000087f66000 fl 0x0000000000000001
-    .. ..511: pte 0x0000000021fd9401 pa 0x0000000087f65000 fl 0x0000000000000001
-    .. .. ..510: pte 0x0000000021fdd807 pa 0x0000000087f76000 fl 0x0000000000000007
-    .. .. ..511: pte 0x0000000020001c0b pa 0x0000000080007000 fl 0x000000000000000b
+    .. ..511：pte 0x0000000021fd9401 pa 0x0000000087f65000 fl 0x0000000000000001
+    .. .. ..510：pte 0x0000000021fdd807 pa 0x0000000087f76000 fl 0x0000000000000007
+    .. .. ..511：pte 0x0000000020001c0b pa 0x0000000080007000 fl 0x000000000000000b
 
-    what is entry 0, 1, and 2?
-    what is 510 and 511?
-    - 511: trampoline
-    - 510: trapframe
-    why are the protection bits as they are?
-    - 510: RWV
-    - 511: XV
-    - 1: no U
-    are the physical addresses contiguous?
+    条目 0、1 和 2 是什么？
+    510和511是什么？
+    - 511：蹦床
+    - 510：陷阱框架
+    为什么保护位是这样的？
+    - 510：RWV
+    - 511：十五
+    - 1：无U
+    物理地址是否连续？
 
-Part 2 of pgtbl lab
-  Add a kernel page table to each process in prep for Part 3
-  - exact copy of *the* kernel_pagetable
+pgtbl实验室第2部分
+  为第 3 部分做准备，向每个进程添加内核页表
+  - *the* kernel_pagetable 的精确副本
   
-  How hard can this be?  hard! some reasons:
-  - xv6 code specialized to one kernel page table
-    no kvmcreate_page_table()
-  - kvminit() isn't the full story
-    also mappings in procinit(), and virtio_disk.c
-  - cleanup must be done care
-    don't free kernel stacks
-  - easy to make a small error
-    even small errors are time consuming
+  这有多难？难的！一些原因：
+  - 专用于一个内核页表的 xv6 代码
+    没有 kvmcreate_page_table()
+  - kvminit() 并不是完整的故事
+    还有 procinit() 和 virtio_disk.c 中的映射
+  - 清理工作必须小心谨慎
+    不要释放内核堆栈
+  - 容易犯小错误
+    即使是很小的错误也很耗时
    
-  Two possible approaches to part II
-  1) generalize kvminit()
-    create a new per-process kernel page table
-  2) share kernel_pagetable
-    make the per-process kernel page table share much with kernel_pagetable
-    - my solutions takes approach 2; other staff members too approach 1
-    - i took approach 2 mostly out of "laziness"
-      don't have to think too hard what is in the kernel_pagetable
-      didn't want to write much code
-      - not sure it is shorter, though
-      approach 2 has some benefits I didn't realize
-      - avoided certain class of bugs (e.g., kernel stacks)
+  第二部分的两种可能的方法
+  1) 概括 kvminit()
+    创建新的每进程内核页表
+  2）共享kernel_pagetable
+    使每个进程的内核页表与 kernel_pagetable 共享很多
+    - 我的解决方案采用方法2；其他工作人员也采取方法 1
+    - 我采取方法2主要是出于“懒惰”
+      不必费力思考 kernel_pagetable 中有什么
+      不想写太多代码
+      - 但不确定它更短
+      方法 2 有一些我没有意识到的好处
+      - 避免了某些类别的错误（例如，内核堆栈）
       
-  Implementation approach:
-    small incremental baby steps
-    keep existing code working
-  allows comparing old and new easily
-  allows rolling back easily
+  实施方式：
+    婴儿小步渐进
+    保持现有代码正常运行
+  可以轻松比较新旧
+  允许轻松回滚
 
-  Approach 2
-  - kvmcreate()
-    copy entries 1..512
-    add a few devices that live in 0
-    - anything below 1G (i.e., all devices)
+  方法2
+  - kvm创建（）
+    复制条目 1..512
+    添加一些位于 0 的设备
+    - 任何低于 1G 的设备（即所有设备）
   - kvmfree()
-    only entry 0 is worth considering
-    just need to free intermediate pages (see 3-level pic)
-    a bit ugly
-    where to call kvmfree()
-    - exit()?
-    - freeproc()?
- - scheduler()
- - usertrapret()
+    只有条目 0 值得考虑
+    只需要释放中间页面（参见三层图片）
+    有点丑
+    在哪里调用 kvmfree()
+    - 退出（）？
+    - freeproc()？
+ - 调度程序()
+ - 用户陷阱（）
 
-Part 3 of pgtbl lab
-  map user pgtbl of process into bottom of process's kernel page table
-  - draw figure
-  why? convenient for kernel programmers
-  - can replace copyin with copy_new()
-  copyin_new is just a memmove(), avoid the walkaddr()'s
-  - hardware can do the walks for us
+pgtbl实验室第3部分
+  将进程的用户 pgtbl 映射到进程内核页表的底部
+  - 画图
+  为什么？方便内核程序员
+  - 可以用 copy_new() 替换 copyin
+  copyin_new 只是一个 memmove()，避免 walkaddr()
+  - 硬件可以为我们代劳
 
-  mapping user page tables into kernel page table
-  - kvmmapuser()
-    copies upte into kpte, adjust permissions
+  将用户页表映射到内核页表
+  - kvmmap用户()
+    将upte复制到kpte中，调整权限
 
-  Using kvmmapuser():
-  - userinit()
-  - exec()
-   no need to replace kernel page table
-  - fork()
+  使用 kvmmapuser():
+  - 用户初始化()
+  - 执行（）
+   无需更换内核页表
+  - 叉子()
   - sbrk()
   
-  memmove()
-  - why the checks before the memmove()?
-  - what does each case cover
+  内存移动（）
+  - 为什么在 memmove() 之前进行检查？
+  - 每个案例涵盖什么
 
-Syscall lab
-  systems calls look like functions calls
+系统调用实验室
+  系统调用看起来像函数调用
   BUT they are not function calls
-  - U/K boundary transition
+  - 英国/英国边界过渡
   user/usys.pl
-  - generates stubs for stubs
+  - 为存根生成存根
   kernel/syscall.c
-  - demultiplexes system calls
-  trace
-  - proc.h
-  - fork()
-  sysinfo
-  - copyout()
+  - 多路分离系统调用
+  痕迹
+  - 过程.h
+  - 叉子()
+  系统信息
+  - 复制()
 
-Util lab
-  primes
-  - close fd's to terminate correctly
-  xargs
-  - setting up argv 
+实用实验室
+  素数
+  - 关闭 fd 以正确终止
+  参数
+  - 设置argv
    
 === Questions ===
 
@@ -138,307 +141,307 @@ HW
 
 ===
 
-In the page table lab, the kernel's hardware address translator won't
-allow kernel to dereference user pages. More specifically, if the page
-table entry has "PTE_U" bit set, which means user can access it, then
-kernel won't be able to access it through the hardware address
-translator unless we set "PTE_U" to false in the per-process kernel
-page table. Is there a specific reason for this?
+在页表实验室中，内核的硬件地址转换器不会
+允许内核取消引用用户页面。更具体地说，如果页面
+表条目设置了“PTE_U”位，这意味着用户可以访问它，然后
+内核将无法通过硬件地址访问它
+除非我们在每个进程内核中将“PTE_U”设置为 false，否则翻译器
+页表。这有什么具体原因吗？
 
 ===
 
-Why is the kernel not allowed to read memory mapped with the PTE_U
-flag? To prevent malicious memory from being read?
+为什么内核不允许读取用PTE_U映射的内存
+旗帜？防止内存被恶意读取？
 
 ===
 
-In the last lecture, it was mentioned that even the kernel in
-supervisor mode could not directly edit anything and everything in the
-memory. The kernel accesses memory through the kernel page table, and
-thus is limited. However, couldn't the kernel just set the satp
-register to 0, and then there is no MMU translation, the CPU directly
-accesses physical addresses. Could that situation not arise? That
-certainly the case before page tables are set up and paging is
+在上一讲中，有人提到即使是内核
+管理员模式无法直接编辑任何内容
+记忆。内核通过内核页表访问内存，
+因此是有限的。但是，内核不能只设置 satp
+寄存器为0，然后就没有MMU翻译了，CPU直接
+访问物理地址。难道就不会出现这种情况吗？那
+当然是在页表建立和分页之前的情况
 enabled.
 
 ===
 
-A minor question: why the specific order of the trapframe in proc.h
-(t0..t2, then s0, s1, a0..a7, s2..s11)?
+一个小问题：为什么 proc.h 中 trapframe 的特定顺序
+（t0..t2，然后 s0，s1，a0..a7，s2..s11）？
 
 ===
 
-PGTBL LAB
+PGTBL实验室
 
-I'm confused why the kernel can directly dereference the pointer in
-part 3 of pagetable because we have now mapped the user's virtual
-address into the user's kernel pagetable. Since it is still a virtual
-address, doesn't it need to just walk the user's kernel page table? Or
-is it because the user code now enters the kernel, and the kernel's
-pagetable directly maps virtual addresses to physical addressses?
-However, in my implementation, it seems to be that the kernel still
-maps the same virtual addresses to the same physical addresses as the
-user's page table, , which is not a direct mapping.
+我很困惑为什么内核可以直接取消引用指针
+页表的第 3 部分，因为我们现在已经映射了用户的虚拟
+地址进入用户的内核页表。由于它仍然是虚拟的
+地址，不是只需要遍历用户的内核页表吗？或者
+是不是因为用户代码现在进入了内核，而内核的
+pagetable直接将虚拟地址映射到物理地址？
+然而，在我的实现中，内核似乎仍然
+将相同的虚拟地址映射到相同的物理地址
+用户的页表，不是直接映射。
 
 ===
 
-In the pgtbl lab, during Part 3 (copyin), I ran into an interesting
-bug while changing a process's user mappings. In fork(), I was calling
-my helper function to copy the user mappings from the process's user
-page table to its kernel page table. When I tried to copy the parent
-process's user page table, running "usertests" in the xv6 kernel just
-caused it to return and none of the tests were run. However, copying
-the child's user page table worked. Shouldn't either instruction be
-ok, since the child's user page table was just copied over from the
+在 pgtbl 实验室的第 3 部分（copyin）期间，我遇到了一个有趣的问题
+更改进程的用户映射时出现错误。在 fork() 中，我调用
+我的辅助函数用于从进程的用户复制用户映射
+页表到其内核页表。当我尝试复制父级时
+进程的用户页表，在 xv6 内核中运行“usertests”
+导致它返回并且没有运行任何测试。然而，复制
+孩子的用户页表起作用了。任何一条指令都不应该是
+好的，因为孩子的用户页表只是从
 parent?
 
 ===
 
-For the page tables lab, what was the correct way to copy and change
-the process's kernel page table the same way in fork(), exec(), and
-sbrk()? I tried to copy over a range of entries from the process's
-page table into the process's kernel page table directly, but my code
-was panicking when trying to use mappages() after my change to the 3
+对于页表实验室，复制和更改的正确方法是什么
+进程的内核页表与 fork()、exec() 和 中的方式相同
+sbrk（）？我尝试从流程的一系列条目中复制
+页表直接进入进程的内核页表，但是我的代码
+在我更改为 3 后尝试使用 mappages() 时感到恐慌
 functions.
 
 ===
 
-If xv6 was written with the modifications from the pgtbl lab, we would
-not need to worry about switching the pagetables in the trampline
-code, right? Would there even be a need for the trampoline code to be
-mapped in the user pages? My understanding was that that code can be
-mapped in the per-process kernel pgtbls and be used from there during
-the trap handling. I was also curious about why when a PTE has the
-PTE_U bit is set, code in supervisor mode cannot access that page
-table. It is confusing to me because I thought that the kernel has the
-whole memory mapped and it can modify any virtual address even if some
-user data lives there. In the last lab, we could even know the exact
-va that the user pgtbl has for each of the pa that it uses and I think
-maybe be able to corrupt user's data.
+如果 xv6 是根据 pgtbl 实验室的修改编写的，我们会
+无需担心在trampline中切换页表
+代码，对吗？是否还需要蹦床代码
+映射到用户页面？我的理解是该代码可以是
+映射到每个进程内核 pgtbls 中并在期间从那里使用
+陷阱处理。我也很好奇为什么PTE有
+PTE_U 位已设置，主管模式下的代码无法访问该页面
+表。这让我很困惑，因为我认为内核有
+整个内存映射，它可以修改任何虚拟地址，即使某些
+用户数据就在那里。在上一个实验室中，我们甚至可以知道确切的
+用户 pgtbl 对于它使用的每个 pa 都有 va，我认为
+也许能够损坏用户的数据。
 
 ===
 
-Is there a more efficient way to free each process's kernel pagetable?
-I basically copied the freewalk function and removed the panic for
-leaves.  Although this seemed fast enough for the tests, it still
-seemed a little slow.  When I tried to optimize it by reducing
-recursion depth, I ran into troubles.  Overall, this seems like a
-computationally intensive task, especially if all physical memory is
-mapped in the kernel pagetable for all processes. I was a little
-worried about breaking something, but could I have stopped mapping all
-physical memory?
+有没有更有效的方法来释放每个进程的内核页表？
+我基本上复制了 freewalk 功能并消除了恐慌
+叶子。尽管这对于测试来说似乎足够快，但它仍然
+似乎有点慢。当我尝试通过减少来优化它时
+递归深度，我遇到了麻烦。总的来说，这似乎是一个
+计算密集型任务，特别是当所有物理内存都被占用时
+映射到所有进程的内核页表中。我当时有点
+担心会破坏某些东西，但我是否可以停止绘制所有内容
+物理内存？
 
 ===
 
-Do operating systems using hierarchical pagetables ever set up the pagetable
-pages so that the lower parts of the hierachy are (atleast in part) shared?
+使用分层页表的操作系统是否设置过页表
+页面以便层次结构的较低部分（至少部分）共享？
 
 ===
 
-For the pagetable lab, I was trying to implement
-copyin/copyinstr. However, I got stuck in an infinite loop with the
-scheduler because the scheduler seemed to have no process that needs
-to be run. I am curious as to what could happen to the pagetable so
-that the OS would stop a process from running (especially the main
-process). What part of the code does the operating system set the
-state of a process to not running if the pagetable is broken?
+对于页表实验室，我试图实现
+复制/copyinstr。然而，我陷入了无限循环
+调度程序，因为调度程序似乎没有需要的进程
+运行。我很好奇页表会发生什么，所以
+操作系统会停止进程运行（尤其是主进程）
+过程）。操作系统设置了哪部分代码
+如果页表损坏，进程的状态是否为不运行？
 
 ===
 
-I don't understand why when I moved
+我不明白为什么当我搬家时
 
-w_satp(MAKE_SATP(kernel_pagetable));
+w_satp(MAKE_SATP(内核页表));
 sfence_vma();
 
-outside of
+之外
 
 if(found == 0) {
   intr_on();
-  asm volatile("wfi");
+  asm 易失性（“wfi”）；
 }
 
-in scheduler that everything in part 2 of the page table lab
-worked. Because before then, it worked to a certain degree, where
-sometimes it'd pass and sometimes it'd fail.
+在调度程序中，页表实验第二部分中的所有内容
+工作了。因为在此之前，它已经在一定程度上发挥了作用，其中
+有时会通过，有时会失败。
 
 ===
 
-In the pagetable lab, is there a significant impact on performance
-from copying to per-process kernel page tables so frequently? If so,
-how does this balance out with the improvements that come from being
-able to directly de-reference user address in kernel space?
+在页表实验室中，对性能是否有显着影响
+如此频繁地复制到每个进程的内核页表？如果是这样的话，
+这如何与现有的改进相平衡
+能够直接在内核空间中取消引用用户地址吗？
 
 ===
 
-How are pipes implemented in xv6, and how would the changes to the
-page tables implemented in the pgtbl lab effect this implementation?
-Do the per-process page tables hinder each process' ability to
-communicate with each other?
+xv6 中管道是如何实现的，以及对管道的更改将如何进行
+pgtbl 实验室中实现的页表会影响此实现吗？
+每个进程的页表是否会阻碍每个进程的能力
+互相沟通？
 
 ===
 
-1. Why did uvmfree/freewalk originally panic at a leaf, and why did we need to
-change that.
+1. 为什么 uvmfree/freewalk 最初会在一片叶子上恐慌，为什么我们需要
+改变这一点。
 
-2. Why does the inclusion of the user PTE_U bit not allow the kernel to access
-the PTE?
-
-===
-
-The lab mentioned that "the goal of this section and the next is to
-allow the kernel to directly dereference user pointers." However, I
-didn't understand how this adds functionality to the kernel, or why
-this is an important function for the kernel to be able to do.
+2、为什么包含用户PTE_U位不允许内核访问
+PTE？
 
 ===
 
-For the page table lab, I had some questions on access rights. If the
-user bit is set, does that mean in user mode both read/write/execute
-options can be performed, or can only read/write/execute be done in
-kernel mode?
-
-Also, are there pages in the kernel page table accessible in user mode?
+该实验室提到“本节和下一节的目标是
+允许内核直接取消引用用户指针。”但是，我
+不明白这如何向内核添加功能，或者为什么
+这是内核能够完成的一项重要功能。
 
 ===
 
-In the pgtbl lab, we added kernel pagetables to each process in order
-to simplify reading userspace pointers. Was there any reason we
-couldn't do the same for copying data out to userspace? I think you'd
-have to be a little careful in exec(), since copyout is used there
-while setting up the process, but apart from that?
+对于页表实验室，我有一些关于访问权限的问题。如果
+设置了用户位，这是否意味着在用户模式下读/写/执行
+选项可以被执行，或者只能读/写/执行
+内核模式？
 
-Also, one of the challenge exercises for that lab is to remove the
-PLIC limit.  How would you do that--set up a new pagetable for PLIC
-access, and switch to that when trying to access PLIC registers?
+另外，内核页表中的页面可以在用户模式下访问吗？
 
 ===
 
-I was talking to some friends who solved the pagetable part 3 by using
-a modified uvmcopy but they needed to limit the pages they were
-copying to pass the runtime limit. What's taking so long in that
-function? Does the walking make the copy function less optimized for
-the job?
+在pgtbl实验室中，我们按顺序向每个进程添加了内核页表
+简化读取用户空间指针。我们有什么理由
+无法执行相同的操作将数据复制到用户空间吗？我想你会
+在 exec() 中必须小心一些，因为那里使用了复制
+在设置流程时，但除此之外呢？
+
+此外，该实验室的挑战练习之一是删除
+PLIC 限制。你会怎么做——为 PLIC 设置一个新的页表
+访问，并在尝试访问 PLIC 寄存器时切换到该访问？
 
 ===
 
-Question: About the page table lab, when I was debugging my code, I
-realized for reparent test, I sometimes pass it but I sometimes
-fail. I fixed this issue by realizing I need to switch back to
-kernel_pagetable in the scheduler after exiting the process's kernal
-pagetable. I wonder why such mistakes would cause reparent to behave
-non-deterministaclly? Was there some sort of race condition?
+我正在和一些朋友交谈，他们通过使用解决了页表第 3 部分
+修改后的 uvmcopy 但他们需要限制它们所在的页面
+复制以通过运行时间限制。什么事要花这么长时间
+功能？行走是否会降低复印功能的优化程度
+工作？
 
 ===
 
-In our "copy user page table to kernel page table" functions in the
-pagetable lab, why was it necessary to panic when a pagetable entry
-didn't exist or was not valid for a given virtual address? Why
-couldn't we have just skipped that virtual address? More broadly, how
+问题：关于页表实验室，当我调试代码时，我
+实现了 reparent 测试，我有时通过它，但有时我
+失败。我意识到我需要切换回，从而解决了这个问题
+退出进程内核后调度程序中的 kernel_pagetable
+页表。我想知道为什么这样的错误会导致家长表现不佳
+不确定性？是否存在某种竞争条件？
+
+===
+
+在我们的“复制用户页表到内核页表”函数中
+页表实验室，为什么当页表条目时有必要恐慌
+对于给定的虚拟地址不存在或无效？为什么
+我们不能跳过那个虚拟地址吗？更广泛地说，如何
 could we assume that all of the user page table values that we were
-copying over were present and valid?
+复制是否存在且有效？
 
 ===
 
-It really messes with my head that you have to define a C function for
-allocating memory (kalloc). This is one of the first things xv6 does
-in main.c, directly after which it creates the kernel page table
-(using a call to kalloc). Given the way kalloc works, is the kernel
-page table always going to be at the "end" address in the kernel's
-virtual memory space since its the first piece of memory to be
-allocated? And do you have to be careful about using memory prior to
-calling kinit in main.c?
+你必须为之定义一个 C 函数，这真的让我很困惑
+分配内存（kalloc）。这是 xv6 所做的第一件事
+在 main.c 中，之后直接创建内核页表
+（使用对 kalloc 的调用）。鉴于 kalloc 的工作方式，内核是
+页表总是位于内核的“结束”地址
+虚拟内存空间，因为它是第一块内存
+分配？在使用内存之前你是否必须小心
+在main.c中调用kinit？
 
 ===
 
-This question is regarding the pgtbl lab. I had some confusion about
-the exact motivation for the lab, specifically creating a separate
-kernel page table for each process. I wasn't sure what the lab meant
-by "directly dereferencing the user address". From my understanding,
-what the kernel currently does to translate the virtual address of the
-user process is to "walk" down the user pagetable.
+这个问题是关于 pgtbl 实验室的。我有些困惑
+实验室的确切动机，特别是创建一个单独的
+每个进程的内核页表。我不确定实验室的意思
+通过“直接取消引用用户地址”。据我了解，
+内核当前如何转换虚拟地址
+用户进程是沿着用户页表“走”下去的。
 
-So if you essentially combine the kernel page table and user page
-tables, wouldn't you still "walk" down the new per-process kernel page
-table to get the physical address? I don't understand how this changes
-anything since the two approaches differ only in which page table the
-kernel is walking down.
+所以如果你本质上结合了内核页表和用户页
+表，您是否仍然“走”下新的每进程内核页面
+表获取物理地址？我不明白这是如何改变的
+任何事情，因为这两种方法仅在页表上有所不同
+内核正在走下来。
 
 ===
 
-For question 1 in the page table lab, was page 1 the guard page? This
-made sense to me since it has the user flag off so it would cause
-errors if the user tried to access it. However I believe the textbook
-said that the guard page will have its valid bit off in which case it
-would not show up in vmprint.
+对于页表实验室中的问题 1，第 1 页是保护页吗？这个
+对我来说很有意义，因为它关闭了用户标志，因此会导致
+如果用户尝试访问它，则会出现错误。不过我相信教科书
+表示保护页将关闭其有效位，在这种情况下
+不会出现在 vmprint 中。
 
 ====
 
-Why does the initial page table ( as printed in vmprint ) have indices
-0 and 255?I deduced that these pages should eventually point towards
-the initial user program data ( text, guard page and stack ) and the
-trampoline/trapframe respectively. However, the trampoline should be
-at the very top of the virtual address space, so it should have the
-highest possible virtual address. Therefore, shouldn't the root page
-table contain pages 0 and 511 rather than 0 and 255?
+为什么初始页表（在 vmprint 中打印）有索引
+0和255？我推断这些页面最终应该指向
+初始用户程序数据（文本、保护页和堆栈）和
+分别是蹦床/陷阱框架。不过，蹦床应该
+在虚拟地址空间的最顶部，所以它应该有
+最高可能的虚拟地址。因此，根页面不应该
+表包含页 0 和 511 而不是 0 和 255？
 
 ====
 
 
-VM IN GENERAL
+虚拟机概述
 
 ====
 
-How was copyin with per process kernel pagetables exploited, as
-mentioned in the pgtbl lab?
+如何利用每个进程内核页表进行复制，如
+pgtbl实验室提到的？
 
 ===
 
-This is less of a question, but I'd love to hear more about how Xv6 compares to
-various other operating systems that we might use in our day-to-day lives.
+这不是一个问题，但我很想听听更多关于 xv6 与
+我们在日常生活中可能使用的各种其他操作系统。
 
-I don't have specific questions, but for example:
+我没有具体的问题，但例如：
 
-- How does Linux set up its page tables? The lab mentioned this may have
-  changed with Spectre/Meltdown, but what do they do now?
+- Linux 如何设置其页表？实验室提到这可能有
+  Spectre/Meltdown 改变了，但他们现在做什么？
 
-- Do we know how pages/traps are handled in Windows or macOS, or what tradeoffs
-  were made in the design decisions there? I read somewhere that Windows XP
-  source code leaked - did we learn anything interesting from that, or does
-  Microsoft just use standard techniques?
+- 我们是否知道在 Windows 或 macOS 中如何处理页面/陷阱，或者如何权衡
+  在那里做出了设计决策？我在某处读到 Windows XP
+  源代码泄露——我们从中学到了什么有趣的东西吗？
+  微软只是使用标准技术？
 
-- Does x86-64 have instructions that significantly simplify or combine or
-  increase performance of particular parts of the pagetable or traps chain of
-  code in interesting ways?
+- x86-64 是否有显着简化或组合或
+  提高页表或陷阱链的特定部分的性能
+  以有趣的方式编码？
 
-- How active is the development of OS techniques like syscalls, pagetables,
-  etc.? Are they mostly considered a "solved" problem by modern operating
-  systems and only really experimented on in research?
-
-===
-
-SYSCALL LAB
+- 系统调用、页表等操作系统技术的开发有多活跃
+  等等？它们是否大多被认为是现代操作“解决”的问题
+  系统并且只在研究中真正进行过实验？
 
 ===
 
-Could you possibly walk through the roles of the different places we
-had to update when we added a new system call? (e.g. user/user.h,
-user/usys.pl, kernel/syscall.h, and a few others)
+系统调用实验室
 
-I'm mostly wondering (1) in what order these are visited when the code
-is compiled and (2) why there isn't a more centralized way to do this?
-For example, in kernel/syscall.c, why do we need to manually edit both
-the extern list and the syscalls array beneath it?
+===
+
+您能介绍一下我们不同地方的角色吗？
+当我们添加新的系统调用时必须更新吗？ （例如用户/user.h，
+user/usys.pl、kernel/syscall.h 和其他一些）
+
+我主要想知道（1）当代码访问这些的顺序
+已编译，并且（2）为什么没有更集中的方法来执行此操作？
+例如，在kernel/syscall.c中，为什么我们需要手动编辑两者
+extern 列表和它下面的 syscalls 数组？
 
 ===
 
 
-UTIL LAB
+实用实验室
 
 ===
 
-One of the challenges for the first lab was to add history/tab
-completion. However, one thing that gave me some trouble was being
-able to parse single keystrokes (namely the arrow keys). Is there a
-way to read a single character (not having to press enter)?
+第一个实验室的挑战之一是添加历史记录/选项卡
+完成。然而，给我带来一些麻烦的一件事是
+能够解析单个击键（即箭头键）。有没有一个
+读取单个字符的方法（不必按 Enter 键）？
 
 

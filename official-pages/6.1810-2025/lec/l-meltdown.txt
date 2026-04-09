@@ -1,267 +1,270 @@
-6.1810 2025 Lecture 23: Meltdown
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Meltdown: Reading Kernel Memory from User Space, Lipp et. al., 2018.
+6.1810 2025 第23讲：崩溃
 
-Reminder: security is a top-level O/S goal
-  Malicious user code is one source of attacks
-  The kernel's main strategy: isolation
-    User/supervisor mode, page tables, careful system calls, containers, &c
-  If you set it all up correctly, what could go wrong?
+Meltdown：从用户空间读取内核内存，Lipp 等人。等，2018。
 
-Why this Meltdown paper?
-  allowed malicious user code to read kernel memory, despite page protections.
-  surprising and disturbing
-  one of a number of recent "micro-architectural" attacks
-    exploiting hidden implementation details of CPUs
-  fixable, but people fear an open-ended supply of related surprises
-    Linux:  grep . /sys/devices/system/cpu/vulnerabilities/*
+提醒：安全是操作系统的顶层目标
+  恶意用户代码是攻击源之一
+  内核的主要策略：隔离
+    用户/管理员模式、页表、仔细的系统调用、容器等
+  如果一切设置正确，可能会出现什么问题？
 
-Ask questions!
-  The situation is complex and largely hidden from view.
-  Only Intel designers know the details of why attacks do/don't work.
-  The rest of us are only guessing.
+为什么要写这张熔毁纸？
+  尽管有页面保护，仍允许恶意用户代码读取内核内存。
+  令人惊讶和不安
+  最近发生的一系列“微架构”攻击之一
+    利用 CPU 隐藏的实现细节
+  可以修复，但人们担心相关意外的无限供应
+    Linux: grep . /sys/devices/系统/cpu/漏洞/*
 
-Here's the core of the attack (this is user code):
-1.  char buf[8192]
-2.  r1 = <a kernel virtual address>
-3.  r2 = *r1
-4.  r2 = r2 & 1
-5.  r2 = r2 * 4096
-6.  r3 = *(buf + r2)
-(these are meant to represent machine instructions)
+问问题！
+  情况很复杂，而且很大程度上是看不见的。
+  只有英特尔设计人员知道攻击为何有效/无效的详细信息。
+  我们其他人只是猜测。
 
-What happens if user code tries to use a kernel address, as at line 3?
-  The load will cause a page fault.
+这是攻击的核心（这是用户代码）：
+1. 字符缓冲区[8192]
+2. r1 = <内核虚拟地址>
+3. r2 = *r1
+4. r2 = r2 & 1
+5. r2 = r2 * 4096
+6. r3 = *(buf + r2)
+（这些代表机器指令）
 
-This paper assumes the kernel is mapped in each user page table.
-  With PTE_U clear.
-  [diagram: 0 to 2^64]
-  user memory starts at zero; kernel in high addresses.
-  this was near universal until these attacks were discovered.
-  mapping both user and kernel makes system calls faster.
-  the point: *r1 is meaningful, even if forbidden.
+如果用户代码尝试使用内核地址（如第 3 行所示），会发生什么情况？
+  加载会导致页面错误。
 
-So how can this code be useful to an attacker?
-  The answer has to do with a bunch of mostly-hidden CPU implementation details.
-  Speculative execution and CPU caches.
+本文假设内核映射在每个用户页表中。
+  PTE_U 清除。
+  [图：0到2^64]
+  用户内存从零开始；内核位于高地址。
+  在这些攻击被发现之前，这种情况几乎是普遍存在的。
+  映射用户和内核可以使系统调用更快。
+  要点： *r1 是有意义的，即使被禁止。
 
-First, speculative execution.
-  This is not yet about security.
-  Imagine this ordinary code.
-  "r0" &c are registers, and "*r0" is a memory reference.
+那么这段代码对攻击者有何用处呢？
+  答案与一堆几乎隐藏的 CPU 实现细节有关。
+  推测执行和 CPU 缓存。
 
-  r0 = <some address>
-  r1 = load x // r1 is a register; x is a variable in RAM
+首先，投机执行。
+  这还不是安全问题。
+  想象一下这个普通的代码。
+  “r0”和c是寄存器，“*r0”是内存引用。
+
+  r0 = <某个地址>
+  r1 = load x // r1 是一个寄存器； x 是 RAM 中的变量
   if(r1 == 1){
     r2 = *r0
     r3 = r2 + 1
-  } else {
+  } 否则{
     r3 = 0
   }
 
-  The "r1 = x" takes 100s of cycles if x has to be fetched from RAM.
+  如果必须从 RAM 中获取 x，则“r1 = x”需要 100 秒的周期。
   The "if(r1 == 1)" needs that RAM content.
-  It would be too bad if the CPU had to pause until the RAM fetch completed.
-  Instead, the CPU predicts which way the branch is likely to go,
-    and continues executing.
-  This is called "speculation".
+  如果 CPU 必须暂停直到 RAM 读取完成，那就太糟糕了。
+  相反，CPU 会预测分支可能走向哪个方向，
+    并继续执行。
+  这就是所谓的“投机”。
   So before the "r1 == 1" is resolved,
-    the CPU may predict it will be true,
-    and speculatively execute the "r2 = *r0",
-    and then the "r3 = r2 + 1".
+    CPU 可能预测它会是真的，
+    并推测执行“r2 = *r0”，
+    然后是“r3 = r2 + 1”。
 
-What if the CPU mis-predicts a branch, e.g. x turns out to be zero?
-  Register updates of speculative instructions are tentative until commit.
-  CPU discards tentative update if it realizes branch was mid-predicted.
-  And re-starts execution, in the "else" branch.
+如果 CPU 错误地预测了一个分支怎么办？ x 结果为零？
+  推测指令的寄存器更新在提交之前是暂定的。
+  如果 CPU 意识到分支是中间预测的，则它会放弃尝试性更新。
+  并在“else”分支中重新开始执行。
 
-Speculative execution helps performance, since it helps
-  avoid stalls while the CPU is waiting for slow memory.
+推测执行有助于提高性能，因为它有助于
+  当 CPU 等待慢速内存时，避免停顿。
 
 What if the CPU predicts r1 == 1,
-  and speculatively executes r2 = *r0,
-  but r0 holds an invalid pointer?
+  并推测执行 r2 = *r0,
+  但 r0 持有无效指针？
   If it turns out x == 1, the "r2 = *r0" should raise an exception.
   If it turns out x == 0, the "r2 = *r0" should not raise an exception.
 
-The CPU "retires" instructions only after it is sure they
-  won't need to be canceled due to mis-speculation.
-  And the CPU retires instructions in order, only after all
-    previous instructions have retired, since only then does it
-    know that no previous instruction faulted.
+CPU 仅在确定指令后才“退休”指令
+  不会因为错误猜测而被取消。
+  并且CPU按顺序退役指令，毕竟
+    以前的指令已经失效，因为只有那时它才
+    知道之前的指令没有错误。
 
-Thus a fault by an instruction that was speculatively
-  executed may not occur until a while after the instruction finishes.
+因此，推测性指令的错误
+  执行可能要等到指令完成后一段时间才会发生。
 
-Speculation is, in principle, transparent.
-  Part of the CPU implemention, but not visible in the specification.
-  That is, speculation is intended to increase performance without
-    changing the results that programs compute.
-  The CPU makes speculation transparent by un-doing register
-    assignments if it realizes it speculated incorrectly, and doesn't
-    raise exceptions from instructions incorrectly speculated.
+投机原则上是透明的。
+  CPU 实现的一部分，但在规范中不可见。
+  也就是说，投机的目的是为了提高性能，而不需要
+    改变程序计算的结果。
+  CPU 通过撤销寄存器使推测变得透明
+    如果它意识到自己推测错误并且没有这样做
+    从错误推测的指令中引发异常。
 
-Some jargon:
-  "Architectural features" -- things in the CPU manual, visible to programmers.
-  "Micro-architectural" -- not in the manual, intended to be invisible.
-    this is most of the billions of transistors on a chip
+一些行话：
+  “架构特性”——CPU手册中的东西，程序员可见。
+  “微架构”——手册中没有，旨在隐形。
+    这是芯片上数十亿个晶体管的大部分
 
-Another micro-architectural feature: CPU data and TLB caches.
-  core
-  L1: va,pa | data / TLB: va | pa
-  L2: pa    | data
-  RAM
-Cache split into "cache lines" of e.g. 64 bytes.
-If a load misses, data is fetched, and put into the cache.
-L1 ("level one") cache is indexed by virtual low bits, for speed.
-CPU must consult both L1 and TLB, the latter for permissions
-  and physical address for L1 associativity tag,
-  to decide if a load hits in the L1.
-  (Intel L1 is Virtually Indexed, Physically Tagged (VIPT))
-On L1 miss: TLB lookup, L2 lookup with phys addr.
+另一个微架构特性：CPU 数据和 TLB 缓存。
+  核心
+  L1：弗吉尼亚州，宾夕法尼亚州 |数据/TLB：va |帕
+  L2: 帕 |数据
+  内存
+缓存分为“缓存行”，例如64 字节。
+如果加载失败，则会获取数据并将其放入缓存中。
+L1（“一级”）高速缓存通过虚拟低位进行索引，以提高速度。
+CPU 必须同时咨询 L1 和 TLB，后者获取权限
+  以及 L1 关联性标签的物理地址，
+  确定负载是否到达 L1。
+  （英特尔 L1 是虚拟索引、物理标记 (VIPT)）
+L1 缺失时：TLB 查找、使用 phys addr 进行 L2 查找。
 Times:
-  L1 hit -- a few cycles.
-  L2 hit -- a dozen or two cycles.
-  RAM -- 300 cycles.
-  TLB miss -- up to 100s of cycles, to walk page table tree.
-  A cycle is 1/clockrate, e.g 0.5 nanosecond.
+  L1 命中——几个周期。
+  L2 命中——十几个或两个周期。
+  RAM——300 个周期。
+  TLB 未命中——最多 100 个周期，遍历页表树。
+  一个周期是 1/时钟频率，例如 0.5 纳秒。
 
-A system call leaves kernel data in L1 cache, after return to user space.
-  (Assuming page table has both user and kernel mappings)
+系统调用返回用户空间后，将内核数据保留在一级缓存中。
+  （假设页表有用户和内核映射）
 
-Why is it safe for L1 to contain kernel data while executing user code?
-  Can user programs read kernel data directly out of the cache?
+为什么 L1 在执行用户代码时包含内核数据是安全的？
+  用户程序可以直接从缓存中读取内核数据吗？
 
-In real life, micro-architecture is not entirely invisible.
-  It affects how long instructions and programs take.
-  It's of intense interest to people who write performance-critical code.
-  And to compiler writers.
-  Intel &c publish optimization guides, advice but few details.
+在现实生活中，微架构并不是完全看不见的。
+  它影响指令和程序花费的时间。
+  编写性能关键代码的人们对此非常感兴趣。
+  以及编译器作者。
+  英特尔&c 发布了优化指南、建议，但细节很少。
 
-A useful trick: sense whether something is cached.
-  This is the paper's Flush+Reload.
-  You want to know if function f() uses the memory at address Z.
-  1) ensure that Z is not cached.
-     Intel CPUs have a clflush instruction.
-     Or load enough memory locations to force everything else out of the cache.
-  2) call f()
-  3) Record the time.
-     Modern CPUs let you read a cycle counter.
-     For Intel CPUs, it's the rdtsc instruction.
-  4) load a byte from address Z
-     (you need memory fences to ensure the load really happens)
-  5) Record the time again.
-  6) If the difference in times is < (say) 50, the load in #4 hit,
-     which means f() probably used memory at address Z.
-     Otherwise not.
+一个有用的技巧：感知某些内容是否被缓存。
+  这就是本文的Flush+Reload。
+  您想知道函数 f() 是否使用地址 Z 处的内存。
+  1）确保Z没有被缓存。
+     Intel CPU 有一条 clflush 指令。
+     或者加载足够的内存位置以强制将其他所有内容从缓存中移出。
+  2）调用f()
+  3）记录时间。
+     现代 CPU 允许您读取周期计数器。
+     对于 Intel CPU，它是 rdtsc 指令。
+  4）从地址Z加载一个字节
+     （你需要内存栅栏来确保负载确实发生）
+  5) 再次记录时间。
+  6) 如果时间差 <（例如）50，则 #4 中的负载达到，
+     这意味着 f() 可能使用了地址 Z 处的内存。
+     否则不会。
 
 Back to Meltdown -- this time with more detail:
 
     // in user memory
-    char buf[8192]
+    字符缓冲区[8192]
 
     // the Flush of Flush+Reload
-    clflush buf[0]
-    clflush buf[4096]
+    clflush 缓冲区[0]
+    clflush 缓冲区[4096]
 
-1.  r1 = <a kernel virtual address>
-2.  r2 = *r1
-3.  r2 = r2 & 1      // speculated
-4.  r2 = r2 * 4096   // speculated
-5.  r3 = *(buf+r2)   // speculated
+1. r1 = <内核虚拟地址>
+2. r2 = *r1
+3. r2 = r2 & 1 // 推测
+4. r2 = r2 * 4096 // 推测
+5. r3 = *(buf+r2) // 推测
 
     <eventual fault from *r1; r2 and r3 rolled back, but data left in cache>
     <handle the page fault>
 
     // the Reload of Flush+Reload
     a = rdtsc
-    r0 = buf[0]
+    r0 = 缓冲区[0]
     b = rdtsc
     r1 = buf[4096]
     c = rdtsc
-    if c-b < b-a:
-      low bit was probably a 1
+    如果 c-b < b-a：
+      低位可能是 1
 
-That is, user code can deduce the low bit of the kernel data based on which
-of two user cache lines was loaded (buf[0] vs buf[4096]).
+即用户代码可以据此推导出内核数据的低位
+加载了两个用户缓存行（buf[0] 与 buf[4096]）。
   
-Point: the fault from "r2 = *r1" is delayed until the load retires,
-  which may take a while, giving time for the subsequent speculative
-  instructions to execute.
+要点：“r2 = *r1”的故障被延迟到负载退出，
+  这可能需要一段时间，为后续的投机留出时间
+  执行的指令。
 
-Point: apparently the "r2 = *r1" does the load, even if the PTE
-  forbids it, and puts the result into r2, though only temporarily since
-  reverted by the fault at retirement.
+要点：显然“r2 = *r1”会加载，即使 PTE
+  禁止它，并将结果放入 r2 中，尽管只是暂时的，因为
+  退休时因过失而恢复。
 
-Point: the "r3 = buf[r2]" loads some of buf[] into the cache,
-  even though change to r3 is canceled due to mis-speculation.
-  Since Intel views the cache content as hidden micro-architecture.
+要点：“r3 = buf[r2]”将一些 buf[] 加载到缓存中，
+  即使由于错误推测而取消了对 r3 的更改。
+  由于英特尔将缓存内容视为隐藏的微架构。
 
-This attack does work, and many people have reproduced it.
+这种攻击确实有效，并且很多人都复制了它。
 
-But it often doesn't work:
-  Each XX in Listing 3/4 is a failure
-    I.e. line 5 didn't cause any of the cache lines to be loaded.
-    It's not clear why the failures occur.
-    Perhaps the desired kernel data isn't in the cache?
-      And isn't fetched from RAM due to PTE permissions?
-      Or the load retires and faults before RAM fetch completes?
-    Perhaps cache conflicts kick out the array?
-    Perhaps TLB misses?
-    Perhaps other activity on the machine?
-    Perhaps a race between fault retiring and return of data,
-      and exact timings vary?
-  Section 6.2 says 10 bytes/second if kernel data not cached
-    Retries help -- why? Section 5.2, List 2
-    Maybe if kernel data not cached, CPU speculates zero.
-  The conditions for success are not clear.
+但它经常不起作用：
+  清单 3/4 中的每个 XX 都是失败的
+    即第 5 行没有导致任何缓存行被加载。
+    目前尚不清楚为什么会发生故障。
+    也许所需的内核数据不在缓存中？
+      并且由于 PTE 权限而无法从 RAM 中获取？
+      或者负载在 RAM 获取完成之前就退出并出现故障？
+    也许缓存冲突会踢出阵列？
+    也许 TLB 未命中？
+    也许机器上有其他活动？
+    也许是故障退出和数据返回之间的竞争，
+      确切的时间有所不同？
+  6.2 节说如果内核数据没有缓存则为 10 字节/秒
+    重试有帮助——为什么？第 5.2 节，列表 2
+    也许如果内核数据没有缓存，CPU 推测为零。
+  成功的条件尚不清楚。
 
-How could Meltdown be used in a real-world attack?
-  The attacker needs to run their code on the victim machine.
-  Timesharing: kernel may have other users' secrets, e.g. passwords, keys.
-    And kernel may map all of physical memory, including other processes.
-  Cloud: some container and VMM systems might be vulnerable,
-    so you could steal data from other cloud customers.
-  Your browser: it runs untrusted code in sandboxes, e.g. plug-ins,
-    maybe a plug-in can steal your password from your kernel.
+Meltdown 如何用于现实世界的攻击？
+  攻击者需要在受害者机器上运行他们的代码。
+  分时：内核可能有其他用户的秘密，例如密码、密钥。
+    并且内核可以映射所有物理内存，包括其他进程。
+  云：某些容器和 VMM 系统可能容易受到攻击，
+    这样您就可以从其他云客户那里窃取数据。
+  您的浏览器：它在沙箱中运行不受信任的代码，例如插件，
+    也许某个插件可以从您的内核中窃取您的密码。
 
-Why useful to an attacker if it often (even usually!) doesn't work?
-  The rules of the security game:
-    Defense must aim to win 100% of the time.
-    If the attacker wins 1% of the time, that's a disaster for defense.
-  E.g. if attacker can steal passwords of only 1% of users.
-  Also, attacker may be able to influence what's in the cache.
-    E.g. make system calls, send network requests.
+如果它经常（甚至通常！）不起作用，为什么对攻击者有用？
+  安全游戏规则：
+    防守必须以 100% 的胜利为目标。
+    如果攻击者的胜率只有 1%，那么对于防御来说就是一场灾难。
+  例如如果攻击者只能窃取 1% 用户的密码。
+  此外，攻击者可能能够影响缓存中的内容。
+    例如进行系统调用，发送网络请求。
 
-Meltdown is not known to have been used in any actual attack.
-  But it has spurred much remedial effort.
+据了解，Meltdown 并未被用于任何实际攻击中。
+  但它激发了很多补救措施。
 
-What about defenses?
+防御呢？
 
-A software fix:
-  Don't map the kernel in user page tables.
-    The paper calls this "KAISER"; Linux now calls it KPTI.
-  Requires a page table switch on each system call entry/exit.
-    This is how RISC-V xv6 works.
-  The page table switch can be slow -- it may require TLB flushes.
-    PCID can avoid TLB flush, though still some expense.
-  Many kernels adopted KAISER/KPTI soon after Meltdown was known.
+软件修复：
+  不要将内核映射到用户页表中。
+    该报称此为“KAISER”； Linux 现在将其称为 KPTI。
+  每个系统调用入口/出口都需要页表切换。
+    这就是 RISC-V xv6 的工作原理。
+  页表切换可能会很慢——它可能需要 TLB 刷新。
+    PCID 可以避免 TLB 刷新，尽管仍然需要一些费用。
+  Meltdown 出现后不久，许多内核就采用了 KAISER/KPTI。
 
-A hardware fix:
-  Only return permitted data from speculative loads!
-    If PTE_U/R/V is clear, return zero, not the actual data.
-  This probably has little cost since CPU must look
-    at PTE in TLB anyway for every L1 hit.
-  AMD CPUs apparently worked like this all along.
-  Modern Intel CPUs seem to do this (called RDCL_NO).
+硬件修复：
+  仅从推测负载返回允许的数据！
+    如果 PTE_U/R/V 清零，则返回零，而不是实际数据。
+  这可能成本很低，因为 CPU 必须查看
+    无论如何，每次 L1 命中都会在 PTE 和 TLB 中获得。
+  AMD CPU 显然一直都是这样工作的。
+  现代 Intel CPU 似乎就是这样做的（称为 RDCL_NO）。
 
-These defenses are deployed and are believed to work; but:
-  It was disturbing that page protections turned out to not be solid!
-  More micro-architectural surprises have been emerging.
-  Is the underlying issue just fixable bugs? Or an error in strategy?
-  Stay tuned, this is still playing out.
+这些防御措施已部署并被认为有效；但是：
+  令人不安的是，页面保护并不牢固！
+  更多的微观建筑惊喜不断出现。
+  根本问题只是可修复的错误吗？还是策略失误？
+  请继续关注，这件事仍在上演。
 
-Next week -- Exam!
+下周——考试！
 
 References:
 https://googleprojectzero.blogspot.com/2018/01/reading-privileged-memory-with-side.html

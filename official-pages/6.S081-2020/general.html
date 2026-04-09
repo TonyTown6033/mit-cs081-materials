@@ -1,285 +1,185 @@
 
-<HTML>
-<HEAD>
-<TITLE>
-6.S081 / Fall 2020
-</TITLE>
-<META HTTP-EQUIV="pragma" CONTENT="no-cache">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-<link rel="stylesheet" type="text/css" href="css/style.css">
-<link rel="stylesheet" href="labs/labs.css" type="text/css" />
-
-</HEAD>
-
-<BODY BGCOLOR=#ffffff TEXT=#000000>
-
-    <!-- Fixed navbar -->
-    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="index.html">6.S081: Operating System Engineering</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-	    <li><a href="schedule.html">Schedule</a></li>
-	    <li class="dropdown">
-              <a href="general.html#" class="dropdown-toggle" data-toggle="dropdown">Class<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-                <li><a href="overview.html">Overview</a></li>
-                <li><a href="general.html">Administrivia</a></li>
-		<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">Handin website</a>
-		<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
-	      </ul>
-	    </li>
-            <li class="dropdown">
-              <a href="general.html#" class="dropdown-toggle" data-toggle="dropdown">Labs<span class="caret"></span></a>
-              <ul class="dropdown-menu" role="menu">
-		<li><a href="tools.html">Tools</a></li>
-		<li><a href="labs/guidance.html">Guidance</a></li>
-                <li><a href="labs/util.html">Lab Utilities</a></li>
-		<li><a href="labs/syscall.html">Lab System calls</a></li>
-		<li><a href="labs/pgtbl.html">Lab Page tables</a></li>
-		<li><a href="labs/traps.html">Lab Traps</a></li>
-                <li><a href="labs/lazy.html">Lab Lazy allocation</a></li>
-		<li><a href="labs/cow.html">Lab Copy on-write</a></li>
-		<li><a href="labs/thread.html">Lab Multithreading</a></li>
-		<li><a href="labs/lock.html">Lab Lock</a></li>
-		<li><a href="labs/fs.html">Lab File system</a></li>
-		<li><a href="labs/mmap.html">Lab mmap</a></li>
-		<li><a href="labs/net.html">Lab network driver</a></li>
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="general.html#" class="dropdown-toggle" data-toggle="dropdown">xv6<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-		<li><a href="xv6.html">xv6</a></li>
-		<li><a href="xv6/book-riscv-rev1.pdf">xv6 book</a></li>
-	      </ul>
-	    </li>
-	    <li><a href="reference.html">References</a></li>  
-	    <li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
-          </ul>
-	  <ul class="nav navbar-nav navbar-right">
-	    <p class="navbar-text">2020</p>
-	  </ul>
-        </div>
-      </div>
-    </div>
-
-
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>
+6.S081 / 2020 年秋季
+</title>
+<meta content="no-cache" http-equiv="pragma"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="css/bootstrap.min.css" media="screen" rel="stylesheet"/>
+<link href="css/style.css" rel="stylesheet" type="text/css"/>
+<link href="labs/labs.css" rel="stylesheet" type="text/css">
+</link></head>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<!-- Fixed navbar -->
+<div class="navbar navbar-default navbar-fixed-top" role="navigation">
+<div class="container-fluid">
+<div class="navbar-header">
+<button class="navbar-toggle" data-target=".navbar-collapse" data-toggle="collapse" type="button">
+<span class="sr-only">切换导航</span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+</button>
+<a class="navbar-brand" href="index.html">6.S081：操作系统工程</a>
+</div>
+<div class="navbar-collapse collapse">
+<ul class="nav navbar-nav">
+<li><a href="schedule.html">日程</a></li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="general.html#">课程<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="overview.html">概览</a></li>
+<li><a href="general.html">课程说明</a></li>
+<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>
+<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
+</li></ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="general.html#">实验<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="tools.html">工具</a></li>
+<li><a href="labs/guidance.html">指南</a></li>
+<li><a href="labs/util.html">实验：Unix 工具</a></li>
+<li><a href="labs/syscall.html">实验：系统调用</a></li>
+<li><a href="labs/pgtbl.html">实验：页表</a></li>
+<li><a href="labs/traps.html">实验：陷阱</a></li>
+<li><a href="labs/lazy.html">实验：惰性分配</a></li>
+<li><a href="labs/cow.html">实验：写时复制</a></li>
+<li><a href="labs/thread.html">实验：多线程</a></li>
+<li><a href="labs/lock.html">实验：锁</a></li>
+<li><a href="labs/fs.html">实验：文件系统</a></li>
+<li><a href="labs/mmap.html">实验：mmap</a></li>
+<li><a href="labs/net.html">实验：网络驱动</a></li>
+</ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="general.html#">xv6<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="xv6.html">xv6</a></li>
+<li><a href="xv6/book-riscv-rev1.pdf">xv6 书</a></li>
+</ul>
+</li>
+<li><a href="reference.html">参考资料</a></li>
+<li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<p class="navbar-text">2020</p>
+</ul>
+</div>
+</div>
+</div>
 <div class="container">
-
-
-
-
-
-
-<H1>
-General Information
-</H1>
+<h1>
+一般信息
+</h1>
 <p>
-<b><a href="general.html#audience">Who should take 6.S081</a></b> //
-<b><a href="general.html#communication">Communication</a></b> //
-<b><a href="general.html#grading">Grading</a></b> //
-<b><a href="general.html#labs">Labs</a></b> //
-<b><a href="general.html#textbook">Text books</a></b> //
-<b><a href="general.html#homework">Homework</a></b> //
-<b><a href="general.html#collaboration">Collaboration</a></b> //
-<b><a href="general.html#meetings">Class meetings</a></b> //
-<b><a href="general.html#staff">Staff</a></b> //
-<b><a href="general.html#officehours">TA office hours</a></b>
+<b><a href="general.html#audience">谁应该服用 6.S081</a></b> //
+<b><a href="general.html#communication">通讯</a></b> //
+<b><a href="general.html#grading">分级</a></b> //
+<b><a href="general.html#labs">实验</a></b> //
+<b><a href="general.html#textbook">教科书</a></b> //
+<b><a href="general.html#homework">家庭作业</a></b> //
+<b><a href="general.html#collaboration">协作</a></b> //
+<b><a href="general.html#meetings">班级会议</a></b> //
+<b><a href="general.html#staff">员工</a></b> //
+<b><a href="general.html#officehours">助教办公时间</a></b>
 </p>
-
 <p><a name="audience"></a>
-<h2>Who should take 6.S081</h2>
-
-<p> It is intended for undergraduates who enjoyed 6.004 and want to
-  learn about design and implementation of operating systems, and
-  their use as a foundation for systems programming.
+<h2>谁应该服用 6.S081</h2>
+<p> 它面向喜欢 6.004 并希望了解操作系统的设计和实现以及将其用作系统编程基础的本科生。
 
 <p><a name="communication"></a>
-<h2>Communication</h2>
-
-<p>We will distribute assignments on
-  the <a href="http://pdos.csail.mit.edu/6.S081/">course web site</a>,
-  and make all announcements through piazza.
-  The course web site has
-  the schedule for the term on the <a href="schedule.html">schedule page</a>.
+<h2>通讯</h2>
+<p>我们将把作业分发到 <a href="http://pdos.csail.mit.edu/6.S081/">课程网站</a>，并通过广场发布所有公告。课程网站上有该学期的时间表 <a href="schedule.html">日程页面</a>.
 
 <p><a name="grading"></a>
-  <h2>Grading policy</h2>
-
-<p>Grades in 6.S081 will be based on the results of:
+<h2>评分政策</h2>
+<p>6.S081 的成绩将基于以下结果：
   <ul>
+<li> 实验室（70%）。单个实验室的分数是以下输出 <tt>make grade</tt>。所有实验室的权重均等，最后一个实验室除外，该实验室将算作两个实验室。
 
-   <li> The labs (70%). The score for an individual lab is the output
-     of <tt>make grade</tt>.  All labs are weighted equally, except
-     for the last one, which will count as two labs.
+   <li> 检查会议（20%）。在检查会议期间，我们会问您一些有关实验室解决方案的问题。我们预计为每个学生举行 3 次随机选择实验室的核对会议。检查会议将按照 0 到 5 的等级进行评分。
 
-   <li> Check-off meetings (20%).  During the check-off meetings we
-   will ask you a few questions about your lab solution.  We expect to
-   hold 3 check-off meetings per student for
-   randomly-selected labs. The check-off
-   meetings will be graded on scale of 0 to 5.
+   <li> 家庭作业和课堂/广场参与（合计 10%）。
 
-   <li> Home-work assignments and class/piazza participation (together
-   10%).
+  </li></li></li></ul>
+<p>您必须提交所有实验才能通过课程。
 
-  </ul>
-
-<p>You must submit all labs in order to pass the class.
-
-<p>There will be no quizzes and exams.
+<p>不会有测验和考试。
 
 <p><a name="labs"></a>
-<h2>Labs</h2>
-
-<p>To turn in each lab, run <tt>make handin</tt> in your lab
-directory. The handin must be received by 11:59pm on the day that the
-lab is due. You can turn in as many times as you like before the
-deadline. We grade your final submission using <tt>make grade</tt> and
-publish your grade on
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">handin website</a>.</p>
-
-<p> You have a total of 72 late hours for the semester. Each hour late in
-excess of 72 hours will penalize your total lab grade by 1&#37;, up to a maximum of 50%.
-Late hours are allocated greedily, so they are allocated to earlier labs before
-later labs. Due to institute regulations, late hours may not be used for the
-last lab (due in the last full week of classes).</p>
-
-<p>Late hours are intended for cases
-where you fall behind due to illness, job interviews, MIT athletic events,
-deadlines in other classes, etc. For extensions under extenuating circumstances
-(e.g., you are sick for a week), we require a letter from one of the student
-deans.</p>
-
+<h2>实验</h2>
+<p>要上交每个实验室，请运行 <tt>make handin</tt> 在您的实验室目录中。提交的材料必须在实验室截止日期的晚上 11:59 之前收到。您可以在截止日期前多次提交。我们使用以下方式对您的最终提交进行评分 <tt>make grade</tt> 并将你的成绩发布在 <a href="https://6828.scripts.mit.edu/2020/handin.py/">交递网站</a>.</p>
+<p> 本学期您总共迟到了 72 个小时。每迟到超过 72 小时，您的实验室总成绩就会减少 1%，最高可达 50%。迟到的时间会被贪婪地分配，因此它们会先分配给较早的实验室，然后再分配给较晚的实验室。根据学院规定，最后一个实验室不得使用较晚的时间（在课程的最后一周进行）。</p>
+<p>延迟上课适用于因生病、工作面试、麻省理工学院体育赛事、其他课程截止日期等原因而落后的情况。对于在情有可原的情况下延期（例如，您生病一周），我们需要一封来自学生院长的信函。</p>
 <!-- That is, the lab component of the overall grade drops by
        ceil((cumulative late - 72 hours)/1 day)
      letter grades. -->
-
-<h2 id="homework">Lecture questions/Homeworks</h2>
-
-<p>The lecture questions/homeworks are intended to make you think
-about the lecture topic. They are due before the start of lecture
-(i.e., 1pm) on the specified due dates.  We would appreciate if you
-submit lecture questions well before 1p (e.g., the night before) so
-that we can prepare to answer your questions during lecture.  We do
-not grade your answers for correctness, but merely check-off that you
-put reasonable effort into them.  You can miss a few lecture
-questions/homeworks over the semester without any penalty.</p>
-
-<h2 id="textbook">Textbooks</h2>
-
-<p>6.S081 relies on the following books:
+<h2 id="homework">讲座问题/作业</h2>
+<p>讲座问题/作业旨在让您思考讲座主题。它们应在指定的截止日期讲座开始前（即下午 1 点）截止。如果您在下午 1 点（例如前一天晚上）之前提交讲座问题，我们将不胜感激，以便我们准备在讲座期间回答您的问题。我们不会对您的答案的正确性进行评分，而只是检查您是否付出了合理的努力。您可以在整个学期错过一些讲座问题/作业，而不会受到任何处罚。</p>
+<h2 id="textbook">教科书</h2>
+<p>6.S081依赖于以下书籍：
 <ul>
+<li><a href="xv6/book-riscv-rev1.pdf">xv6：一个简单的类Unix教学操作系统</a> 作者：R. Cox、F. Kaashhoek 和 R. Morris。
 
-  <li><a href="xv6/book-riscv-rev1.pdf">xv6: A simple, Unix-like teaching operating
-      system</a> by R. Cox, F. Kaashoek, and R. Morris.
+  <li>C语言程序设计（第二版） 作者：克尼根和里奇。 Prentice Hall, Inc.，1988。ISBN 0-13-110362-8，1998。
 
-  <li>The C programming language (second edition)</i> by Kernighan
-and Ritchie. Prentice Hall, Inc., 1988. ISBN 0-13-110362-8, 1998.
-
-</ul>
-
+</li></li></ul>
 <p><a name="collaboration"></a>
-<h2>Collaboration</h2>
-
-<p>You are welcome to discuss the labs (and homeworks) with other
-students, but all of your written work and code must be your own and
-must carefully acknowledge all contributions of ideas by others,
-whether from classmates or from sources you have read. Please don't
-look at anyone else's code for the labs or homework.  Please feel free
-to ask and answer questions on Piazza, about labs, homework, readings,
-and lectures.
+<h2>协作</h2>
+<p>欢迎您与其他学生讨论实验（和家庭作业），但您所有的书面作业和代码都必须是您自己的，并且必须仔细承认其他人的所有想法贡献，无论是来自同学还是来自您阅读过的来源。请不要查看其他人的实验或作业代码。请随时在 Piazza 上提问和回答有关实验室、作业、阅读和讲座的问题。
 </p>
-
 <p>
-Do not post your lab or homework solutions on publicly accessible web
-sites (such as GitHub) or file spaces (such as your Athena Public
-directory).
+请勿将您的实验或作业解决方案发布到可公开访问的网站（例如 GitHub）或文件空间（例如您的 Athena Public 目录）上。
 </p>
-
 <p><a name="meetings"></a>
-<h2>Class meetings</h2>
-
-<p>Lectures will be held on Monday and Wednesday from 1:00pm to 2:30pm
-  virtually and synchronously recorded.  The recordings will be posted
-  on the <a href="schedule.html">schedule page</a>.  The live Zoom
-  lecture link will be posted in Piazza (not posted here to prevent
-  "Zoom-bombing"); use the link in the top toolbar of this web page to
-  access the Piazza site.
+<h2>班级会议</h2>
+<p>讲座将于周一和周三下午 1:00 至 2:30 虚拟同步录制。录音将发布在 <a href="schedule.html">日程页面</a>。 Zoom直播讲座链接将在Piazza发布（为防止“Zoom轰炸”，此处不发布）；使用此网页顶部工具栏中的链接访问 Piazza 网站。
 
 <p><a name="staff"></a>
-<h2>Staff</h2>
-
-<p><b>Lecturer</b><br>
-  <a href="https://pdos.csail.mit.edu/~kaashoek/">Frans Kaashoek</a><br>
-  <a href="https://pdos.csail.mit.edu/~rtm/">Robert Morris</a><br>
-
-<p><b>Teaching assistants</b><br>
+<h2>员工</h2>
+<p><b>讲师</b><br/>
+<a href="https://pdos.csail.mit.edu/~kaashoek/">弗兰斯·卡肖克</a><br/>
+<a href="https://pdos.csail.mit.edu/~rtm/">罗伯特·莫里斯</a><br/>
+<p><b>助教</b><br/>
 
 
-  David Morejon (dmorejon@mit.edu)<br>
-  Nick Kaashoek (nicolaas@mit.edu)<br>
-
-<p><b>Staff mailing list</b><br>
-<i>6s081@lists.csail.mit.edu</i>, but we would prefer that you
-use Piazza.
+  大卫·莫尔乔恩 (dmorejon@mit.edu)<br/>
+  尼克·卡肖克 (nicolaas@mit.edu)<br/>
+<p><b>员工邮件列表</b><br/>
+<i>6s081@lists.csail.mit.edu</i>，但我们更希望您使用 Piazza。
 
 <!-- RULE: officehours -->
 <p><a name="officehours"></a>
+<h2>助教办公时间</h2>
+<p><font color="red">尚未最终确定，可能会发生变化。</font><br/>
 
-<h2>TA office hours</h2>
-
-<p><font color="red">Not finalized, subject to change.</font><br>
-
-Office hours will be held on Zoom. Links will be pinned on Piazza.<br>
-We're aiming to replicate the in-person experience as much as possible, meaning
-that we want to encourage student collaboration while you wait for staff help. <br>
-If you want to work with other students, join the "main room" of the Zoom session for that day. When
-you are claimed from the queue, the TA will put you in a breakout room for 1-1 help. <br>
-<a href="https://queue.mit.edu/6.S081/queue">Queue</a><br>
-All times are listed in EST. <br>
-Monday: 7-9pm (David)<br>
-Tuesday: 4-6pm (Nick)<br>
-Wednesday: 2:30-4:30pm (David)<br>
-Thursday: 12-1pm (David and Nick)<br>
-Friday: 9-11am (Nick)<br>
-
-<br>
-Appointments with staff outside of the listed office hours can be setup via
-email or private Piazza post.<br>
-
+办公时间将在 Zoom 上进行。链接将固定在广场上。<br/>
+我们的目标是尽可能复制面对面的体验，这意味着我们希望鼓励学生在等待工作人员帮助时进行协作。 <br/>
+如果您想与其他学生一起工作，请加入当天 Zoom 会议的“主房间”。当您被从队列中叫出时，助教会将您安排到分组讨论室寻求 1-1 帮助。 <br/>
+<a href="https://queue.mit.edu/6.S081/queue">队列</a><br/>
+所有时间均以东部时间列出。 <br/>
+周一：晚上 7 点至 9 点（大卫）<br/>
+周二：下午 4 点至 6 点（尼克）<br/>
+周三：下午 2:30-4:30（大卫）<br/>
+星期四：中午 12 点至下午 1 点（大卫和尼克）<br/>
+周五：上午 9 点至 11 点（尼克）<br/>
+<br/>
+在所列办公时间之外与工作人员的预约可以通过电子邮件或私人广场帖子进行安排。<br/>
 <!-- End Page Content -->
-
-<hr>
-
+<hr/>
 <font style="font-size: 12px;">
-<p>Questions or comments regarding S6.081?  Send e-mail to the course staff at
-<A
-HREF="mailto:6s081@lists.csail.mit.edu"><I>6S081@lists.csail.mit.edu</I></A>.
+<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a rel="license" href="https://creativecommons.org/licenses/by/3.0/us/"><img
-alt="Creative Commons License" style="border-width:0"
-src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" ></a> <B><A HREF="general.html#top">Top</A></B> //
-<B><A HREF="index.html">S6.081 home</A></B> // 
-<i>Last updated Thursday, 04-Sep-2025 23:15:03 EDT</i>
-</font>
-
-</div>
-
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="general.html#top">顶部</a></b> //
+<b><a href="index.html">S6.081 首页</a></b> // 
+<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:03 EDT</i>
+</p></p></font>
+</p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>
 <script src="js/bootstrap.min.js"></script>
-
-</BODY>
-</HTML>
-
+</body>
+</html>

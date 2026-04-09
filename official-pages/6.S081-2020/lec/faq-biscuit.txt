@@ -1,288 +1,291 @@
-Q: I am confused by exactly what the shim layer does and how it is
-implemented - it supports the Go runtime, so cannot be written in Go,
-but the paper also mentions no use of C. I would guess that it's
-written in assembly, but I'm still confused on how it is used after
-the system is booted, and the interface between the shim and the
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+
+问：我对垫片层的具体作用及其原理感到困惑
+已实现 - 它支持 Go 运行时，因此不能用 Go 编写，
+但论文还提到没有使用 C。我猜它是
+用汇编编写，但我仍然对它之后如何使用感到困惑
+系统启动，垫片和之间的接口
 runtime.
 
-A: The Go runtime assumes there is an OS underlying it and it makes
-system calls to it to get going.  Biscuit runs on the bare hardware
-and so Biscuit must emulate those system calls to be able to use the
-Go runtime unmodified.  This is what the shim layer in Biscuit does;
-for example, it allocates memory for the Go heap so that the runtime
-can get going.  It mostly runs at boot time and is indeed written in
-assembly.  ￼
+答：Go 运行时假设其底层有一个操作系统，并且它使得
+系统调用它来开始。 Biscuit 在裸硬件上运行
+因此 Biscuit 必须模拟这些系统调用才能使用
+Go 运行时未修改。这就是 Biscuit 中的垫片层的作用；
+例如，它为 Go 堆分配内存，以便运行时
+可以开始了。它主要在启动时运行并且确实是写在
+装配。 ￼
 
-Q: It is mentioned that there are non-heap allocations in Biscuit,
-which is out of the scope of the heap exhaustion prevention mechanism
-presented. Since there is no such distinction in xv6, what exactly
-gets allocated in the Go heap and what doesn't?
+问：提到Biscuit中有非堆分配，
+这超出了堆耗尽预防机制的范围
+提出。既然xv6中没有这样的区分，那到底是什么
+被分配到 Go 堆中，什么没有被分配？
 
-A: Everything the kernel allocates (file descriptors, tcp state, etc.)
-lives in the kernel heap, except for physical memory pages.
-User-level programs implement typically their memory allocation (e.g.,
-malloc in xv6), asking the kernel for extra memory pages if they need
-more memory.  The xv6 kernel doesn't do much dynamic memory
-allocation, because it doesn't have a memory allocator (although you
-implemented one in the buddy lab); instead, it has a fixed number of
-file descriptors, procs structures, etc.
+答：内核分配的所有内容（文件描述符、tcp 状态等）
+除物理内存页外，都位于内核堆中。
+用户级程序通常实现其内存分配（例如，
+xv6 中的 malloc），如果需要，则向内核请求额外的内存页
+更多内存。 xv6 内核没有做太多的动态内存
+分配，因为它没有内存分配器（尽管你
+在伙伴实验室中实施了一项）；相反，它有固定数量的
+文件描述符、procs 结构等
 
-Q: What is a futex?
+问：什么是 futex？
 
-A: A way of implementing user-level locks without having to make a
-system call on each lock acquisition/release.  Run "man 2 futex" on a
-Linux machine or Google it.
+A：一种无需创建用户级锁的实现方法
+每次锁获取/释放时的系统调用。在 a 上运行“man 2 futex”
+Linux 机器或 Google 一下。
 
-Q: The biscuit paper talks about "garbage collection", but doesn't
-really distinguish between tracing garbage collection and memory
-management based solely on reference counting. It seems like a lot of
-the issues associated with tracing collection (long stops to sweep
-memory, unpredictable timing) are less of an issue in reference
-counting schemes. Could a kernel be written in a language that only
-used reference counting, assuming that cyclic data structures could be
+问：饼干纸上讲了“垃圾收集”，但没有讲
+真正区分跟踪垃圾收集和内存
+仅基于引用计数的管理。好像有很多
+与追踪收集相关的问题（长时间停留以清扫
+内存，不可预测的时间）在参考中不是一个问题
+计数方案。内核可以用一种语言编写吗？
+使用引用计数，假设循环数据结构可以是
 avoided?
 
-A: Biscuit has one or two cycles in its data structures.  Reference
-counting would be an option, but if reference counts are contended
-between several cores, then they can tank performance.  See the
-upcoming non-scalable locks paper. Also, see the RCU paper, which we
-will cover in future lecture, for the problems with contended cache
+答：Biscuit 的数据结构中有一个或两个周期。参考
+计数是一种选择，但如果引用计数存在争用
+在几个核心之间，那么它们就会降低性能。请参阅
+即将推出的不可扩展锁论文。另请参阅 RCU 论文，我们
+将在以后的讲座中介绍有关缓存竞争的问题
 lines.
 
-Q: How does go handle interrupts without disabling further interrupts?
-How does it guarantee that it wont get interrupted or how does it
-handle it if it does.
+问：go 如何在不禁用进一步中断的情况下处理中断？
+它如何保证它不会被中断或者它是如何做到的
+如果确实如此，请处理它。
 
-A: Since Go typically runs on top of an OS it doesn't have to worry
-about interrupts, the OS deals with them.  In case of Biscuit, that
-assumption isn't longer true so Biscuit has to do something to make it
-safe to accept interrupts.  The way biscuit does it is to do basically
-nothing in the interrupt handler, other than setting a play to
-indicate an interrupt happened.  Then, later biscuit/go will schedule
-a go thread to process the interrupt; that go routine can acquire
-locks etc., allocate memory, etc, like any normal go thread.
+答：由于 Go 通常运行在操作系统之上，因此不必担心
+关于中断，操作系统会处理它们。就饼干而言，
+假设不再正确，所以 Biscuit 必须做一些事情来实现它
+安全地接受中断。饼干的做法基本上是
+中断处理程序中没有任何内容，除了将播放设置为
+表明发生了中断。然后，稍后饼干/去将安排
+一个go线程来处理中断；常规操作可以获得
+锁等，分配内存等，就像任何普通的 go 线程一样。
 
-Q: Also how high level is go exactly? Is it compiled or interpreted?
+问：围棋到底有多高水平？它是编译的还是解释的？
 
-A: It is compiled
+答： 已编译
 
-Q: While I see the benefits of not having to handle errors from not
-having enough heap space, couldn't the blocking behavior of system
-calls still substantially slow down programs?
+问：虽然我看到了不必处理来自 not 的错误的好处
+有足够的堆空间，系统不会阻塞行为
+调用仍然大大减慢程序速度？
 
-A: Yes, if there is no memory, those system calls will make no
-progress until enough memory is available (e.g., after the kernel has
-killed a bad-citizen process).  The POSIX interface has no good way of
-communicating to user-level processes that the kernel is low on
-memory.  If the system hasn't enough memory to support the currently
-running applications, things will be slow.
+A：是的，如果没有内存，那些系统调用就不会
+直到有足够的内存可用为止（例如，在内核完成之后）
+杀死了一个坏公民进程）。 POSIX接口没有好的办法
+与内核资源不足的用户级进程进行通信
+记忆。如果系统没有足够的内存来支持当前
+运行应用程序，速度会很慢。
 
-Q: I don't quite understand how static analysis works on lots of
-programs, e.g. programs whose memory usage could be dependent on the
-algorithm / input (e.g. a program which searches over O(n^2) possible
-line intersections, but by some mathematical reasoning, we know that
-there are at most O(n) possible candidates).
+问：我不太明白静态分析如何在很多方面发挥作用
+程序，例如其内存使用情况可能取决于的程序
+算法/输入（例如，搜索超过 O(n^2) 可能的程序
+线相交，但通过一些数学推理，我们知道
+最多有 O(n) 个可能的候选者）。
 
-A: In biscuit, the kernel programmer must annotate the Go code for
-loops where the analyzer cannot determine what the upperbound of the
-loops is (e.g., when the loop is dependent on an argument of a system
-call).  Biscuit also avoid recursive functions for the same reason.
-With relatively few annotations, the tool was able to statically
-determine what an upperbound on the total amount of memory that each
-system needs to run.  Building the tool was a bit of work, but it
-benefited from Go's packages for analyzing Go code, including a
-package that determines when variables go out of scope ("escape
-analysis").
+A：在biscuit中，内核程序员必须将Go代码注释为
+分析器无法确定上限的循环
+循环是（例如，当循环依赖于系统的参数时
+打电话）。出于同样的原因，Biscuit 也避免使用递归函数。
+通过相对较少的注释，该工具能够静态地
+确定每个内存总量的上限是多少
+系统需要运行。构建这个工具需要一些工作，但它
+受益于 Go 的用于分析 Go 代码的软件包，包括
+确定变量何时超出范围的包（“escape
+分析”）。
  
-Q: What I found most confusing about the dependency hirarchy. For
-example, how does Go have builtin threads at the operating system
-level? I though that the whole concept of threads relied on the
-operating system to implement.
+问：我发现依赖层次结构中最令人困惑的是什么。对于
+例如，Go 如何在操作系统中拥有内置线程
+水平？我认为线程的整个概念依赖于
+操作系统来实现。
 
-A: Without Biscuit, the Go runtime implements multiple threads on top
-of OS-provided threads.  The runtime has its own scheduler and context
-switching code.  It multiplexes many go routines over a smaller number
-of kernel threads.
+A：没有 Biscuit，Go 运行时在上面实现了多线程
+操作系统提供的线程数。运行时有自己的调度程序和上下文
+切换代码。它在较小的数量上复用了许多 go 例程
+内核线程数。
 
-Q: The paper says that Biscuit is not optimized for NUMA. What is NUMA
-and why is it important?
+问：论文中说 Biscuit 没有针对 NUMA 进行优化。什么是 NUMA
+为什么它很重要？
 
-A: Computers with NUMA are quite common.  For example, if you have a
-server with several sockets (each socket holding a multicore
-processor) and with several memory banks.  Often one bank is closer to
-one socket than another and so if the OS allocates memory in banks
-close to the socket that is using that memory, it is good for
-performance.  Biscuit doesn't do this, but real operating systems do.
+答：具有 NUMA 功能的计算机很常见。例如，如果您有一个
+具有多个套接字的服务器（每个套接字持有一个多核
+处理器）和多个存储体。通常一家银行距离较近
+一个套接字而不是另一个套接字，因此如果操作系统在存储体中分配内存
+靠近正在使用该内存的套接字，这对于
+性能。 Biscuit 不会这样做，但真正的操作系统会这样做。
 
-Q: I don't quite understand what the benefits are of using Go over
-other more common HLL's like Java. It seems like more popular
-nlanguages have features like garbage collection and type safety (and
-other abstractions like threads).  Wouldn't building the language in a
-more common language potentially make developing and growing the OS
+问：我不太明白使用 Go over 有什么好处
+其他更常见的 HLL，例如 Java。好像更受欢迎
+nlanguages 具有垃圾收集和类型安全等功能（以及
+其他抽象，如线程）。不会在一个
+更通用的语言有可能促进操作系统的开发和发展
 easier?
 
-A: One virtue that Go has going for it is that it designed for systems
-programming, but researchers in the past have implemented kernels in
-Java.  It is possible that the results of the paper carry equally well
-over to Java; at a high-level they are both HLL with a good garbage
-collector.  On the other hand, Go allocates more variables than Java
-on the stack instead of heap, which may change the results.
+答：Go 的优点之一是它是为系统设计的
+编程，但过去的研究人员已经在
+爪哇。论文的结果可能同样好
+转到Java；从高层次来看，他们都是 HLL，但都是垃圾
+收藏家。另一方面，Go 分配的变量比 Java 更多
+在堆栈而不是堆上，这可能会改变结果。
 
-Q: Didn't we say that we need to disable interrupts during critical
-periods as otherwise we could deadlock due to interrupt code trying to
-grab locks that we had already acquired. How does Biscuit avoid such
-issues? Do they use locks that you can reacquire if the interrupted
-thread already owned it?
+问：我们不是说过需要在关键时刻禁用中断吗？
+否则我们可能会由于中断代码试图执行而导致死锁
+抓住我们已经获得的锁。 Biscuit如何避免这种情况
+问题？他们是否使用锁，如果中断，您可以重新获取锁
+线程已经拥有它？
 
-A: Biscuit avoids this deadlock problem by not taking locks in an
-interrupt handler.  It basically doesn't do anything in the interrupt
-handler, other than setting a flag that an interrupt happened.  Then,
-later the kernel schedules a kernel thread to process the interrupt;
-that is a normal thread so it can take acquire/release locks.
+答：Biscuit 通过不锁定某个对象来避免这种死锁问题。
+中断处理程序。它在中断中基本上不做任何事情
+处理程序，除了设置发生中断的标志之外。然后，
+随后内核调度一个内核线程来处理该中断；
+这是一个普通线程，因此它可以获取/释放锁。
 
-Q: It seems like many of the commonly used operating systems would
-require too much work to be converted to a HHL but I'm sure that there
-are a lot of methods they use to avoid the pitfalls and bugs
-mentioned. What are some of the techniques that we haven't taken
-advantage of when coding our labs / when xv6 was implemented.
+问：似乎许多常用的操作系统都会
+转换为 HHL 需要太多工作，但我确信有
+他们使用了很多方法来避免陷阱和错误
+提到的。有哪些技术是我们没有采用过的
+在我们的实验室编码时/实施 xv6 时的优势。
 
-A: Yeap, it would be an incredible amount of work to convert Linux to
-a HLL, and unlikely to make sense, since the Linux programmers are
-happy with C.  There are indeed kernel C annotations and sanitizers to
-avoid common C bugs, but nevertheless they happen (see figure 6 in the
-paper).
+答：是的，将 Linux 转换为
+HLL，不太可能有意义，因为 Linux 程序员是
+对 C 很满意。确实有内核 C 注释和清理程序
+避免常见的 C 错误，但它们仍然会发生（参见中的图 6）
+纸）。
 
-Q: What are the difficulties or considerations to take when designing
-a garbage collection system?
+Q：设计时有哪些难点或需要考虑的因素
+垃圾收集系统？
 
-A: A great question, but a very broad one and it is hard to summarize
-decades of research on garbage collection in a short response.  This
-wiki page gives a high-level introduction into some of the issues:
+答：这是一个很好的问题，但范围很广，很难概括
+几十年来关于垃圾收集的研究在一个简短的回应中。这个
+wiki 页面对一些问题进行了高级介绍：
 https://en.wikipedia.org/wiki/Garbage_collection_(computer_science).
 
-In the context of Biscuit, issues we were worried about is the number
-cycles that the garbage collector is using while running the kernel
-(i.e., slowing down kernel operations) and delays the garbage
-collector might introduce because of running a bit of collection while
-performing latency-sensitive operations (receiving and responding to a
-network package).
+在 Biscuit 的背景下，我们担心的问题是数量
+运行内核时垃圾收集器使用的周期
+（即减慢内核操作）并延迟垃圾处理
+收集器可能会因为运行一些收集而引入
+执行延迟敏感的操作（接收和响应
+网络包）。
 
-Q: What exactly is NGINX?
+问：NGINX 到底是什么？
 
-A: It is a widely-used high-performance web
-server. https://nginx.org/en/
+A：它是一种广泛使用的高性能网络
+服务器。 https://nginx.org/en/
 
-Q: What is the point of comparing Biscuit against Linux on user
-applications if Linux contains many more features that Biscuit doesn't
-have? The paper acknowledges this, but goes ahead to show that Linux
-is 10% faster than Biscuit. How should this be interpreted?
+问：在用户方面比较 Biscuit 和 Linux 的意义何在？
+如果 Linux 包含 Biscuit 没有的更多功能，则可以使用这些应用程序
+有吗？该论文承认了这一点，但继续表明 Linux
+比 Biscuit 快 10%。这应该如何解释呢？
 
-A: With a large grain of salt.  We did our best to do a fair
-comparison, but it is inherently imprecise.  We tried to check that
-the comparison is fair (for example, we looked at execution profiles
-to see if they lined up), but it is easy to imagine that some missing
-feature could change the results.  The conclusion to draw is that it
-is likely that Go isn't in the way of getting decent performance and
-that the difference in performance isn't going to be several factors,
-but instead some small fraction.  We were worried going into this work
-that Biscuit would be much slower.
+答：用一大粒盐。我们竭尽全力办一场展会
+比较，但本质上是不精确的。我们试图检查一下
+比较是公平的（例如，我们查看了执行配置文件
+看看他们是否排队），但很容易想象有些人失踪了
+功能可能会改变结果。得出的结论是
+Go 很可能不会妨碍获得良好的性能并且
+性能差异不会是由几个因素造成的，
+而是一些小部分。我们很担心进入这项工作
+那饼干会慢得多。
 
-Q: In chapter 7 the paper says "Goroutine scheduling decisions and the
-context switch implementation live in the runtime, not in Biscuit. One
-consequence is that Biscuit does not control scheduling policy; it
-interits the runtime's policy".  What exactly does that mean? Does
-Biscuit not have priorities for processes? What are runtime's
-policies? Are they usefull for general use? Can Biscuit be vulnerable
-to receive livelock?
+问：论文第 7 章中提到“Goroutine 调度决策和
+上下文切换实现在运行时，而不是在 Biscuit 中。一
+后果是 Biscuit 不控制调度策略；它
+中断运行时的策略”。这到底是什么意思？
+饼干没有进程的优先级吗？什么是运行时
+政策？它们对于一般用途有用吗？饼干会脆弱吗
+接收活锁？
 
-A: Since Biscuit uses Go's runtime scheduler to schedule go routines,
-it inherits the policy that Go uses; since the Go runtime was designed
-to run a single multi-threaded application, and wasn't designed to run
-a kernel, its policy is quite simple.  We didn't want to modify the Go
-runtime so Biscuit has a simple scheduler too.
+A：由于 Biscuit 使用 Go 的运行时调度器来调度 Go 例程，
+它继承了 Go 使用的策略；自从 Go 运行时被设计出来以来
+运行单个多线程应用程序，而不是设计用于运行
+一个内核，它的策略非常简单。我们不想修改 Go
+因此 Biscuit 也有一个简单的调度程序。
 
-Biscuit can dynamically switch between interrupts and polling of the
-network, to avoid receive livelock.
+Biscuit可以在中断和轮询之间动态切换
+网络，避免接收活锁。
 
-Q: The most confusing part about the paper was understanding
-reservations - specifically the last paragraph in section 6.3.2 about
-fork, exit, exec and close. I don't reallu understand why we only need
-enough heap space for one call to close.
+问：这篇论文中最令人困惑的部分是理解
+保留意见 - 特别是第 6.3.2 节中的最后一段
+fork、退出、执行并关闭。我真的不明白为什么我们只需要
+有足够的堆空间供一次调用关闭。
 
-A: Fork/exit/exec may call close many times (once for each open file
-descriptor).  If each call to close() results in a bit more memory
-being alive than the upperbound grows with the number of calls to
-close.  What we did is make sure that when close() returns, there is
-no extra memory alive.  As a result, it is safe to call close many times in
+A: Fork/exit/exec 可能会多次调用 close (每个打开的文件一次
+描述符）。如果每次调用 close() 都会导致多一点内存
+存活率比上限随着调用次数的增加而增长
+关闭。我们所做的是确保当 close() 返回时，有
+没有多余的记忆。因此，多次调用 close 是安全的
 fork/exit/exec.
 
-Q: How did Biscuit overcome the lack of memory fence functionality in
+问：Biscuit 如何克服内存栅栏功能缺乏的问题？
 Go?
 
-A: It used primitives from the atomic package, which issue memory
-fences implicitly.
+答：它使用了atomic包中的原语，它发出内存
+隐含的栅栏。
 
-Q: What is the point of using a garbage collector when malloc provides
-better control of performance.
+问：当 malloc 提供时，使用垃圾收集器有什么意义
+更好地控制性能。
 
-A: The programmer doesn't have to free memory explicitly.  For
-example, when the kernel cleans up an process that exited, the kernel
-programmer doesn't have to explicitly free every piece of memory that
-the process is using.  The collector will free all memory that isn't
-reachable anymore automatically.  This avoids classic C bugs such as
-double free, use after free, or forgetting to call free.
+答：程序员不必显式释放内存。对于
+例如，当内核清理退出的进程时，内核
+程序员不必显式释放每块内存
+该过程正在使用。收集器将释放所有未释放的内存
+不再可以自动到达。这避免了经典的 C 错误，例如
+双重免费、免费后使用或忘记拨打免费电话。
 
-Q: How does the killer thread discern between good and bad citizens by
-assuming that the process that has the most mapped memory regions,
-file descriptors, and threads after garbage collection is a genuine
-bad citizen?
+问：杀手线程如何通过以下方式辨别好公民和坏公民
+假设具有最多映射内存区域的进程，
+文件描述符和垃圾回收后的线程才是真正的
+坏公民？
 
-A: The killer thread has no reliable mechanism to tell good from bad
-citizens; it uses a heuristic: count the amount of kernel heap that a
-process is using.  The process with most kernel objects is considered
+A：杀手线程没有可靠的机制来区分好坏
+公民；它使用启发式：计算内核堆的数量
+进程正在使用。考虑具有最多内核对象的进程
 bad.
 
-Q: Is it possible to reduce the performance reduction of garbage
-collection by simply supplying the machine with a lot more ram to
-affect how often garbage collection is done?
+Q：是否可以减少垃圾的性能下降
+通过简单地为机器提供更多的内存来收集
+影响垃圾收集的频率？
 
-A: Indeed, Figure 8 quantifies how much extra memory you need to keep
-the GC costs under control.
+答：确实，图 8 量化了您需要保留多少额外内存
+GC 成本得到控制。
 
-Q: Was the type conversion a source of inefficiency due to the Go
-being strongly typed or was it not a problem?
+问：类型转换是否是 Go 导致效率低下的根源？
+是强类型还是这不是问题？
 
-A: Biscuit uses few Go interfaces, which have a cost, but type
-conversion isn't the major HLL tax.  Prologue cycles for checking
-whether the stack must be expanded and whether the GC needs a stop of
-the world pause is the major one.
+A：Biscuit 使用的 Go 接口很少，有成本，但是类型
+转换税不是主要的 HLL 税。用于检查的序言周期
+是否必须扩展堆栈以及GC是否需要停止
+世界暂停是主要的暂停。
 
-Q: Can you elaborate on common strategies for dealing with kernel heap
-exhaustion? The paper mentions that the linux kernel unwinds many
-function calls to hopefully get back to a state where the heap is not
-exhausted. How is this implemented? What does the kernel do if the
-unwind fails? Biscuit obviously has a different design -- was this
-design chosen because of limitations encountered by using the HLL, or
-was it chosen for other reasons?
+问：能否详细说明一下处理内核堆的常用策略
+疲惫不堪？论文中提到，linux 内核展开了许多
+函数调用希望回到堆不存在的状态
+筋疲力尽的。这是如何实施的？如果
+放松失败？饼干显然有不同的设计——是这个吗
+由于使用 HLL 遇到的限制而选择的设计，或者
+是因为其他原因而选择的吗？
 
-A: Linux fails allocations and the caller must deal with it (check it
-and unwind further).  This works, but makes the life of kernel
-programmers harder. One reason Biscuit doesn't follow this strategy is
-because Go doesn't allow allocations to fail.
+A: Linux 分配失败，调用者必须处理它（检查一下
+并进一步放松）。这可行，但会影响内核的寿命
+程序员更难。 Biscuit 不遵循这一策略的原因之一是
+因为 Go 不允许分配失败。
 
-Q: For how long and how many people did it take to implement Biscuit?
+问：实施 Biscuit 花了多长时间和多少人？
 
-A: We don't have a precise number, because we tried different plans
-for writing Biscuit and we didn't keep track of it. Cody, as a PhD
-student, spent a few years doing most of the work.
+A：我们没有确切的数字，因为我们尝试了不同的计划
+因为写了 Biscuit，但我们没有跟踪它。科迪，作为一名博士
+学生，花了几年时间完成大部分工作。
 
-Q: Out of curiosity are there any labs that we've completed that would
-have been impossible with Biscuit? I get the sense that Biscuit may
-use more memory and have performance delays but as far as correct
-implementation, Biscuit seems to have the necessary features of an OS
+问：出于好奇，我们已经完成了哪些实验室可以
+饼干不可能吗？我感觉饼干可能
+使用更多内存并有性能延迟，但只要正确
+从实现来看，Biscuit 似乎具备了操作系统所必需的功能
 kernel.
 
-A: Nope.  The features you implemented in the labs Biscuit has more
-advanced versions of them.  In fact, Biscuit was derived from xv6 but
-then substantially extended to achieve high performance and to be able
-to run a few Linux applications unmodified.
+答：没有。您在实验室中实现的功能 Biscuit 还有更多
+它们的高级版本。事实上，Biscuit 源自 xv6，但是
+然后大幅扩展以实现高性能并能够
+运行一些未经修改的 Linux 应用程序。

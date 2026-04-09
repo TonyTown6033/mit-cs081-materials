@@ -1,96 +1,99 @@
-6.S081 2020 Lecture 11: Thread switching
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Topic: more "under the hood" with xv6
-  Previously: system calls, interrupts, page tables, locks
-  Today: process/thread switching
+6.S081 2020第11讲：线程切换
 
-Why support multiple tasks?
-  time-sharing: many users and/or many running programs.
-  program structure: prime number sieve.
-  parallel speedup on multi-core hardware.
+主题：xv6 的更多“幕后花絮”
+  以前：系统调用、中断、页表、锁
+  今天：进程/线程切换
 
-Threads are an abstraction to simplify programming when there are many tasks.
-  thread = an independent serial execution -- registers, pc, stack
-  the threading system interleaves the execution of multiple threads
-  two main strategies:
-    multiple CPUs, each CPU runs a different thread
-    each CPU "switches" between threads, runs one at a time
+为什么要支持多任务？
+  分时：许多用户和/或许多正在运行的程序。
+  程序结构：素数筛。
+  多核硬件上的并行加速。
 
-threads can share memory, or not
-  xv6 kernel threads: they share kernel memory (thus locks)
-  xv6 user processes: one thread per process, so no sharing
-  linux: supports multiple threads sharing a user process's memory
+线程是一种抽象，用于在有许多任务时简化编程。
+  线程=独立串行执行——寄存器、pc、堆栈
+  线程系统交错执行多个线程
+  两个主要策略：
+    多个CPU，每个CPU运行不同的线程
+    每个CPU在线程之间“切换”，一次运行一个
 
-there are other techniques for interleaving multiple tasks
-  look up event-driven programming, or state machines
-  threads are not the most efficient, but they are usually the most convenient
+线程可以共享内存，也可以不共享内存
+  xv6 内核线程：它们共享内核内存（因此有锁）
+  xv6 用户进程：每个进程一个线程，因此不共享
+  linux：支持多个线程共享用户进程的内存
 
-thread design challenges
-  how to interleave many threads on a few CPUs?
-    how to make interleaving transparent?
-    "scheduling" = the process of choosing which thread to run next
-  what to save while a thread isn't running?
-  how to cope with compute-bound threads?
+还有其他技术可以交错执行多个任务
+  查找事件驱动编程或状态机
+  线程不是最高效的，但通常是最方便的
 
-how to cope with compute-bound threads?
-  each CPU has timer hardware, which interrupts periodically
-  kernel uses timer interrupts to grab control from looping threads
-  kernel saves thread state, switches, eventually resumes,
-    restores that saved state for transparency
-  RUNNING vs RUNNABLE
-  this is "pre-emptive" scheduling -- a forced yield of unaware code
-    as opposed to cooperative scheduling, in which code yields voluntarily
+线程设计挑战
+  如何在几个CPU上交错多个线程？
+    如何使交错透明？
+    “调度”=选择接下来运行哪个线程的过程
+  线程未运行时要保存什么？
+  如何应对计算密集型线程？
 
-what to do with a thread that isn't running?
-  we need to set aside its state: registers, stack, memory
-    though no need to worry about memory, it won't go anywhere
-  so implementation provides each thread with a stack and register save area
-  need to track status of each thread
-    RUNNING vs RUNNABLE vs SLEEPING
+如何应对计算密集型线程？
+  每个CPU都有定时器硬件，它周期性地中断
+  内核使用定时器中断来从循环线程中获取控制权
+  内核保存线程状态、切换、最终恢复，
+    恢复保存的透明度状态
+  运行与可运行
+  这是“抢占式”调度——强制放弃不知情的代码
+    与协作调度相反，协作调度中代码自愿产生
 
-in xv6:
-  [simple diagram: processes, user stack, trapframe, kernel stack]
-  each process has two threads, one user, one kernel
-    a process is *either* executing its user thread,
-    *or* in a system call or interrupt in its kernel thread
-  kernel threads share kernel memory / data structures
-    thus the kernel is a parallel program
-  we'll use "process" and "kernel thread" and "thread" as synonyms
+如何处理未运行的线程？
+  我们需要留出它的状态：寄存器、堆栈、内存
+    虽然不用担心内存，但它不会去任何地方
+  所以实现为每个线程提供了一个堆栈和寄存器保存区域
+  需要跟踪每个线程的状态
+    运行、可运行、睡眠
 
-overview of thread switching in xv6
-  (the point: switch among threads to interleave many threads on each CPU)
-  [diagram: P1, TF1, STACK1, swtch(), CTX1;
-            CTXs, swtch(), STACKs, scheduler(), &c]
-  TF = trapframe = saved user registers
-  CTX = context = saved RISC-V registers
-  getting from one process to another involves multiple transitions:
+在 xv6 中：
+  【简单图：进程、用户栈、trapframe、内核栈】
+  每个进程有两个线程，一个用户，一个内核
+    进程*或者*执行它的用户线程，
+    *或*在系统调用或内核线程中断中
+  内核线程共享内核内存/数据结构
+    因此内核是一个并行程序
+  我们将使用“进程”和“内核线程”和“线程”作为同义词
+
+xv6中线程切换概述
+  （要点：在线程之间切换以在每个CPU上交错许多线程）
+  [图：P1、TF1、STACK1、swtch()、CTX1；
+            CTX、swtch()、STACK、调度程序() 等]
+  TF = trapframe = 保存的用户寄存器
+  CTX = 上下文 = 保存的 RISC-V 寄存器
+  从一个进程到另一个进程涉及多个转换：
     user -> kernel; saves user registers in trapframe
     kernel thread -> scheduler thread; saves kernel thread registers in context
     scheduler thread -> kernel thread; restores kernel thread registers from ctx
     kernel -> user; restores user registers from trapframe
 
-"context switch" -- the switch from one thread to another
+“上下文切换”——从一个线程切换到另一个线程
 
-scheduler threads
-  there's one per core; each has a stack and a struct context
-  kernel threads (processes) always switch to the current core's scheduler thread
-    which switches to another kernel thread, if one is RUNNABLE
-    there are never direct kernel thread to kernel thread switches
-  the reason: the scheduler's separate stack simplifies 
-    cases like switching away from an exiting process
-  the scheduler thread keeps scanning the process table until
-    it finds a RUNNABLE thread (there may not be one!)
-  if there is not RUNNABLE thread, the scheduler is "idle"
+调度程序线程
+  每个核心有一个；每个都有一个堆栈和一个结构体上下文
+  内核线程（进程）总是切换到当前核心的调度程序线程
+    如果一个内核线程处于可运行状态，则切换到另一个内核线程
+    永远不会有直接的内核线程到内核线程的切换
+  原因：调度程序的单独堆栈简化了
+    例如从现有进程切换出去的情况
+  调度程序线程不断扫描进程表，直到
+    它找到一个 RUNNABLE 线程（可能没有一个！）
+  如果没有 RUNNABLE 线程，则调度程序处于“空闲”状态
 
 note:
-  each core is either running its scheduler thread, or some other thread
-    a given core runs only one thread at a time
-  each thread is either running on exactly one core, or its registers
-    are saved in its context
-  if a thread isn't running, its saved context refers to a call
-    to swtch()
+  每个核心要么运行其调度程序线程，要么运行其他线程
+    给定的核心一次仅运行一个线程
+  每个线程要么运行在一个核心上，要么运行在它的寄存器上
+    保存在其上下文中
+  如果线程未运行，则其保存的上下文引用调用
+    到 swtch()
 
-struct proc in proc.h
+proc.h 中的结构体 proc
   p->trapframe holds saved user thread's registers
   p->context holds saved kernel thread's registers
   p->kstack points to the thread's kernel stack
@@ -99,237 +102,237 @@ struct proc in proc.h
 
 # Code
 
-pre-emptive switch demonstration
-  user/spin.c -- two CPU-bound processes
-  my qemu has only one CPU
-  let's watch xv6 switch between them
+抢占式切换演示
+  user/spin.c——两个CPU密集型进程
+  我的 qemu 只有一个 CPU
+  让我们看看 xv6 在它们之间切换
 
-make qemu-gdb
-gdb
-(gdb) c
-show user/spin.c
-spin
+制作 qemu-gdb
+数据库
+（gdb）c
+显示用户/spin.c
+旋转
 
-you can see that they alternate, despite running continuously.
-xv6 is switching its one CPU between the two processes.
-how does the switching work?
+尽管连续运行，但您可以看到它们交替出现。
+xv6 正在两个进程之间切换其一个 CPU。
+切换是如何进行的？
 
-I'm going to cause a break-point at the timer interrupt.
-(gdb) b trap.c:207
-(gdb) c
-(gdb) finish
-(gdb) where
+我将在计时器中断处设置一个断点。
+（gdb）b trap.c：207
+（gdb）c
+（gdb）完成
+（gdb）哪里
 
-we're in usertrap(), handling a device interrupt from the timer
-(timerinit() in kernel/start.c configures the RISC-V timer hardware).
+我们在 usertrap() 中，处理来自计时器的设备中断
+（kernel/start.c 中的 timerinit() 配置 RISC-V 定时器硬件）。
 
-what was running when the timer interrupt happened?
+定时器中断发生时正在运行什么？
 
 (gdb) print p->name
 (gdb) print p->pid
 (gdb) print/x *(p->trapframe)
 (gdb) print/x p->trapframe->epc
 
-let's look for the saved epc in user/spin.asm
-timer interrupted user code in the increment loop, no surprise
+让我们在 user/spin.asm 中查找保存的 epc
+计时器在增量循环中中断了用户代码，这并不奇怪
 
-(gdb) step ... into yield() in proc.c
-(gdb) next
+(gdb) 步骤...进入proc.c中的yield()
+(gdb) 下一个
 (gdb) print p->state
 
 change p->state from RUNNING to RUNNABLE -> give up CPU but want to run again.
 note: yield() acquires p->lock
   since modifying p->state
-  and to prevent another CPU from running this RUNNABLE thread!
+  并防止另一个 CPU 运行这个 RUNNABLE 线程！
 
-(gdb) next 2
-(gdb) step (into sched())
+(gdb) 下一个 2
+(gdb) 步骤（进入 sched()）
 
-sched() makes some sanity checks, then calls swtch()
+sched() 进行一些健全性检查，然后调用 swtch()
 
-(gdb) next 7
+(gdb) 接下来 7
 
-this is the context switch from a process's kernel thread to the scheduler thread
+这是从进程的内核线程到调度程序线程的上下文切换
   swtch will save the current RISC-V registers in first argument (p->context)
   and restore previously-saved registers from 2nd argument (c->context)
-let's see what register values swtch() will restore
+让我们看看 swtch() 将恢复哪些寄存器值
 
 (gdb) print/x cpus[0].context
 
-where is cpus[0].context.ra?
-  i.e. where will swtch() return to?
-  kernel.asm says it's in the scheduler() function in proc.c
+cpus[0].context.ra 在哪里？
+  即 swtch() 将返回到哪里？
+  kernel.asm说它在proc.c的scheduler()函数中
 
-(gdb) tbreak swtch
-(gdb) c
+(gdb) tbreak 开关
+（gdb）c
 
-we're in kernel/swtch.S
+我们在 kernel/swtch.S
 a0 is the first argument, p->context
-a1 is the second argument, cpus[0].context
+a1 是第二个参数 cpus[0].context
 swtch() saves current registers in xx(a0) (p->context)
-swtch() then restores registers from xx(a1) (cpus[0].context)
-then swtch returns
+swtch() 然后从 xx(a1) (cpus[0].context) 恢复寄存器
+然后 swtch 返回
 
-Q: swtch() neither saves nor restores $pc (program counter)!
-   so how does it know where to start executing in the target thread?
+问： swtch() 既不保存也不恢复 $pc（程序计数器）！
+   那么它如何知道目标线程中从哪里开始执行呢？
 
-Q: why does swtch() save only 14 registers (ra, sp, s0..s11)?
-   the RISC-V has 32 registers -- what about the other 18?
-     zero, gp, tp
+问：为什么 swtch() 只保存 14 个寄存器（ra、sp、s0..s11）？
+   RISC-V 有 32 个寄存器——其他 18 个呢？
+     零、gp、tp
      t0-t6, a0-a7
-   note we're talking about kernel thread registers
-     all 32 user register have already been saved in the trapframe
+   请注意，我们正在讨论内核线程寄存器
+     所有 32 个用户寄存器已保存在 trapframe 中
 
-registers at start of swtch:
-(gdb) print $pc  -- swtch
-(gdb) print $ra  -- sched
-(gdb) print $sp
+开关启动时的寄存器：
+(gdb) 打印 $pc -- swtch
+(gdb) 打印 $ra -- 计划
+(gdb) 打印 $sp
 
-registers at end of swtch:
-(gdb) stepi 28   -- until ret
-(gdb) print $pc  -- swtch
-(gdb) print $ra  -- scheduler
-(gdb) print $sp  -- stack0+??? -- entry.S set this up at boot
-(gdb) where
-(gdb) stepi
+开关末尾的寄存器：
+(gdb) stepi 28 -- 直到 ret
+(gdb) 打印 $pc -- swtch
+(gdb) print $ra -- 调度程序
+(gdb) 打印 $sp -- stack0+??? --entry.S 在启动时设置
+（gdb）哪里
+(gdb) 斯特皮
 
-we're in scheduler() now, in the "scheduler thread",
-  on the scheduler's stack
+我们现在在 Scheduler() 中，在“调度程序线程”中，
+  在调度程序的堆栈上
 
-scheduler() just returned from a call to swtch()
-  it made that call a while ago, to switch to our process's kernel thread
-  that previous call saved scheduler()'s registers
-  our processes's call to swtch() restored scheduler()'s saved registers
-  p here refers to the interrupted process
+Scheduler() 刚刚从对 swtch() 的调用中返回
+  它不久前进行了该调用，以切换到我们进程的内核线程
+  之前的调用保存了scheduler()的寄存器
+  我们的进程对 swtch() 的调用恢复了 Scheduler() 保存的寄存器
+  这里的p指的是被中断的进程
 
 (gdb) print p->name
 (gdb) print p->pid
 (gdb) print p->state
 
-remember yield() acquired the process's lock
-  now scheduler releases it
-  the scheduler() code *looks* like an ordinary acquire/release pair
-    but in fact scheduler acquires, yield releases
-    then yield acquires, scheduler releases
-  unusual: the lock is released by a different thread than acquired it!
+记住yield()获取了进程的锁
+  现在调度程序释放它
+  Scheduler() 代码*看起来*像普通的获取/释放对
+    但实际上调度程序获取，yield 释放
+    然后yield获取，调度器释放
+  异常：锁是由与获取锁不同的线程释放的！
 
 Q: why hold p->lock across swtch()?
-   yield() acquires
-   scheduler() releases
+   Yield() 获取
+   调度程序（）发布
    could we release p->lock just before calling swtch()?
 
 p->lock protects a few things:
-  makes these steps atomic:
+  使这些步骤原子化：
     * p->state=RUNNABLE
     * save registers in p->context
-    * stop using p's kernel stack
-    so other CPU's scheduler won't start running p until all steps complete
-  makes these steps atomic and uninterruptable:
+    * 停止使用p的内核堆栈
+    所以其他CPU的调度程序在所有步骤完成之前不会开始运行p
+  使这些步骤原子化且不可中断：
     * p->state=RUNNING
-    * move registers from context to RISC-V registers
-    so an interrupt won't yield() and save not-yet-initialized
-      RISC-V registers in context.
+    * 将寄存器从上下文移动到 RISC-V 寄存器
+    所以中断不会yield()并保存尚未初始化的内容
+      RISC-V 在上下文中进行寄存器。
 
-scheduler()'s loop looks at all processes, finds one that's RUNNABLE
-  keeps looping until it finds something -- may be idle for a while
-  in this demo, will find the other spin process
-let's fast-forward to when scheduler() finds a RUNNABLE process
+Scheduler() 的循环查看所有进程，找到一个可运行的进程
+  不断循环直到找到东西——可能会闲置一段时间
+  在这个演示中，会发现另一个旋转过程
+让我们快进到 Scheduler() 找到 RUNNABLE 进程时
 
 (gdb) tbreak proc.c:474
-(gdb) c
+（gdb）c
 
-scheduler() locked the new process, then set state to RUNNING
-  now another CPUs' scheduler won't run it
+Scheduler() 锁定新进程，然后将状态设置为 RUNNING
+  现在另一个 CPU 的调度程序不会运行它
 
-it's the other "spin" process:
+这是另一个“旋转”过程：
 
 (gdb) print p->name
 (gdb) print p->pid
 (gdb) print p->state
 
-let's see where the new thread will start executing after swtch()
-  by looking at $ra (return address) in its context
+让我们看看 swtch() 之后新线程将在哪里开始执行
+  通过在上下文中查看 $ra （返回地址）
 
 (gdb) print/x p->context
 (gdb) x/4i p->context->ra
 
-new thread will return into sched()
+新线程将返回到 sched()
 
-look at kernel/swtch.S (again)
+（再次）查看 kernel/swtch.S
 
-(gdb) tbreak swtch
-(gdb) c
-(gdb) stepi 28 -- now just about to execute swtch()'s ret
-(gdb) print $ra
-(gdb) where
+(gdb) tbreak 开关
+（gdb）c
+(gdb) stepi 28 -- 现在即将执行 swtch() 的 ret
+(gdb) 打印 $ra
+（gdb）哪里
 
-now we're in a timer interrupt in the *other* spin process
-  in the past it was interrupted, called yield() / sched() / swtch()
-  but now it will resume, and return to user space
+现在我们正处于*其他*旋转过程中的计时器中断中
+  过去它被中断，调用yield() / sched() / swtch()
+  但现在它将恢复并返回到用户空间
 
-note: only swtch() writes contexts (except for initialization)
-      only sched() and scheduler() call swtch()
-      so for a kernel thread, context.ra always points into sched()
-      and for a scheduler thread, context.ra always points into scheduler()
+注意：只有 swtch() 写入上下文（初始化除外）
+      只有sched()和scheduler()调用swtch()
+      所以对于内核线程，context.ra总是指向sched()
+      对于调度程序线程，context.ra 总是指向scheduler()
 
-note: sched() calls swtch() -- then swtch() returns to sched()
-      but it's typically a *different* thread returning
+注意：sched() 调用 swtch()——然后 swtch() 返回到 sched()
+      但它通常是一个*不同的*线程返回
 
-sched() and scheduler() are "co-routines"
-   each knows what it is swtch()ing to
-   each knows where swtch() return is coming from
+sched() 和 Scheduler() 是“协同例程”
+   每个人都知道它要切换到什么
+   每个人都知道 swtch() 返回来自哪里
    e.g. yield() and scheduler() cooperate about p->lock and p->state
-   different from ordinary thread switching, where neither
-     party typically knows which thread comes before/after
+   与普通的线程切换不同，两者都不是
+     一方通常知道哪个线程在之前/之后
 
-Q: what is the "scheduling policy"? 
-   i.e. how does xv6 decide what to run next if multiple threads are RUNNABLE?
-   is it a good policy?
+问：什么是“调度策略”？
+   即，如果多个线程可运行，xv6 如何决定下一步运行什么？
+   这是一个好政策吗？
 
-Q: is there pre-emptive scheduling of kernel threads?
-   yes -- timer interrupt and yield() can occur while in kernel.
-   yield() called by kerneltrap() in kernel/trap.c
-   where to save registers of interrupted kernel code?
+Q：内核线程是否有抢占式调度？
+   是的——定时器中断和yield()可以在内核中发生。
+   kernel/trap.c 中的 kerneltrap() 调用的 Yield()
+   中断的内核代码的寄存器保存在哪里？
      not in p->trapframe, since already has user registers.
      not in p->context, since we're about to call yield() and swtch()
-     kernelvec.S pushes them on the kernel stack (since already in kernel).
-   is pre-emption in the kernel useful?
-     not critical in xv6.
-     valuable if some system calls have lots of compute.
-     or if we need a strict notion of thread priority.
+     kernelvec.S 将它们推送到内核堆栈上（因为已经在内核中）。
+   内核中的抢占有用吗？
+     在 xv6 中并不重要。
+     如果某些系统调用需要大量计算，则很有价值。
+     或者如果我们需要严格的线程优先级概念。
 
-Q: why does scheduler() briefly enable interrupts, with intr_on()?
-   There may be no RUNNABLE threads
-     They may all be waiting for I/O, e.g. disk or console
-   Enable interrupts so device has a chance to signal completion
-     and thus wake up a thread
-   Otherwise, system will freeze
+问：为什么scheduler()用intr_on()短暂地启用中断？
+   可能没有 RUNNABLE 线程
+     他们可能都在等待 I/O，例如磁盘或控制台
+   启用中断，以便设备有机会发出完成信号
+     从而唤醒一个线程
+   否则系统会死机
 
-Q: why does sched() forbid locks from being held when yielding the CPU?
+问：为什么 sched() 在让出 CPU 时禁止持有锁？
    (other than p->lock)
    i.e. sched() checks that noff == 1
-   suppose process P1 holding lock L1, yields CPU
-   process P2 runs, tries acquire(L1)
-   P2's acquire spins with interrupts turned off
-     so timer interrupts won't occur
-     so P2 won't yield the CPU
-     so P1 can't execute
-     so P1 won't release L1, ever
+   假设进程 P1 持有锁 L1，让出 CPU
+   进程 P2 运行，尝试 acquire(L1)
+   P2 的获取旋转并关闭中断
+     所以定时器中断不会发生
+     所以P2不会让出CPU
+     所以P1无法执行
+     所以 P1 永远不会释放 L1
 
-Q: can we get rid of the separate per-cpu scheduler thread?
-   could sched() directly swtch() to a new thread?
-   so that sched() looks for next process to run?
-   that would be faster -- avoids one of the swtch() calls
-   yes -- but:
-     scheduling loop would run on a thread's kernel stack
-     what if that thread is exiting?
-     what if another cpu wants to run the thread?
-     what if there are fewer threads than CPUs -- i.e. too few stacks?
-     can be dealt with -- give it a try!
+问：我们可以摆脱单独的每 CPU 调度程序线程吗？
+   sched() 可以直接 swtch() 到新线程吗？
+   这样 sched() 就会寻找下一个要运行的进程？
+   这会更快——避免了 swtch() 调用之一
+   是的——但是：
+     调度循环将在线程的内核堆栈上运行
+     如果该线程正在退出怎么办？
+     如果另一个CPU想要运行该线程怎么办？
+     如果线程数少于 CPU，即堆栈太少怎么办？
+     可以解决的——试试吧！
 
-Summary
-  xv6 provides a convenient thread model for kernel code
-  pre-emptive via timer interrupts
-  transparent via switching registers and stack
-  multi-core requires careful handling of stacks, locks
-  next lecture: mechanisms for threads to wait for each other
+总结
+  xv6为内核代码提供了方便的线程模型
+  通过定时器中断抢占
+  通过切换寄存器和堆栈透明
+  多核需要仔细处理堆栈、锁
+  下一讲：线程相互等待的机制

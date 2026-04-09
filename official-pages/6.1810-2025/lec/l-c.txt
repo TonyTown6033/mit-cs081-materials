@@ -1,135 +1,138 @@
-6.1810 2025 Lecture 2: programming xv6 in C
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-why C?
-  good for low-level programming
-    easy mapping between C and RISC-V instructions
-    easy mapping between C types and hardware structures
-      e.g.., set bit flags in hardware registers of a device
-  minimal runtime
-    easy to port to another hardware platform
-    direct access to hardware
-  explicit memory management
-    no garbage collector
-    kernel is in complete control of memory management
-  efficient: compiled (no interpreter)
-    compiler compiles C  to assembly
-  popular for building kernels, system software, etc.
-    good support for C on almost any platform
-  why not?
-    easy to write incorrect code
-    easy to write code that has security vulnerabilities
+6.1810 2025 第 2 讲：用 C 语言编程 xv6
 
-today's lecture: use of C in xv6
-  memory layout
-  pointers
-  arrays
-  strings
-  lists
-  bitwise operators
-  [not a general intro to C]
+为什么是C？
+  适合低级编程
+    C 和 RISC-V 指令之间的轻松映射
+    C 类型和硬件结构之间的轻松映射
+      例如，在设备的硬件寄存器中设置位标志
+  最短运行时间
+    易于移植到另一个硬件平台
+    直接访问硬件
+  显式内存管理
+    没有垃圾收集器
+    内核完全控制内存管理
+  高效：编译（无解释器）
+    编译器将 C 编译为汇编
+  常用于构建内核、系统软件等。
+    几乎在所有平台上都对 C 语言有良好的支持
+  为什么不呢？
+    容易写出错误的代码
+    容易编写存在安全漏洞的代码
 
-memory layout of a C program in xv6
-  [draw figure, see fig 3.4 of text]
-  text: code, read-only data
-  data: global C variables
-  stack: function's local variables
-  heap: dynamic memory allocation using sbrk, malloc/free
+今天的讲座：C在xv6中的使用
+  内存布局
+  指针
+  数组
+  字符串
+  列表
+  按位运算符
+  [不是对 C 的一般介绍]
 
-example: compile cat.c
-  Makefile defines how
-  gcc compiles to .o
-  ld links .o files into an executable
-    ulib.o is xv6 minimal C library
-  riscv64-linux-gnu-objdump -htr user/cat.o
-    compiled code from cat.c, with relocation records to plug in ulib
-  executable has a.out format with sections for:
-    text (code), initialized data, symbol table, debug info, and more
-  riscv64-linux-gnu-objdump -fp user/_cat
-    sections are defined by user.ld
+xv6 中 C 程序的内存布局
+  【画图，见正文图3.4】
+  text：代码，只读数据
+  数据：全局 C 变量
+  栈：函数的局部变量
+  堆：使用 sbrk、malloc/free 进行动态内存分配
 
-explore a.out of _cat
-  riscv64-linux-gnu-objdump -S user/_cat
-    same as user/cat.asm
-  0x0: cat
-    what if we run two cat programs at the same time?
-    see pgtbl lecture
-  0xf6: start
-    the default entry point for user.ld
-  what is start?
-    defined in ulib.c, which calls main() and exit(0)
-  where is data memory? (e.g., buf)
-    in data/bss segment
-    must be setup by kernel
-  but we know address where buf should be
-    riscv64-linux-gnu-nm -n user/_cat
+示例：编译cat.c
+  Makefile 定义了如何
+  gcc 编译为 .o
+  ld 将 .o 文件链接到可执行文件
+    ulib.o 是 xv6 最小 C 库
+  riscv64-linux-gnu-objdump -htr 用户/cat.o
+    从 cat.c 编译的代码，带有重定位记录以插入 ulib
+  可执行文件具有 .out 格式，其中包含以下部分：
+    文本（代码）、初始化数据、符号表、调试信息等
+  riscv64-linux-gnu-objdump -fp 用户/_cat
+    部分由 user.ld 定义
 
-C pointers
-  a pointer is a memory address
-    every variable has a memory address (i.e., p = &i)
-    so each variable can be accessed through its pointer (i.e., *i)
-    a pointer can be variable (e.g., int *p)
-      and thus has a memory address, etc.
-  pointer arithmetic
-    char *c;
-    int *i;
-    what is the value of c+1 and i+1?
-  referencing elements of a struct
-    struct {
-       int a;
-       int b;
+探索 _cat 中的 a.out
+  riscv64-linux-gnu-objdump -S 用户/_cat
+    与 user/cat.asm 相同
+  0x0：猫
+    如果我们同时运行两个 cat 程序怎么办？
+    参见 pgtbl 讲座
+  0xf6：开始
+    user.ld 的默认入口点
+  什么是开始？
+    定义在 ulib.c 中，它调用 main() 和 exit(0)
+  数据存储器在哪里？ （例如，buf）
+    在数据/bss段中
+    必须由内核设置
+  但我们知道 buf 应该在哪里的地址
+    riscv64-linux-gnu-nm -n 用户/_cat
+
+C 指针
+  指针是一个内存地址
+    每个变量都有一个内存地址（即 p = &i）
+    因此每个变量都可以通过其指针访问（即*i）
+    指针可以是变量（例如 int *p）
+      因此有一个内存地址等。
+  指针算术
+    字符*c；
+    整数*i；
+    c+1 和 i+1 的值是多少？
+  引用结构体的元素
+    结构体{
+       整数a；
+       整数b；
     } *p;
     p->a = 10
-  [demo ptr.c]
+  [演示ptr.c]
   
-C arrays
-  contiguous memory holding same data type (char, int, etc.)
-    no bound checking, no growing
-  two ways to access arrays:
-    through index: buf[0], buf[1]
-    through pointer: *buf, *(buf+1)
-  [demo array.c]
+C 数组
+  保存相同数据类型（char、int 等）的连续内存
+    没有边界检查，没有增长
+  访问数组的两种方式：
+    通过索引：buf[0], buf[1]
+    通过指针： *buf, *(buf+1)
+  [演示数组.c]
   
-C strings
-  arrays of characters, ending in 0
-    [demo str.c]
-  ulib.c has several functions for strings
-    strlen() --- use array access
-    strcmp() --- use pointer access
+C 字符串
+  字符数组，以 0 结尾
+    [演示字符串]
+  ulib.c 有几个字符串函数
+    strlen() --- 使用数组访问
+    strcmp() --- 使用指针访问
   ls.c
-    argv: array of strings
-      each entry has the address of a string
-      xv6's exec puts them on the stack as arguments to main
-      riscv calling convention: a0=argc, a1=argv [see riscv-calling.pdf]
-    print out argv
-      [draw diagram; see fig 3.4 in book]
-    T_DIR code fragment
+    argv：字符串数组
+      每个条目都有一个字符串的地址
+      xv6 的 exec 将它们作为 main 的参数放入堆栈中
+      riscv 调用约定：a0=argc, a1=argv [参见 riscv-calling.pdf]
+    打印出argv
+      [绘制图表；参见书中图3.4]
+    T_DIR代码片段
       mkdir d
-      echo hi > d/f
-      ls d
-      [see struct dirent in fs.h]
+      回声嗨 > d/f
+      LSd
+      [参见 fs.h 中的 struct dirent]
 
-C lists (more pointers)
-  single-linked list
-    kernel/kalloc.c implements a memory allocator
-    keeps a list of free "pages" of memory
-      a page is 4096 bytes
-      free prepends
-      kalloc grabs from front of list
-  double-linked list
-    kernel/bio.c implements an LRU buffer cache
-    brelse() needs to move a buf to the front of the list
-    see buf.h
-      two pointers: prev and next
+C 列表（更多指针）
+  单链表
+    kernel/kalloc.c 实现内存分配器
+    保留内存的空闲“页面”列表
+      一页为 4096 字节
+      自由前置
+      kalloc 从列表前面抓取
+  双链表
+    kernel/bio.c 实现 LRU 缓冲区高速缓存
+    brelse()需要将一个buf移动到列表的前面
+    参见 buf.h
+      两个指针：上一个和下一个
 
-homework assignment
-  xv6 is 64-bit; slightly different than the 32-bit hw question
-  [demo hw.c]
-  which of the printed values are guaranteed to be that value?
-  why did all the prints succeed?
+家庭作业
+  xv6 是 64 位；与 32 位硬件问题略有不同
+  [演示硬件]
+  哪个打印值保证是该值？
+  为什么所有的打印都成功了？
 
-bitwise operators
-  char/int/longs/pointers have bits (8, 32, 64 respectively, on RISC-V).
-  you can manipulate them with |, &, ~, ^
+按位运算符
+  char/int/longs/pointers 有位（在 RISC-V 上分别为 8、32、64）。
+  您可以使用 |、&、~、^ 操作它们
     10001 & 10000 = 10000
     10001 | 10000 = 10001
     10001 ^ 10000 = 00001
@@ -138,23 +141,23 @@ bitwise operators
     user/usertests.c
     kernel/fcntl.h
     kernel/sysfile.c
-  more interesting examples later
+  稍后会有更多有趣的例子
  
 keywords:
-  static: to make a variable's visibility limited to the file it is declared
-    but global within the file
-  void: "no type", "no value", "no parameters"
+  static：使变量的可见性仅限于声明它的文件
+    但在文件内是全局的
+  void：“无类型”、“无值”、“无参数”
 
-common C bugs
-  use after free
-  double free
-  uninitialized memory
-    memory on stack or returned by malloc are not zero
-  buffer overflow
-    write beyond end of array
-  memory leak
-  type confusion
-    wrong type cast
+常见的 C 错误
+  免费后使用
+  双重免费
+  未初始化的内存
+    堆栈上的内存或由 malloc 返回的内存不为零
+  缓冲区溢出
+    写入超出数组末尾
+  内存泄漏
+  类型混乱
+    错误的类型转换
 
 References:
   https://blog.regehr.org/archives/1393

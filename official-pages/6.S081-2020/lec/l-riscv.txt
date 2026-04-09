@@ -1,272 +1,275 @@
-6.S081/6.828 2019 Lecture 11: RISC-V calling convention, stack frames, and gdb
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-C code is compiled to machine instructions.
-  How does the machine work at a lower level?
-  How does this translation work?
-  How to interact between C and asm
-  Why this matters: sometimes need to write code not expressible in C
-    And you need this for the syscall lab!
+6.S081/6.828 2019 第11讲：RISC-V调用约定、堆栈帧和gdb
 
-RISC-V abstract machine
-  No C-like control flow, no concept of variables, types ...
-  Base ISA: Program counter, 32 general-purpose registers (x0--x31)
+C 代码被编译为机器指令。
+  机器在低位如何工作？
+  这个翻译是如何运作的？
+  C与asm如何交互
+  为什么这很重要：有时需要编写无法用 C 表达的代码
+    系统调用实验室需要这个！
 
-reg    | name  | saver  | description
+RISC-V抽象机
+  没有类似 C 的控制流，没有变量、类型的概念......
+  基本 ISA：程序计数器，32 个通用寄存器 (x0--x31)
+
+注册|名称 |节省者|描述
 -------+-------+--------+------------
-x0     | zero  |        | hardwired zero
-x1     | ra    | caller | return address
-x2     | sp    | callee | stack pointer
-x3     | gp    |        | global pointer
-x4     | tp    |        | thread pointer
-x5-7   | t0-2  | caller | temporary registers
-x8     | s0/fp | callee | saved register / frame pointer
-x9     | s1    | callee | saved register
-x10-11 | a0-1  | caller | function arguments / return values
-x12-17 | a2-7  | caller | function arguments
-x18-27 | s2-11 | callee | saved registers
-x28-31 | t3-6  | caller | temporary registers
-pc     |       |        | program counter
+x0 |零| |硬连线零
+x1 |拉|来电者 |返回地址
+x2 |斯普|被叫方 |堆栈指针
+x3 |全科医生| |全局指针
+x4 | TP | |线程指针
+x5-7 | t0-2 |来电者 |临时寄存器
+x8 | s0/fp | s0/fp |被叫方 |保存的寄存器/帧指针
+x9 | s1 |被叫方 |保存的寄存器
+x10-11 | a0-1 |来电者 |函数参数/返回值
+x12-17|x12-17 a2-7 |来电者 |函数参数
+x18-27 | s2-11 | s2-11被叫方 |保存的寄存器
+x28-31 | t3-6 |来电者 |临时寄存器
+电脑| | |程序计数器
 
-Running example: sum_to(n)
+运行示例：sum_to(n)
 
   int sum_to(int n) {
     int acc = 0;
     for (int i = 0; i <= n; i++) {
-      acc += i;
+      ACC += 我；
     }
-    return acc;
+    返回帐户；
   }
 
-What does this look like in assembly code?
+这在汇编代码中是什么样子的？
 
   # sum_to(n)
   # expects argument in a0
   # returns result in a0
   sum_to:
-    mv t0, a0          # t0 <- a0
-    li a0, 0           # a0 <- 0
+    mv t0, a0 # t0 <- a0
+    li a0, 0 # a0 <- 0
   loop:
-    add a0, a0, t0     # a0 <- a0 + t0
-    addi t0, t0, -1    # t0 <- t0 - 1
+    添加 a0, a0, t0 # a0 <- a0 + t0
+    添加 t0, t0, -1 # t0 <- t0 - 1
     bnez t0, loop      # if t0 != 0: pc <- loop
-    ret
+    雷特
 
-Limited abstractions
-  No typed, positional arguments
-  No local variables
-  Only registers
+有限的抽象
+  无类型、位置参数
+  没有局部变量
+  仅寄存器
 
-Machine doesn't even see assembly code
-  Sees binary encoding of machine instructions
-    Each instruction: 16 bits or 32 bits
-  E.g. `mv t0, a0` is encoded as 0x82aa
-  Not quite 1-to-1 encoding from asm, but close
+机器甚至看不到汇编代码
+  查看机器指令的二进制编码
+    每条指令：16位或32位
+  例如`mv t0, a0` 编码为 0x82aa
+  与 asm 不完全是一对一编码，但接近
 
-How would another function call sum_to?
+另一个函数如何调用 sum_to？
 
   main:
-    li a0, 10          # a0 <- 10
-    call sum_to
+    li a0, 10 # a0 <- 10
+    调用 sum_to
 
-What are the semantics of call?
+调用的语义是什么？
 
-  call label :=
-    ra <- pc + 4       ; ra <- address of next instruction
-    pc <- label        ; jump to label
+  调用标签 :=
+    ra <- pc + 4 ； ra <- 下一条指令的地址
+    pc <- 标签；跳转到标签
 
-Machine doesn't understand labels
-  Translated to either pc-relative or absolute jumps
+机器不理解标签
+  转换为 PC 相对或绝对跳转
 
-What are the semantics of return?
+return 的语义是什么？
 
-  ret :=
+  转折：=
     pc <- ra
 
-Let's try it out: demo1.S
-  (gdb) file user/_demo1
-  (gdb) break main
-  (gdb) continue
-  Why does it stop before running demo1?
-  (gdb) layout split
-  (gdb) stepi
-  (gdb) info registers
+让我们尝试一下：demo1.S
+  (gdb) 文件用户/_demo1
+  (gdb) 中断主程序
+  （gdb）继续
+  为什么在运行 demo1 之前就停止了？
+  (gdb) 布局分割
+  (gdb) 斯特皮
+  (gdb) 信息寄存器
   (gdb) p $a0
-  (gdb) advance 18
+  (gdb) 提前 18
   (gdb) si
   (gdb) p $a0
 
-What if we wanted a function calling another function?
+如果我们想要一个函数调用另一个函数怎么办？
 
   # sum_then_double(n)
   # expects argument in a0
   # returns result in a0
   sum_then_double:
-    call sum_to
-    li t0, 2           # t0 <- 2
-    mul a0, a0, t0     # a0 <- a0 * t0
-    ret
+    调用 sum_to
+    li t0, 2 # t0 <- 2
+    mul a0, a0, t0 # a0 <- a0 * t0
+    雷特
 
   main:
-    li a0, 10
-    call sum_then_double
+    李a0, 10
+    调用 sum_then_double
 
-Let's try it out: demo2.S
-  We get stuck in an infinite loop
-  Why: overwrote return address (ra)
+让我们尝试一下：demo2.S
+  我们陷入无限循环
+  原因：覆盖返回地址 (ra)
 
-How to fix: save ra somewhere
-  In another register? Won't work, just defers problem.
-  Solution: save on stack
+如何修复：将 ra 保存在某处
+  在另一个寄存器中？不会起作用，只是推迟问题。
+  解决办法：保存在栈上
 
   sum_then_double:
-    addi sp, sp, 16    # function prologue:
-    sd ra, 0(sp)       # make space on stack, save registers
-    call sum_to
-    li t0, 2
+    addi sp, sp, 16 # 函数序言:
+    sd ra, 0(sp) # 在堆栈上腾出空间，保存寄存器
+    调用 sum_to
+    李 t0, 2
     mul a0, a0, t0
-    ld ra, 0(sp)       # function epilogue:
-    addi sp, sp, -16   # restore registers, restore stack pointer
-    ret
+    ld ra, 0(sp) # 函数尾声:
+    addi sp, sp, -16 # 恢复寄存器，恢复堆栈指针
+    雷特
 
-Let's try it out: demo3.S
-  (gdb) ...
-  (gdb) nexti
+让我们尝试一下：demo3.S
+  （gdb）...
+  (gdb) 下一个
 
-So far, our functions coordinated with each other
-  This worked because we were writing all the code involved
-  Could have written it any other way
-    E.g. passing arguments in t2, getting return value in t3
+到目前为止，我们的职能相互协调
+  这之所以有效，是因为我们正在编写所有涉及的代码
+  可以用其他方式写
+    例如在t2中传递参数，在t3中获取返回值
 
-Conventions surrounding this: "calling convention"
-  How are arguments passed?
-    a0, a1, ..., a7, rest on stack
-  How are values returned?
-    a0, a1
-  Who saves registers?
-    Designated as caller or callee saved
-    Could ra be a callee-saved register?
-  Our assembly code should follow this convention
-  C code generated by GCC follows this convention
-  This means that everyone's code can interop, incl C/asm interop
-  Read: demo4.c / demo4.asm
-    Can see function prologue, body, epilogue
-    Why doesn't it save ra? Leaf function, not needed
-    What is going on with s0/fp?
-      We compiled with -fno-omit-frame-pointer
+围绕此的约定：“调用约定”
+  参数是如何传递的？
+    a0, a1, ..., a7，留在堆栈上
+  值是如何返回的？
+    a0、a1
+  谁保存寄存器？
+    指定为已保存的呼叫者或被呼叫者
+    ra 可以是被调用者保存的寄存器吗？
+  我们的汇编代码应该遵循这个约定
+  GCC 生成的 C 代码遵循此约定
+  这意味着每个人的代码都可以互操作，包括 C/asm 互操作
+  阅读：demo4.c / demo4.asm
+    可以看到函数序言、正文、尾声
+    为什么不拯救ra？叶子函数，不需要
+    s0/fp 是怎么回事？
+      我们使用 -fno-omit-frame-pointer 进行编译
 
-Stack
+堆栈
                    .
                    .
       +->          .
       |   +-----------------+   |
-      |   | return address  |   |
-      |   |   previous fp ------+
-      |   | saved registers |
-      |   | local variables |
+      | |返回地址 | |
+      | |前一帧 ------+
+      | |保存的寄存器|
+      | |局部变量 |
       |   |       ...       | <-+
       |   +-----------------+   |
-      |   | return address  |   |
-      +------ previous fp   |   |
-          | saved registers |   |
-          | local variables |   |
+      | |返回地址 | |
+      +------ 上一页 | |
+          |保存的寄存器| |
+          |局部变量 | |
       +-> |       ...       |   |
       |   +-----------------+   |
-      |   | return address  |   |
-      |   |   previous fp ------+
-      |   | saved registers |
-      |   | local variables |
+      | |返回地址 | |
+      | |前一帧 ------+
+      | |保存的寄存器|
+      | |局部变量 |
       |   |       ...       | <-+
       |   +-----------------+   |
-      |   | return address  |   |
-      +------ previous fp   |   |
-          | saved registers |   |
-          | local variables |   |
+      | |返回地址 | |
+      +------ 上一页 | |
+          |保存的寄存器| |
+          |局部变量 | |
   $fp --> |       ...       |   |
           +-----------------+   |
-          | return address  |   |
-          |   previous fp ------+
-          | saved registers |
+          |返回地址 | |
+          |前一帧 ------+
+          |保存的寄存器|
   $sp --> | local variables |
           +-----------------+
 
-Demo program: demo5.c
-  (gdb) break g
+演示程序：demo5.c
+  (gdb) 中断 g
   (gdb) si
   (gdb) si
   (gdb) si
   (gdb) si
   (gdb) p $sp
-  (gdb) p $fp
+  （gdb）p $fp
   (gdb) x/g $fp-16
   (gdb) x/g 0x0000000000002fd0-16
 
-Stack diagram:
+堆栈图：
 
-          0x2fe0 |
-          0x2fd8 | <garbage ra>       \
-          0x2fd0 | <garbage fp>       / stack frame for main
-          0x2fc8 | ra into main       \
+          0x2fe0 | 0x2fe0
+          0x2fd8 | 0x2fd8 | <垃圾ra> \
+          0x2fd0 | 0x2fd0 | <garbage fp> / main 的堆栈框架
+          0x2fc8 | 0x2fc8 ra 进入主\
   $fp --> 0x2fc0 | 0x0000000000002fe0 / stack frame for f
-          0x2fb8 | ra into f          \
+          0x2fb8 | 0x2fb8 ra 变为 f \
   $sp --> 0x2fb0 | 0x0000000000002fd0 / stack frame for g
 
-GDB can automate this reasoning for us
-  Plus, it can use debug info to reason about leaf functions, etc.
-  (gdb) backtrace
-  (gdb) info frame
-  (gdb) frame 1
-  (gdb) info frame
-  (gdb) frame 2
-  (gdb) info frame
+GDB 可以为我们自动化这个推理
+  另外，它可以使用调试信息来推理叶函数等。
+  (gdb) 回溯
+  (gdb) 信息框架
+  (gdb) 框架 1
+  (gdb) 信息框架
+  (gdb) 框架 2
+  (gdb) 信息框架
 
-Calling C from asm / calling asm from C
-  Follow calling convention and everything will work out
-  Write function prototype so C knows how to call assembly
-  Demo: demo6.c / demo6_asm.S
-    Why do we use s0/s1 instead of e.g. t0/t1?
-    (gdb) b sum_squares_to
-    (gdb) si ...
+从 asm 调用 C / 从 C 调用 asm
+  遵循调用约定，一切都会成功
+  编写函数原型以便 C 知道如何调用汇编
+  演示：demo6.c / demo6_asm.S
+    为什么我们使用 s0/s1 而不是例如t0/t1？
+    （gdb）b sum_squares_to
+    (gdb) 是...
     (gdb) x/4g $sp
-    (gdb) si ...
+    (gdb) 是...
 
-Inline assembly
+内联装配
 
-Structs
-  C struct layout rules
-    Why: misaligned load/store can be slow or unsupported (platform-dependent)
-  __attribute__((packed))
-  How to access and manipulate C structs from assembly?
-    Generally passed by reference
-    Need to know struct layout
-    Demo: demo7.c / demo7_asm.S
+结构体
+  C 结构体布局规则
+    原因：未对齐的加载/存储可能会很慢或不受支持（取决于平台）
+  __attribute__((打包))
+  如何从汇编中访问和操作 C 结构体？
+    一般通过引用传递
+    需要了解结构布局
+    演示：demo7.c / demo7_asm.S
 
-Debugging
-  examine: inspect memory contents
-    x/nfu addr
-      n: count
-      f: format
-      u: unit size
+调试
+  检查：检查内存内容
+    x/nfu 地址
+      n：计数
+      f: 格式
+      u：单位大小
   step/next/finish
-    step: next line of C code
-    next: next line of C code, skipping over function calls
-    finish: continue executing until end of current function call
+    步骤：下一行C代码
+    next：C 代码的下一行，跳过函数调用
+    finish：继续执行直到当前函数调用结束
   stepi/nexti
-    stepi: next assembly instruction
-    nexti: next assembly instruction, skipping over function calls
-  layout next
-    steps through layouts
-  conditional breakpoints
-    break, only when a condition holds (e.g. variable has a certain value)
-  watchpoints
-    break when a memory location changes value
-  GDB is a very powerful tool
-    Read the manual for more!
-    But you probably don't need all the fancy features for this class
+    stepi：下一个组装指令
+    nexti：下一条汇编指令，跳过函数调用
+  下一步布局
+    布局步骤
+  条件断点
+    仅当条件成立时才中断（例如变量具有特定值）
+  观察点
+    当内存位置改变值时中断
+  GDB是一个非常强大的工具
+    阅读手册了解更多！
+    但您可能不需要此类的所有奇特功能
 
-References
-  RISC-V ISA specification: https://riscv.org/specifications/
-    Contains detailed information
-  RISC-V ISA Reference: https://rv8.io/isa
-    Overview of instructions
-  RISC-V assembly language reference: https://rv8.io/asm
-    Overview of directives, pseudo-instructions, and more
+参考资料
+  RISC-V ISA 规范：https://riscv.org/specifications/
+    包含详细信息
+  RISC-V ISA 参考：https://rv8.io/isa
+    说明概览
+  RISC-V汇编语言参考：https://rv8.io/asm
+    指令、伪指令等概述

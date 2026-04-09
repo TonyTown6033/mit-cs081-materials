@@ -1,227 +1,230 @@
-6.S081 2020 Lecture 3: OS organization
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Lecture Topic:
-  OS design
-    system calls
-    micro/monolithic kernel
-  First system call in xv6
+6.S081 2020 第三讲：操作系统组织
 
-OS picture
-  apps: sh, echo, ...
-  system call interface (open, close,...)
+讲座主题：
+  操作系统设计
+    系统调用
+    微/整体内核
+  xv6 中的第一个系统调用
+
+操作系统图片
+  应用程序：sh、echo、...
+  系统调用接口（打开、关闭……）
         OS
   
-Goal of OS
-  run multiple applications
-  isolate them
-  multiplex them
-  share
+操作系统的目标
+  运行多个应用程序
+  隔离他们
+  复用它们
+  分享
 
-Strawman design: No OS
-  Application directly interacts with hardware
-    CPU cores & registers
-    DRAM chips
-    Disk blocks
+稻草人设计：无操作系统
+  应用程序直接与硬件交互
+    CPU核心和寄存器
+    内存芯片
+    磁盘块
     ...
-  OS library perhaps abstracts some of it
+  操作系统库也许抽象了其中的一些
 
-Strawman design not conducive to multiplexing
-  each app periodically must give up hardware
-  BUT, weak isolation
-    app forgets to give up, no other app runs
-    apps has end-less loop, no other app runs
-    you cannot even kill the badly app from another app
-  but used by real-time OSes
-    "cooperative scheduling"
+Strawman设计不利于复用
+  每个应用程序必须定期放弃硬件
+  但是，隔离性较弱
+    应用程序忘记放弃，没有其他应用程序运行
+    应用程序有无限循环，没有其他应用程序运行
+    你甚至无法从另一个应用程序中杀死这个糟糕的应用程序
+  但由实时操作系统使用
+    “协同调度”
 
-Strawman design not conducive to memory isolation
-  all apps share physical memory
-  one app can overwrites another apps memory
-  one app can overwrite OS library
+Strawman设计不利于内存隔离
+  所有应用共享物理内存
+  一个应用程序可以覆盖另一个应用程序的内存
+  一个应用程序可以覆盖操作系统库
 
-Unix interface conducive to OS goals
-  abstracts the hardware in way that achieves goals
-  processes (instead of cores): fork
-     OS transparently allocates cores to processes
-       Saves and restore registers
-     Enforces that processes give them up
-       Periodically re-allocates cores     
-  memory (instead of physical memory): exec
-     Each process has its "own" memory
-     OS can decide where to place app in memory
-     OS can enforce isolation between memory of different apps
-     OS allows storing image in file system
-  files (instead of disk blocks)
-     OS can provide convenient names
-     OS can allow sharing of files between processes/users
-  pipes (instead of shared physical mem)
-     OS can stop sender/receiver
+Unix 界面有利于操作系统目标
+  以实现目标的方式抽象硬件
+  进程（而不是核心）：fork
+     操作系统透明地将核心分配给进程
+       保存和恢复寄存器
+     强制进程放弃它们
+       定期重新分配核心
+  内存（而不是物理内存）：exec
+     每个进程都有自己的内存
+     操作系统可以决定将应用程序放置在内存中的位置
+     操作系统可以强制不同应用程序的内存之间的隔离
+     操作系统允许在文件系统中存储图像
+  文件（而不是磁盘块）
+     操作系统可以提供方便的名称
+     操作系统可以允许进程/用户之间共享文件
+  管道（而不是共享物理内存）
+     操作系统可以停止发送者/接收者
   
-OS must be defensive
-  an application shouldn't be able to crash OS
-  an application shouldn't be able to break out of its isolation
+操作系统必须具有防御性
+  应用程序不应导致操作系统崩溃
+  应用程序不应该能够打破它的隔离
   => need strong isolation between apps and OS
-  approach: hardware support
-  - user/kernel mode
-  - virtual memory
+  方法：硬件支持
+  - 用户/内核模式
+  - 虚拟内存
   
-Processors provide user/kernel mode
-  kernel mode: can execute "privileged" instructions
-    e.g., setting kernel/user bit
-    e.g., reprogramming timer chip
-  user mode: cannot execute privileged instructions
-  Run OS in kernel mode, applications in user mode
-  [RISC-V has also an M mode, which we mostly ignore]
+处理器提供用户/内核模式
+  内核模式：可以执行“特权”指令
+    例如，设置内核/用户位
+    例如，重新编程定时器芯片
+  用户模式：无法执行特权指令
+  操作系统运行在内核态，应用程序运行在用户态
+  [RISC-V还有M模式，我们大多忽略]
 
-Processors provide virtual memory
-  Hardware provides page tables that translate virtual address to physical
-  Define what physical memory an application can access
-  OS sets up page tables so that each application can access only its memory
+处理器提供虚拟内存
+  硬件提供将虚拟地址转换为物理地址的页表
+  定义应用程序可以访问哪些物理内存
+  操作系统设置页表，以便每个应用程序只能访问其内存
 
-Apps must be able to communicate with kernel
+应用程序必须能够与内核通信
   Write to storage device, which is shared => must be protected => in kernel
-  Exit app
+  退出应用程序
   ...
 
-Solution: add instruction to change mode in controlled way
-  ecall <n>
-  enters kernel mode at a pre-agreed entry point
+解决方案：添加指令以受控方式改变模式
+  调用 <n>
+  在预先商定的入口点进入内核模式
 
-Modify OS picture
-  user / kernel (redline)
+修改操作系统图片
+  用户/内核（红线）
   app -> printf() -> write() -> SYSTEM CALL -> sys_write() -> ...
-    user-level libraries are app's private business
-  kernel internal functions are not callable by user
+    用户级库是app的私事
+  用户无法调用内核内部函数
   
-  other way of drawing picture:
+  另一种绘制图片的方式：
   syscall 1  -> system call stub -> kernel entry -> syscall -> fs
   syscall 2                                                 -> proc
 
-  system call stub executes special instruction to enter kernel
-    hardware switches to kernel mode
-    but only at an entry point specified by the kernel
+  系统调用存根执行特殊指令进入内核
+    硬件切换到内核模式
+    但仅在内核指定的入口点
 
-  syscall need some way to get at arguments of syscall
+  系统调用需要某种方法来获取系统调用的参数
 
-  [syscalls the topic of this week's lab]
+  [系统调用本周实验室的主题]
  
-Kernel is the Trusted Computing Base (TCB)
-  Kernel must be "correct"
-    Bugs in kernel could allow user apps to circumvent kernel/user
-      Happens often in practice, because kernels are complex
-      See CVEs
-  Kernel must treat user apps as suspect
-    User app may trick kernel to do the wrong thing
-    Kernel must check arguments carefully
-    Setup user/kernel correctly
+内核是可信计算基础（TCB）
+  内核必须“正确”
+    内核中的错误可能允许用户应用程序绕过内核/用户
+      在实践中经常发生，因为内核很复杂
+      查看 CVE
+  内核必须将用户应用程序视为可疑
+    用户应用程序可能会欺骗内核做错误的事情
+    内核必须仔细检查参数
+    正确设置用户/内核
     Etc.
-  Kernel in charge of separating applications too
-    One app may try to read/write another app's memory
+  内核也负责分离应用程序
+    一个应用程序可能会尝试读取/写入另一应用程序的内存
   => Requires a security mindset
-    Any bug in kernel may be a security exploit
+    内核中的任何错误都可能是安全漏洞
 
-Aside: can one have process isolation WITHOUT h/w-supported
-  kernel/user mode and virtual memory?
-  yes! use a strongly-typed programming language
-  - For example, see Singularity O/S
-  the compiler is then the trust computing base (TCB)
-  but h/w user/kernel mode is the most popular plan
+旁白：可以在没有硬件支持的情况下进行进程隔离吗？
+  内核/用户模式和虚拟内存？
+  是的！使用强类型编程语言
+  - 例如，参见奇点操作系统
+  那么编译器就是信任计算基础（TCB）
+  但硬件用户/内核模式是最受欢迎的计划
 
-Monolothic kernel
-  OS runs in kernel space
-  Xv6 does this.  Linux etc. too.
+整体内核
+  操作系统运行在内核空间
+  xv6 就是这样做的。 Linux 等也是如此。
   kernel interface == system call interface
-  one big program with file system, drivers, &c
-  - good: easy for subsystems to cooperate
-    one cache shared by file system and virtual memory
-  - bad: interactions are complex
-    leads to bugs
-    no isolation within
+  一个包含文件系统、驱动程序等的大程序
+  - 好：易于子系统协作
+    文件系统和虚拟内存共享一个缓存
+  - 不好：交互很复杂
+    导致错误
+    内部没有隔离
 
-Microkernel design
-  many OS services run as ordinary user programs
-    file system in a file server
-  kernel implements minimal mechanism to run services in user space
-    processes with memory
-    inter-process communication (IPC)
+微内核设计
+  许多操作系统服务作为普通用户程序运行
+    文件服务器中的文件系统
+  内核实现了在用户空间运行服务的最小机制
+    有记忆的进程
+    进程间通信（IPC）
   kernel interface != system call interface		
-  - good: more isolation
-  - bad: may be hard to get good performance
-  both monolithic and microkernel designs widely used
+  - 好：更多隔离
+  - 不好：可能很难获得良好的性能
+  单片和微内核设计都广泛使用
 
-Xv6 case study
-  Monolithic kernel
+xv6 案例研究
+  整体内核
     Unix system calls == kernel interface
-  Source code reflects OS organization (by convention)
-    user/    apps in user mode
-    kernel/  code in kernel mode
-  Kernel has several parts
+  源代码反映操作系统组织（按照惯例）
+    用户/应用程序处于用户模式
+    内核/内核模式下的代码
+  内核有几个部分
     kernel/defs.h
-       proc
+       进程
        fs
        ..
-  Goal: read source code and understand it (without consulting book)
+  目标：阅读源代码并理解它（无需查阅书籍）
 
-Using xv6
-  Makefile builds
-    kernel program
-    user programs
-    mkfs
+使用xv6
+  生成文件构建
+    内核程序
+    用户程序
+    MKFS
   $ make qemu
-    runs xv6 on qemu
-    emulates a RISC-V computer
+    在 qemu 上运行 xv6
+    模拟 RISC-V 计算机
 
-Building kernel
+构建内核
   .c -> gcc -> .s -> .o  \
   ....                     ld -> a.out
   .c -> gcc -> .s -> .o  /
-  makefile keeps .asm file around for binary
-  see for example, kernel/kernel.asm
+  makefile 保留 .asm 文件作为二进制文件
+  例如，参见 kernel/kernel.asm
 
-The RISC-V computer
-  A very simple board (e.g., no display)
-  - RISC-V processor with 4 cores
-  - RAM (128 MB)
-  - support for interrupts (PLIC, CLINT)
-  - support for UART
-    allows xv6 to talk to console
-    allows xv6 to read from keyboard
-  - support for e1000 network card (through PCIe)
+RISC-V 计算机
+  一个非常简单的板（例如，没有显示器）
+  - 4核RISC-V处理器
+  - 内存 (128 MB)
+  - 支持中断（PLIC、CLINT）
+  - 支持UART
+    允许 xv6 与控制台对话
+    允许 xv6 从键盘读取
+  - 支持e1000网卡（通过PCIe）
 
-Development using Qemu
-  More convenient than using the real hardware
-  Qemu emulates several RISC-V computers
-  - we use the "virt" one
+使用Qemu开发
+  比使用真实硬件更方便
+  Qemu 模拟多台 RISC-V 计算机
+  - 我们使用“virt”
     https://github.com/riscv/riscv-qemu/wiki
-  - close to the SiFive board (https://www.sifive.com/boards)
-    but with virtio for disk
+  - 靠近 SiFive 板 (https://www.si Five.com/boards)
+    但使用 virtio 作为磁盘
 
-What is "to emulate"?
-  Qemu is a C program that faithfully implements a RISC-V processor
-  for (;;) {
-    read next instructions
-    decode instruction
-    execute instruction (updating processor state)
+什么是“效仿”？
+  Qemu 是忠实实现 RISC-V 处理器的 C 程序
+  对于（;;）{
+    阅读接下来的说明
+    译码指令
+    执行指令（更新处理器状态）
   }
-  [big idea: software = hardware]
+  [重要理念：软件=硬件]
   
-Boot xv6 (under gdb)
+启动 xv6（在 gdb 下）
   $ make CPUS=1 qemu-gdb
-    runs xv6 under gdb (with 1 core)
-  Qemu starts xv6 in kernel/entry.S (see kernel/kernel.ld)
-    set breakpoint at _entry
-      look at instruction
-      info reg
-    set breakpoint at main
-      Walk through main
-    single step into userinit
-      Walk through userinit
-      show proc.h
-      show allocproc()
-      show initcode.S/initcode.asm
-    break forkret()
-      walk to userret
-    break syscall
-      print num
-      syscalls[num]
-      exec "/init"
+    在 gdb 下运行 xv6（1 核）
+  Qemu 在 kernel/entry.S 中启动 xv6（参见 kernel/kernel.ld）
+    在_entry处设置断点
+      看说明
+      信息注册
+    在main处设置断点
+      走过主要
+    单步进入 userinit
+      遍历 userinit
+      显示过程.h
+      显示 allocproc()
+      显示 initcode.S/initcode.asm
+    打破 forkret()
+      步行至userret
+    中断系统调用
+      打印编号
+      系统调用[数量]
+      执行“/init”

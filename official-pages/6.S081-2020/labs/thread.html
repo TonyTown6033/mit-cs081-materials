@@ -1,55 +1,34 @@
-<html>
-<head>
-<title>Lab: Multithreading</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：多线程</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="https://pdos.csail.mit.edu/6.S081/2020/labs/js/jquery-1.10.2.min.js"></script>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: Multithreading</h1>
-
-<p>This lab will familiarize you with multithreading.  You will
-implement switching between threads in a user-level threads package,
-use multiple threads to speed up a program, and implement a barrier.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：多线程</h1>
+<p>本实验将使您熟悉多线程。您将在用户级线程包中实现线程之间的切换，使用多个线程来加速程序，并实现屏障。
 
 <div class="prereq">
-<p>Before writing code, you should make sure you have read "Chapter 7: Scheduling" from
-  the <a href="../xv6/book-riscv-rev1.pdf">xv6 book</a> and studied
-  the corresponding code.
-</div>
-
-<p>To start the lab, switch to the thread branch:
+<p>在编写代码之前，您应该确保您已经阅读了“第 7 章：调度” <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a> 并研究了相应的代码。
+</p></div>
+<p>要开始实验，请切换到线程分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout thread</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-
-
-<h2>Uthread: switching between threads <script>g("moderate")</script></h2>
-
-<p>In this exercise you will design the context switch mechanism for a
-  user-level threading system, and then implement it.  To get you
-  started, your xv6 has two files user/uthread.c and
-  user/uthread_switch.S, and a rule in the Makefile to build a uthread
-  program.  uthread.c contains most of a user-level threading package,
-  and code for three simple test threads.
-  The threading package is missing some of the code to create a thread and to switch
-  between threads.
+<h2>uthread：线程间切换 <script>g("moderate")</script></h2>
+<p>在本练习中，您将为用户级线程系统设计上下文切换机制，然后实现它。为了帮助您入门，您的 xv6 有两个文件 user/uthread.c 和 user/uthread_switch.S，以及 Makefile 中用于构建 uthread 程序的规则。 uthread.c 包含大部分用户级线程包以及三个简单测试线程的代码。线程包缺少一些创建线程和在线程之间切换的代码。
 
   <div class="required">
 <p>
-Your job is to come up with a plan to create threads and save/restore
-registers to switch between threads, and implement that plan.
-When you're done,
-<tt>make grade</tt> should say that your solution passes the
+您的工作是制定一个计划来创建线程并保存/恢复寄存器以在线程之间切换，并实施该计划。当你完成后，
+<tt>make grade</tt> 应该说你的解决方案通过了
 <tt>uthread</tt> test.
-</div>
+</p></div>
 
-Once you've finished, you should see the following output when you
-run <tt>uthread</tt> on xv6 (the three threads might start in
-a different order):
+完成后，运行时您应该会看到以下输出 <tt>uthread</tt> 在 xv6 上（三个线程可能以不同的顺序启动）：
 
 <pre>
 $ <kbd>make qemu</kbd>
@@ -74,45 +53,23 @@ thread_b: exit after 100
 thread_schedule: no runnable threads
 $
 </pre>
-
 <p>
-This output comes from the three test threads, each of which has
-a loop that prints a line and then yields the CPU to the
-other threads.
+此输出来自三个测试线程，每个测试线程都有一个循环，用于打印一行，然后将 CPU 交给其他线程。
 <p>
-
 <p>
-At this point, however, with no context switch code, you'll see
-no output.
+然而，此时，由于没有上下文切换代码，您将看不到任何输出。
 <p>
-
-<p>You will need to add code to <tt>thread_create()</tt> and
-   <tt>thread_schedule()</tt> in <tt>user/uthread.c</tt>,
-   and <tt>thread_switch</tt> in <tt>user/uthread_switch.S</tt>.
-   One goal is ensure that when <tt>thread_schedule()</tt> runs a given
-   thread for the first time, the thread executes
-   the function passed to <tt>thread_create()</tt>, on its own stack.
-   Another goal is to ensure that <tt>thread_switch</tt> saves
-   the registers of the thread being switched away from, restores the registers
-   of the thread being switched to, and returns to the point in the
-   latter thread's instructions where it last left off.
-   You will
-  have to decide where to save/restore registers; modifying
-  <tt>struct thread</tt> to hold registers is a good plan.
-  You'll need to add a call to <tt>thread_switch</tt> in <tt>thread_schedule</tt>;
-  you can pass whatever arguments you need to <tt>thread_switch</tt>,
-  but the intent is to switch from thread <tt>t</tt> to
+<p>您需要添加代码 <tt>thread_create()</tt> 和
+   <tt>thread_schedule()</tt> 在 <tt>user/uthread.c</tt>, 和 <tt>thread_switch</tt> 在 <tt>user/uthread_switch.S</tt>。目标之一是确保当 <tt>thread_schedule()</tt> 第一次运行给定线程，该线程执行传递给的函数 <tt>thread_create()</tt>，在其自己的堆栈上。另一个目标是确保 <tt>thread_switch</tt> 保存被切换出的线程的寄存器，恢复被切换到的线程的寄存器，并返回到后一个线程的指令中最后离开的点。您必须决定在哪里保存/恢复寄存器；修改
+  <tt>struct thread</tt> 持有寄存器是一个好计划。您需要添加一个调用 <tt>thread_switch</tt> 在 <tt>thread_schedule</tt>;你可以传递任何你需要的参数 <tt>thread_switch</tt>，但目的是从线程切换 <tt>t</tt> 到
   <tt>next_thread</tt>.
 
-<p>Some hints:
+<p>一些提示：
   <ul>
-    <li> <tt>thread_switch</tt> needs to save/restore only
-the callee-save registers. Why?
-    <li> You can see the assembly code for uthread in user/uthread.asm, which
-may be handy for debugging.
-<li>To test your code it might be helpful to single step through your
-<tt>thread_switch</tt> using <tt>riscv64-linux-gnu-gdb</tt>.  You can
-get started in this way:
+<li> <tt>thread_switch</tt> 仅需要保存/恢复被调用者保存寄存器。为什么？
+    <li> 你可以在user/uthread.asm中看到uthread的汇编代码，这可能会方便调试。
+<li>要测试您的代码，单步执行您的代码可能会有所帮助
+<tt>thread_switch</tt> 使用 <tt>riscv64-linux-gnu-gdb</tt>。您可以通过以下方式开始：
 
 <pre>
 (gdb) file user/_uthread
@@ -120,94 +77,61 @@ Reading symbols from user/_uthread...
 (gdb) b uthread.c:60
 
 </pre>
+<p>这在第 60 行设置了一个断点 <tt>uthread.c</tt>。在运行之前，断点可能（也可能不会）被触发
+<tt>uthread</tt>。怎么会发生这种事？
 
-<p>This sets a breakpoint at line 60 of <tt>uthread.c</tt>.
-The breakpoint may (or may not) be triggered before you even run
-<tt>uthread</tt>. How could that happen?
-
-<p>Once your xv6 shell runs, type "uthread", and gdb will break at line 60.
-Now you can type commands like the following to inspect
-the state of <tt>uthread</tt>:
+<p>一旦你的 xv6 shell 运行，输入“uthread”，gdb 将在第 60 行中断。现在你可以输入如下命令来检查 <tt>uthread</tt>:
 
 <pre>
   (gdb) p/x *next_thread
 </pre>
 
-With "x", you can examine the content of a memory location:
+使用“x”，您可以检查内存位置的内容：
 <pre>
-  (gdb) x/x next_thread->stack
+  (gdb) x/x next_thread-&gt;stack
 </pre>
-
-<p>You can skip to the start of <tt>thread_switch</tt> thus:
+<p>您可以跳到开头 <tt>thread_switch</tt> thus:
 <pre>
    (gdb) b thread_switch
    (gdb) c
 </pre>
-
-<p>You can single step assembly instructions using:
+<p>您可以使用以下方法单步组装说明：
 <pre>
    (gdb) si
 </pre>
+<p>gdb 的在线文档是 <a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">这里</a>.
 
-<p>On-line documentation for gdb is <a href="https://sourceware.org/gdb/current/onlinedocs/gdb/">here</a>.
-
-</ul>
-
-<h2>Using threads  <script>g("moderate")</script></h2>
-
-<p>In this assignment you will explore parallel programming with
-threads and locks using a hash table. You should do this assignment on
-a real Linux or MacOS computer (not xv6, not qemu) that has multiple
-cores. Most recent laptops have multicore processors.
+</p></p></p></p></p></li></li></li></ul>
+<h2>使用线程  <script>g("moderate")</script></h2>
+<p>在本作业中，您将使用哈希表探索线程和锁的并行编程。您应该在具有多个内核的真实 Linux 或 MacOS 计算机（不是 xv6，不是 qemu）上执行此作业。大多数最新的笔记本电脑都配备多核处理器。
 
 <p>
-This assignment uses the UNIX <tt>pthread</tt> threading library.
-You can find information about it from the manual page, with
-<tt>man pthreads</tt>, and you can look on the web, for example
-<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_lock.html">here</a>,
-<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_init.html">here</a>,
-and
-<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_create.html">here</a>.
+此作业使用 UNIX <tt>pthread</tt> 线程库。您可以从手册页找到有关它的信息，
+<tt>man pthreads</tt>，你可以在网上看看，例如
+<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_lock.html">这里</a>,
+<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_mutex_init.html">这里</a>, 和
+<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_create.html">这里</a>.
 
-<p>The file <tt>notxv6/ph.c</tt> contains a simple hash table that
-is correct if used from a single thread, but incorrect when used from
-multiple threads.
-In your main xv6 directory (perhaps <tt>~/xv6-labs-2020</tt>),
-type this:
+<p>该文件 <tt>notxv6/ph.c</tt> 包含一个简单的哈希表，如果从单个线程使用，该哈希表是正确的，但从多个线程使用时，该哈希表是错误的。在你的主 xv6 目录中（也许 <tt>~/xv6-labs-2020</tt>），输入：
 <pre>
 $ make ph
 $ ./ph 1
 </pre>
-Note that to build <tt>ph</tt> the Makefile uses your OS's gcc, not
-the 6.S081 tools.
-The argument to <tt>ph</tt> specifies the number of threads that
-execute put and get operations on the the hash table.
-After running for a little while, <tt>ph 1</tt> will produce output similar
-to this:
+请注意，要构建 <tt>ph</tt> Makefile 使用操作系统的 gcc，而不是 6.S081 工具。论点为 <tt>ph</tt> 指定对哈希表执行 put 和 get 操作的线程数。跑了一会儿之后， <tt>ph 1</tt> 将产生与此类似的输出：
 
 <pre>
 100000 puts, 3.991 seconds, 25056 puts/second
 0: 0 keys missing
 100000 gets, 3.981 seconds, 25118 gets/second
 </pre>
+<p>
+您看到的数字可能与此示例输出相差两倍或更多，具体取决于您的计算机的速度、是否具有多个内核以及是否忙于执行其他操作。
 
 <p>
-The numbers you see may differ from this sample output by a factor of
-two or more, depending on how fast your computer is, whether it has
-multiple cores, and whether it's busy doing other things.
+<tt>ph</tt> 运行两个基准测试。首先，它通过调用向哈希表添加大量键 <tt>put()</tt>，并打印每秒实现的速率。它从哈希表中获取键 <tt>get()</tt>。它打印因放置而应在哈希表中但丢失的数字键（在本例中为零），并打印每秒实现的获取数。
 
 <p>
-<tt>ph</tt> runs two benchmarks. First it adds lots of keys to the
-hash table by calling <tt>put()</tt>, and prints the achieved rate in
-puts per second. The it fetches keys from the hash table
-with <tt>get()</tt>. It prints the number keys that should have been
-in the hash table as a result of the puts but are missing (zero in
-this case), and it prints the number of gets per second it achieved.
-
-<p>
-You can tell <tt>ph</tt> to use its hash table from multiple
-threads at the same time by giving it an argument greater than
-one. Try <tt>ph 2</tt>:
+你可以告诉 <tt>ph</tt> 通过给它一个大于 1 的参数来同时从多个线程使用它的哈希表。尝试一下 <tt>ph 2</tt>:
 
 <pre>
 $ ./ph 2
@@ -216,176 +140,100 @@ $ ./ph 2
 0: 16579 keys missing
 200000 gets, 4.322 seconds, 46274 gets/second
 </pre>
-
 <pp>
-The first line of this <tt>ph 2</tt> output indicates that when two
-threads concurrently add entries to the hash table, they
-achieve a total rate of 53,044 inserts per second. That's about
-twice the rate of the single thread from running
-<tt>ph 1</tt>. That's an excellent "parallel speedup" of about 2x,
-as much as one could possibly hope for (i.e. twice as many
-cores yielding twice as much work per unit time).
+这个的第一行 <tt>ph 2</tt> 输出表明，当两个线程同时向哈希表添加条目时，它们达到每秒 53,044 次插入的总速率。这大约是单线程运行速度的两倍
+<tt>ph 1</tt>。这是大约 2 倍的出色“并行加速”，正如人们所希望的那样（即每单位时间的核心数量是两倍，工作量是两倍）。
 
 <p>
-However, the two lines saying <tt>16579 keys missing</tt> indicate that
-a large number of keys that should have been in the hash table are not
-there. That is, the puts were supposed to add those keys to the hash
-table, but something went wrong.
-Have a look at <tt>notxv6/ph.c</tt>, particularly at <tt>put()</tt>
-and <tt>insert()</tt>.
+然而，这两行说 <tt>16579 keys missing</tt> 表明哈希表中应该存在的大量键不存在。也就是说，puts 应该将这些键添加到哈希表中，但是出了问题。看看 <tt>notxv6/ph.c</tt>，特别是在 <tt>put()</tt>
+和 <tt>insert()</tt>.
 
 <div class="question">
-Why are there missing keys
-with 2 threads, but not with 1 thread?  Identify a sequence of
-events with 2 threads that can lead to a key being missing.
-Submit your sequence with a short explanation in answers-thread.txt
+为什么 2 线程会丢失键，而 1 线程则不会？识别具有 2 个线程的可能导致密钥丢失的事件序列。在answers-thread.txt 中提交您的序列并附上简短说明
 </div>
-
 <div class="required">
-
-<p>To avoid this sequence of events, insert lock and unlock statements
-in
-<tt>put</tt> and <tt>get</tt> in <tt>notxv6/ph.c</tt> so that the
-number of keys missing is always 0 with two threads. The relevant
-pthread calls are:
+<p>为了避免发生这一系列事件，请在以下位置插入锁定和解锁语句：
+<tt>put</tt> 和 <tt>get</tt> 在 <tt>notxv6/ph.c</tt> 这样两个线程中丢失的键数始终为 0。相关的 pthread 调用是：
 
 <pre>
 pthread_mutex_t lock;            // declare a lock
-pthread_mutex_init(&lock, NULL); // initialize the lock
-pthread_mutex_lock(&lock);       // acquire lock
-pthread_mutex_unlock(&lock);     // release lock
+pthread_mutex_init(&amp;lock, NULL); // initialize the lock
+pthread_mutex_lock(&amp;lock);       // acquire lock
+pthread_mutex_unlock(&amp;lock);     // release lock
 </pre>
+<p>
+当你完成时 <tt>make grade</tt> 说你的代码通过了 <tt>ph_safe</tt> 测试，这需要两个线程的零缺失键。此时失败是可以的 <tt>ph_fast</tt> test.
+</p></p></div>
+<p>
+别忘了打电话 <tt>pthread_mutex_init()</tt>。首先使用 1 个线程测试代码，然后使用 2 个线程测试代码。它是否正确（即您是否消除了丢失的钥匙？）？相对于单线程版本，双线程版本是否实现了并行加速（即每单位时间的总工作量更多）？
 
 <p>
-You're done when <tt>make grade</tt> says that your code passes the <tt>ph_safe</tt> test,
-which requires zero missing keys with two threads.
-It's OK at this point to fail the <tt>ph_fast</tt> test.
-</div>
-
-<p>
-Don't forget to call <tt>pthread_mutex_init()</tt>.
-Test your code first with 1 thread, then test it with 2 threads.
-Is it correct (i.e. have you eliminated missing keys?)?  Does the
-two-threaded version achieve parallel speedup (i.e. more total
-work per unit time) relative
-to the single-threaded version?
-
-<p>
-There are situations where concurrent <tt>put()</tt>s
-have no overlap in the memory they read or write in the
-hash table, and thus don't need a lock to protect against
-each other.
-Can you change <tt>ph.c</tt> to take advantage of such situations to obtain parallel
-speedup for some <tt>put()</tt>s?
-Hint: how about a lock per hash bucket?
+存在并发的情况 <tt>put()</tt>它们在哈希表中读取或写入的内存没有重叠，因此不需要锁来防止彼此。你能改变吗 <tt>ph.c</tt> 利用这种情况来获得某些并行加速 <tt>put()</tt>是？提示：每个哈希桶加一个锁怎么样？
 
 <div class="required">
-<p>Modify your code so that some <tt>put</tt> operations run in parallel
-  while maintaining correctness.
-You're done when <tt>make grade</tt> says your code passes
-both the <tt>ph_safe</tt> and <tt>ph_fast</tt> tests.
-The <tt>ph_fast</tt> test requires that two threads yield at least 1.25 times as
-many puts/second as one thread.
-</div>
+<p>修改你的代码，以便一些 <tt>put</tt> 操作并行运行，同时保持正确性。当你完成时 <tt>make grade</tt> 说你的代码通过了 <tt>ph_safe</tt> 和 <tt>ph_fast</tt> 测试。的 <tt>ph_fast</tt> 测试要求两个线程每秒产生的放入数至少是一个线程的 1.25 倍。
+</p></div>
+<h2>屏障<script>g("moderate")</script></h2>
+<p>在此作业中，您将实现一个 <a href="http://en.wikipedia.org/wiki/Barrier_(computer_science)">屏障</a>：应用程序中的一个点，所有参与线程都必须等待，直到所有其他参与线程也到达该点。您将使用 pthread 条件变量，这是一种类似于 xv6 的睡眠和唤醒的序列协调技术。
 
-<h2>Barrier<script>g("moderate")</script></h2>
+<p>您应该在真实的计算机（不是 xv6，不是 qemu）上执行此作业。
 
-<p>In this assignment you'll implement a <a
-href="http://en.wikipedia.org/wiki/Barrier_(computer_science)">barrier</a>:
-a point in an
-application at which all participating threads must wait until all other participating threads reach
-that point too. You'll use pthread condition variables, which are a sequence
-coordination technique similar to xv6's sleep and wakeup.
-
-<p>You should do this assignment on a real computer (not xv6, not qemu).
-
-<p>The file <tt>notxv6/barrier.c</tt> contains a broken barrier.
+<p>该文件 <tt>notxv6/barrier.c</tt> 包含破碎的屏障。
 <pre>
 $ make barrier
 $ ./barrier 2
 barrier: notxv6/barrier.c:42: thread: Assertion `i == t' failed.
 </pre>
 
-The 2 specifies the number of threads that synchronize on the barrier (
-<tt>nthread</tt> in <tt>barrier.c</tt>).  Each thread executes a loop. In
-each loop iteration a thread calls <tt>barrier()</tt> and then sleeps for a
-random number of microseconds. The assert triggers, because one thread leaves the
-barrier before the other thread has reached the barrier.  The desired behavior is
-that each thread blocks in <tt>barrier()</tt> until all <tt>nthreads</tt> of them have called
+2 指定在屏障上同步的线程数（
+<tt>nthread</tt> 在 <tt>barrier.c</tt>）。每个线程执行一个循环。在每次循环迭代中，线程调用 <tt>barrier()</tt> 然后休眠随机的微秒数。断言会触发，因为一个线程在另一个线程到达屏障之前离开屏障。期望的行为是每个线程阻塞在 <tt>barrier()</tt> 直到所有 <tt>nthreads</tt> 他们中的一些人已经打电话
 <tt>barrier()</tt>.
 
 <div class="required">
-<p>Your goal is to achieve the desired barrier behavior. In addition to the
- lock primitives that you have seen in the <tt>ph</tt> assignment, you will need
- the following new pthread primitives;
-look
-<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_wait.html">here</a> and
-<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_broadcast.html">here</a>
-for details.
+<p>您的目标是实现所需的障碍行为。除了您在 中看到的锁原语之外 <tt>ph</tt> 分配时，您将需要以下新的 pthread 原语；看看
+<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_wait.html">这里</a> 和
+<a href="https://pubs.opengroup.org/onlinepubs/007908799/xsh/pthread_cond_broadcast.html">这里</a>
+了解详情。
 
 <pre>
-pthread_cond_wait(&cond, &mutex);  // go to sleep on cond, releasing lock mutex, acquiring upon wake up
-pthread_cond_broadcast(&cond);     // wake up every thread sleeping on cond
+pthread_cond_wait(&amp;cond, &amp;mutex);  // go to sleep on cond, releasing lock mutex, acquiring upon wake up
+pthread_cond_broadcast(&amp;cond);     // wake up every thread sleeping on cond
 </pre>
-
 <p>
-Make sure your solution passes <tt>make grade</tt>'s <tt>barrier</tt> test.
-</div>
+确保您的解决方案通过 <tt>make grade</tt>的 <tt>barrier</tt> test.
+</p></p></div>
+<tt>pthread_cond_wait</tt> 释放 <tt>mutex</tt> 当被调用时，并重新获取 <tt>mutex</tt> 返回之前。
 
-<tt>pthread_cond_wait</tt> releases the <tt>mutex</tt> when called,
-and re-acquires the <tt>mutex</tt> before returning.
+<p>我们已经给了你 <tt>barrier_init()</tt>。你的工作是实施
+<tt>barrier()</tt> 以免发生恐慌。我们已经定义了 <tt>struct barrier</tt> 为你；它的字段供您使用。
 
-<p>We have given you <tt>barrier_init()</tt>. Your job is to implement
-<tt>barrier()</tt> so that the panic doesn't occur.
-We've defined <tt>struct barrier</tt> for you; its fields are for
-your use.
-
-<p>There are two issues that complicate your task:
+<p>有两个问题使您的任务变得复杂：
 
 <ul>
+<li> 你必须处理一系列的障碍调用，我们将每个调用称为一轮。
+  <tt>bstate.round</tt> 记录当前回合。你应该增加 <tt>bstate.round</tt> 每次所有线程都到达屏障时。
 
-<li> You have to deal with a succession of barrier calls,
-each of which we'll call a round.
-  <tt>bstate.round</tt> records the current round.  You
-  should increment <tt>bstate.round</tt> each time all
-  threads have reached the barrier.
+<li> 您必须处理这样一种情况：一个线程在其他线程退出屏障之前围绕循环进行竞争。特别是，您正在重复使用 <tt>bstate.nthread</tt> 从一轮到下一轮的变量。确保离开屏障并围绕循环竞争的线程不会增加 <tt>bstate.nthread</tt>
+而上一轮仍在使用它。
 
-<li> You have to handle the case in which one thread races around the loop before
-the others have exited the barrier. In particular, you are re-using
-the <tt>bstate.nthread</tt> variable from one round to the next.  Make sure that a thread that
-leaves the barrier and races around the loop doesn't increase <tt>bstate.nthread</tt>
-while a previous round is still using it.
-
-</ul>
-
-<p>Test your code with one, two, and more than two threads.
+</li></li></ul>
+<p>使用一个、两个和两个以上线程测试您的代码。
 
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<h3>Time spent</h3>
+<h3>提交</h3>
 
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -400,71 +248,39 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
+<h2>uthread 的可选挑战</h2>
+<p>用户级线程包在几个方面与操作系统交互不良。例如，如果一个用户级线程在系统调用中阻塞，则另一个用户级线程将不会运行，因为用户级线程调度程序不知道其线程之一已被 xv6 调度程序取消调度。另一个例子，两个用户级线程不会在不同的内核上同时运行，因为 xv6 调度程序不知道有多个线程可以并行运行。请注意，如果两个用户级线程真正并行运行，则由于多个竞争，此实现将无法工作（例如，不同处理器上的两个线程可能会调用 <tt>thread_schedule</tt>
+同时，选择相同的可运行线程，并且都在不同的处理器上运行它。）
 
+<p>有多种方法可以解决这些问题。一种正在使用 <a href="http://en.wikipedia.org/wiki/Scheduler_activations">调度程序激活</a> 另一种是每个用户级线程使用一个内核线程（如 Linux 内核所做的那样）。在 xv6 中实现这些方法之一。要做到这一点并不容易；例如，在更新多线程用户进程的页表时，您需要实现 TLB 关闭。
 
+<p>将锁、条件变量、屏障等添加到您的线程包中。
 
-
-<h2>Optional challenges for uthread</h2>
-
-<p>The user-level thread package interacts badly with the operating system in
-several ways.  For example, if one user-level thread blocks in a system call,
-another user-level thread won't run, because the user-level threads scheduler
-doesn't know that one of its threads has been descheduled by the xv6 scheduler.  As
-another example, two user-level threads will not run concurrently on different
-cores, because the xv6 scheduler isn't aware that there are multiple
-threads that could run in parallel.  Note that if two user-level threads were to
-run truly in parallel, this implementation won't work because of several races
-(e.g., two threads on different processors could call <tt>thread_schedule</tt>
-concurrently, select the same runnable thread, and both run it on different
-processors.)
-
-<p>There are several ways of addressing these problems.  One is
- using <a href="http://en.wikipedia.org/wiki/Scheduler_activations">scheduler
- activations</a> and another is to use one kernel thread per
- user-level thread (as Linux kernels do).  Implement one of these ways
- in xv6.  This is not easy to get right; for example, you will need to
- implement TLB shootdown when updating a page table for a
- multithreaded user process.
-
-<p>Add locks, condition variables, barriers,
-etc. to your thread package.
-
-</body>
+</p></p></p></p></p></a></p></p></p></p></p></p></p></p></p></p></pp></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></body>
 </html>

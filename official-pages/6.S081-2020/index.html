@@ -1,121 +1,89 @@
-<HTML>
-<HEAD>
-<TITLE>
-6.S081 / Fall 2020
-</TITLE>
-<META HTTP-EQUIV="pragma" CONTENT="no-cache">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-<link rel="stylesheet" type="text/css" href="css/style.css">
-<link rel="stylesheet" href="labs/labs.css" type="text/css" />
-
-</HEAD>
-
-<BODY BGCOLOR=#ffffff TEXT=#000000>
-
-    <!-- Fixed navbar -->
-    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="index.html">6.S081: Operating System Engineering</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-	    <li><a href="schedule.html">Schedule</a></li>
-	    <li class="dropdown">
-              <a href="index.html#" class="dropdown-toggle" data-toggle="dropdown">Class<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-                <li><a href="overview.html">Overview</a></li>
-                <li><a href="general.html">Administrivia</a></li>
-		<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">Handin website</a>
-		<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
-	      </ul>
-	    </li>
-            <li class="dropdown">
-              <a href="index.html#" class="dropdown-toggle" data-toggle="dropdown">Labs<span class="caret"></span></a>
-              <ul class="dropdown-menu" role="menu">
-		<li><a href="tools.html">Tools</a></li>
-		<li><a href="labs/guidance.html">Guidance</a></li>
-                <li><a href="labs/util.html">Lab Utilities</a></li>
-		<li><a href="labs/syscall.html">Lab System calls</a></li>
-		<li><a href="labs/pgtbl.html">Lab Page tables</a></li>
-		<li><a href="labs/traps.html">Lab Traps</a></li>
-                <li><a href="labs/lazy.html">Lab Lazy allocation</a></li>
-		<li><a href="labs/cow.html">Lab Copy on-write</a></li>
-		<li><a href="labs/thread.html">Lab Multithreading</a></li>
-		<li><a href="labs/lock.html">Lab Lock</a></li>
-		<li><a href="labs/fs.html">Lab File system</a></li>
-		<li><a href="labs/mmap.html">Lab mmap</a></li>
-		<li><a href="labs/net.html">Lab network driver</a></li>
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="index.html#" class="dropdown-toggle" data-toggle="dropdown">xv6<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-		<li><a href="xv6.html">xv6</a></li>
-		<li><a href="xv6/book-riscv-rev1.pdf">xv6 book</a></li>
-	      </ul>
-	    </li>
-	    <li><a href="reference.html">References</a></li>  
-	    <li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
-          </ul>
-	  <ul class="nav navbar-nav navbar-right">
-	    <p class="navbar-text">2020</p>
-	  </ul>
-        </div>
-      </div>
-    </div>
-
-
-<div class="container">
-
-
-
-
-
-<h2>News</h2>
-
-<p><b>Fall 2020</b>: 6.828 and 6.S081 will be offered as two separate
-  classes. 6.S081 (Introduction to Operating Systems) will be taught
-  as a stand-alone AUS subject for undergraduates, and will provide an
-  introduction to operating systems. 6.828 will be offered as a
-  graduate-level seminar-style class focused on research in operating
-  systems.  6.828 will assume you have taken 6.S081 or an equivalent
-  class. See
-  the <a href="https://abelay.github.io/6828seminar/index.html">6.828
-  web site</a> for more detail about 6.828. </p>
-
-
-
-<!-- End Page Content -->
-
-<hr>
-
-<font style="font-size: 12px;">
-<p>Questions or comments regarding S6.081?  Send e-mail to the course staff at
-<A
-HREF="mailto:6s081@lists.csail.mit.edu"><I>6S081@lists.csail.mit.edu</I></A>.
-
-<p><a rel="license" href="https://creativecommons.org/licenses/by/3.0/us/"><img
-alt="Creative Commons License" style="border-width:0"
-src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" ></a> <B><A HREF="index.html#top">Top</A></B> //
-<B><A HREF="index.html">S6.081 home</A></B> // 
-<i>Last updated Thursday, 04-Sep-2025 23:15:03 EDT</i>
-</font>
-
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>
+6.S081 / 2020 年秋季
+</title>
+<meta content="no-cache" http-equiv="pragma"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="css/bootstrap.min.css" media="screen" rel="stylesheet"/>
+<link href="css/style.css" rel="stylesheet" type="text/css"/>
+<link href="labs/labs.css" rel="stylesheet" type="text/css">
+</link></head>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<!-- Fixed navbar -->
+<div class="navbar navbar-default navbar-fixed-top" role="navigation">
+<div class="container-fluid">
+<div class="navbar-header">
+<button class="navbar-toggle" data-target=".navbar-collapse" data-toggle="collapse" type="button">
+<span class="sr-only">切换导航</span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+</button>
+<a class="navbar-brand" href="index.html">6.S081：操作系统工程</a>
 </div>
+<div class="navbar-collapse collapse">
+<ul class="nav navbar-nav">
+<li><a href="schedule.html">日程</a></li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="index.html#">课程<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="overview.html">概览</a></li>
+<li><a href="general.html">课程说明</a></li>
+<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>
+<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
+</li></ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="index.html#">实验<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="tools.html">工具</a></li>
+<li><a href="labs/guidance.html">指南</a></li>
+<li><a href="labs/util.html">实验：Unix 工具</a></li>
+<li><a href="labs/syscall.html">实验：系统调用</a></li>
+<li><a href="labs/pgtbl.html">实验：页表</a></li>
+<li><a href="labs/traps.html">实验：陷阱</a></li>
+<li><a href="labs/lazy.html">实验：惰性分配</a></li>
+<li><a href="labs/cow.html">实验：写时复制</a></li>
+<li><a href="labs/thread.html">实验：多线程</a></li>
+<li><a href="labs/lock.html">实验：锁</a></li>
+<li><a href="labs/fs.html">实验：文件系统</a></li>
+<li><a href="labs/mmap.html">实验：mmap</a></li>
+<li><a href="labs/net.html">实验：网络驱动</a></li>
+</ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="index.html#">xv6<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="xv6.html">xv6</a></li>
+<li><a href="xv6/book-riscv-rev1.pdf">xv6 书</a></li>
+</ul>
+</li>
+<li><a href="reference.html">参考资料</a></li>
+<li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<p class="navbar-text">2020</p>
+</ul>
+</div>
+</div>
+</div>
+<div class="container">
+<h2>课程动态</h2>
+<p><b>2020 年秋季</b>：6.828 和 6.S081 将作为两个单独的类别提供。 6.S081（操作系统简介）将作为本科生的独立 AUS 科目进行教学，并将提供操作系统简介。 6.828 将作为研究生水平的研讨会式课程提供，重点关注操作系统研究。 6.828 将假定您已修读 6.S081 或同等课程。请参阅 <a href="https://abelay.github.io/6828seminar/index.html">6.828 网站</a> 有关 6.828 的更多详细信息。 </p>
+<!-- End Page Content -->
+<hr/>
+<font style="font-size: 12px;">
+<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="index.html#top">顶部</a></b> //
+<b><a href="index.html">S6.081 首页</a></b> // 
+<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:03 EDT</i>
+</p></p></font>
+</div>
 <script src="js/jquery-1.10.2.min.js"></script>
 <script src="js/bootstrap.min.js"></script>
-
-</BODY>
-</HTML>
-
+</body>
+</html>

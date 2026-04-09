@@ -1,287 +1,290 @@
-6.1810 2025 Lecture 11: Device drivers, interrupts
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Topic: device drivers
-  a CPU needs attached devices: storage, communication, display, &c
-    OS device drivers control these devices
-  device handling can be hard:
-    devices often have rigid and complex interfaces
-    devices and CPU run in parallel -- concurrency
-    interrupts
-      hardware wants attention now!
-        e.g., pkt arrived
-      software must set aside current work and respond
-        on RISC-V use same trap mechanism as for syscalls and exceptions
-      interrupts can arrive at awkward times
-   most code in production kernels is device drivers
-     you will write one for a network card
+6.1810 2025 第11讲：设备驱动、中断
+
+主题：设备驱动程序
+  CPU 需要附加设备：存储、通信、显示等
+    操作系统设备驱动程序控制这些设备
+  设备处理可能很困难：
+    设备通常具有严格且复杂的接口
+    设备和CPU并行运行——并发
+    中断
+      硬件现在需要关注！
+        例如，pkt 到达
+      软件必须搁置当前的工作并做出响应
+        在 RISC-V 上使用与系统调用和异常相同的陷阱机制
+      中断可能会在尴尬的时候到来
+   生产内核中的大多数代码都是设备驱动程序
+     你将为网卡写一个
    
-Where are devices?
-  [CPU, bus, RAM, disk, net, uart]
+设备在哪里？
+  [CPU、总线、RAM、磁盘、网络、UART]
 
-Programming devices: memory-mapped I/O
-  device hardware has some control and status registers
-  device registers live at a physical "memory" address
-  ld/st to these addresses read/write device control registers
-  platform designer decides devices' addresses
+编程设备：内存映射 I/O
+  设备硬件有一些控制和状态寄存器
+  设备寄存器位于物理“内存”地址
+  ld/st 到这些地址读/写设备控制寄存器
+  平台设计者决定设备的地址
 
-example device: UART
-  Universal Asynchronous Receiver Transmitter
-  serial interface, input and output
-  "RS232 port", e.g. qemu console
-  a uart is hardware -- transistors
-  qemu emulates the common 16550 uart chip
-    data sheet: 16550.pdf link on schedule page, or web search
-    data sheet details physical, electrical, and programming
-  [rx wire, receive shift register, receive FIFO]
-  [transmit FIFO, transmit shift register, tx wire]
-  16-byte FIFOs
-  memory-mapped 8-bit registers at physical address UART0=0x10000000:
-    (page 9 of 16550.pdf)
-    0: RHR / THR -- receive/transmit holding register
-    1: IER -- interrupt enable register, 0x1 is receive enable, 0x2 transmit
+示例设备：UART
+  通用异步接收器和发送器
+  串行接口、输入和输出
+  “RS232 端口”，例如qemu控制台
+  UART 是硬件——晶体管
+  qemu模拟常见的16550 uart芯片
+    数据表：时间表页面上的 16550.pdf 链接，或网络搜索
+    数据表详细介绍了物理、电气和编程
+  [rx线、接收移位寄存器、接收FIFO]
+  [发送 FIFO、发送移位寄存器、tx 线]
+  16 字节 FIFO
+  物理地址 UART0=0x10000000 处的内存映射 8 位寄存器：
+    （16550.pdf 第 9 页）
+    0: RHR / THR -- 接收/发送保持寄存器
+    1：IER——中断使能寄存器，0x1为接收使能，0x2为发送使能
     ...
-    5: LSR -- line status register, 0x1 is receive data ready
+    5：LSR——线路状态寄存器，0x1为接收数据就绪
 
-how does a kernel device driver use these registers?
-  simple example: uartgetc() in kernel/uart.c
-  ReadReg(RHR) turns into *(char*)(0x10000000 + 0)
+内核设备驱动程序如何使用这些寄存器？
+  简单的例子：kernel/uart.c 中的 uartgetc()
+  ReadReg(RHR) 变成 *(char*)(0x10000000 + 0)
 
-why does the UART have FIFO buffers?
+为什么UART有FIFO缓冲区？
 
-device driver must cope with times when device is not ready
-  read() but rx FIFO is empty
-  write() but tx FIFO is full
-  LSR bits: Data Ready, Transmitter Empty
+设备驱动程序必须应对设备未准备就绪的情况
+  read() 但 rx FIFO 为空
+  write() 但 tx FIFO 已满
+  LSR 位：数据就绪、发送器空
 
-how should device drivers wait?
+设备驱动程序应该如何等待？
 
-perhaps a "busy loop":
+也许是一个“繁忙循环”：
   while((LSR & 1) == 0)
     ;
-  return RHR
-OK if waiting is unlikely -- if input is sure to arrive soon
-but too wasteful for the console!
-  often no input (keystrokes) are waiting in FIFO
-  many devices are like this -- may need to wait a long time for I/O
+  返回右心率
+如果不太可能等待——如果输入肯定很快就会到达，那么就可以
+但对于控制台来说太浪费了！
+  通常 FIFO 中没有等待输入（击键）
+  很多设备都是这样——I/O可能需要等待很长时间
 
-a solution: interrupts
-  when device needs driver attention, device raises an interrupt
-  UART interrupts if:
-    rx FIFO goes from empty to not-empty, or
-    tx FIFO goes from full to not-full
+解决办法：中断
+  当设备需要驱动程序注意时，设备会引发中断
+  UART 中断如果：
+    rx FIFO 从空变为非空，或者
+    tx FIFO 从已满变为未满
 
-how does kernel see interrupts?
-  [add PLIC to diagram, connected to address bus and devices]
+内核如何看到中断？
+  [将PLIC添加到图中，连接到地址总线和设备]
   device -> PLIC -> CPU -> trap -> usertrap()/kerneltrap() -> devintr()
-  PLIC chooses src device and dst core, since more than one of both
+  PLIC 选择 src 设备和 dst 内核，因为两者都不止一个
   trap.c devintr()
-  scause high bit indicates the trap is from a device interrupt
-  a PLIC register indicates which device interrupted
-    the "IRQ" -- UART's IRQ is 10
-    IRQs are defined by the platform -- qemu in this case
+  原因高位表示陷阱来自设备中断
+  PLIC 寄存器指示哪个设备中断
+    “IRQ”——UART 的 IRQ 为 10
+    IRQ 由平台定义——本例中为 qemu
 
-an interrupt is usually just a hint that device state might have changed
-  the real truth is in the device's status registers
-    device driver must read them to decide action, if any
-  for UART, check LSR to see if rx FIFO non-empty, tx FIFO non-full
-    as in uartgetc()
-    one interrupt may signal multiple actions needed
+中断通常只是设备状态可能已更改的提示
+  真正的真相在设备的状态寄存器中
+    设备驱动程序必须读取它们来决定操作（如果有）
+  对于 UART，检查 LSR 以查看 rx FIFO 是否非空、tx FIFO 是否未满
+    如 uartgetc() 中所示
+    一个中断可能会发出需要执行多项操作的信号
 
-xv6 must ask both the device and the RISC-V for interrupts:
+xv6 必须向设备和 RISC-V 请求中断：
   uartinit() uart.c:71
     WriteReg(IER, IER_TX_ENABLE | IER_RX_ENABLE);
   intr_on() / intr_off() riscv.h:289
     w_sstatus(r_sstatus() | SSTATUS_SIE);
-    for places where an interrupt would break kernel code
+    用于中断会破坏内核代码的地方
 
-Let's look at the shell reading input from the console/UART.
-Example of thread / interrupt cooperation.
+让我们看看 shell 从控制台/UART 读取输入。
+线程/中断协作示例。
 
 % make qemu-gdb
 % gdb
-(gdb) c
+（gdb）c
 (gdb) tbreak sys_read
-(gdb) c
+（gdb）c
 <press return>
-(gdb) tui enable
-(gdb) where
-sys_read()
-  fileread()
-    consoleread()
-      (gdb) ptype cons
-      "producer/consumer buffer"
-      [diagram: buf, r, w]
-      (gdb) print cons
-      there's nothing to read yet...
-      sleep()
+(gdb) tui 启用
+（gdb）哪里
+系统读取()
+  文件读取()
+    控制台读取()
+      (gdb) ptype 缺点
+      “生产者/消费者缓冲区”
+      [图：buf、r、w]
+      (gdb) 打印缺点
+      还没有什么可读的...
+      睡眠（）
 
-sh is now waiting for the uart to interrupt.
+sh 现在正在等待 uart 中断。
 
-now let's look at uart interrupt handling.
-I'm going to press return.
+现在让我们看看uart 中断处理。
+我要按回车键。
 
-Q: where should I tell gdb to put a breakpoint to see the interrupt?
+问：我应该在哪里告诉gdb放置断点来查看中断？
 
-(gdb) print/x $stvec
-(gdb) print kernelvec
-(gdb) tb kernelvec
-(gdb) c
+(gdb) 打印/x $stvec
+(gdb) 打印kernelvec
+(gdb) TB 内核向量
+（gdb）c
 <press return>
 
-what happened?
+发生了什么事？
   UART -> PLIC -> stvec -> kernelvec
-  (gdb) where
-  in kernel; no process was running; scheduler()
+  （gdb）哪里
+  在内核中；没有进程正在运行；调度程序()
 
 kernelvec.S:
-  if a process had been executing in user space, trap would
-    have gone to trampoline and usertrap(), which we've seen
-  kernelvec like trampoline, but for traps while kernel is executing
-  saves registers on current stack;  which stack?
-    in this case, special scheduler stack
-    if executing system call in kernel, some proc's kernel stack
-  if in kernel, and interrupts enabled, $sp and stack guaranteed valid
-  kernelvec ends by jumping to kerneltrap() -- C code
+  如果一个进程在用户空间中执行，trap 会
+    我们已经看到了trampoline和usertrap()
+  kernelvec 就像蹦床一样，但用于内核执行时的陷阱
+  将寄存器保存在当前堆栈上；哪个堆栈？
+    在这种情况下，特殊的调度程序堆栈
+    如果在内核中执行系统调用，则某些进程的内核堆栈
+  如果在内核中，并且启用了中断，则 $sp 和堆栈保证有效
+  kernelvec 通过跳转到 kerneltrap() 结束——C 代码
 
-(gdb) tb kerneltrap
-(gdb) c
-all kinds of traps arrive at kerneltrap(), code needs to decide cause.
-(gdb) next ... into devintr()
+(gdb) tb 内核陷阱
+（gdb）c
+各种陷阱都会到达 kerneltrap()，代码需要确定原因。
+(gdb) 接下来...进入 devintr()
   devintr()
-    (gdb) p/x $scause
-    scause high bit means it's an interrupt
-      p. 96 / Table 22 in riscv privileged manual
-    plic_claim() to find IRQ (which device)
-    (gdb) p irq
-      the PLIC generates IRQ 10 for the UART
-    uartintr()
-      uartgetc()
-      what's in the LSR?
+    (gdb) p/x $原因
+    因为高位意味着这是一个中断
+      p。 96 / riscv特权手册中的表22
+    plic_claim() 查找 IRQ（哪个设备）
+    (gdb) p 中断
+      PLIC 为 UART 生成 IRQ 10
+    UARTINTR()
+      串口获取()
+      LSR 里有什么？
         (gdb) x/1bx 0x10000005
-        16550.pdf page 9 says low bit is Data Ready
-      if LSR says data ready, fetch from RHR
-      x/1bx 0x10000005 -- note low bit no longer set
-      consoleintr()
-        backspace/newline/&c processing
-        print cons
+        16550.pdf 第 9 页表示低位已数据就绪
+      如果 LSR 表示数据已准备好，则从 RHR 获取
+      x/1bx 0x10000005 -- 注意低位不再设置
+      控制台intr()
+        退格/换行/&c 处理
+        印刷缺点
         x/3b cons.buf
-        wakeup()
-return through devintr, plic_complete(), kerneltrap
+        唤醒()
+通过devintr、plic_complete()、kerneltrap返回
 
-scheduler will now resume sh's read() system call
-  since woken up
-  let's break in sh's consoleread() -- just after sleep()
+调度程序现在将恢复 sh 的 read() 系统调用
+  自从醒来
+  让我们在 sleep() 之后中断 sh 的 consoleread()
   (gdb) tb console.c:105
-  (gdb) c
-  (gdb) where
-  consoleread() sees our character in cons.buf[cons.r]
-  sh's read returns, with my typed newline character
+  （gdb）c
+  （gdb）哪里
+  consoleread() 在 cons.buf[cons.r] 中看到我们的角色
+  sh 的读取返回，带有我输入的换行符
 
-General device-driver pattern: bottom-half and top-half
-  [diagram: system call calls bottom-half, interrupt is top-half]
-  bottom half:
-     called by a process's system call, e.g. write() or read()
-     may tell the device to start output or input
-     may wait for input to be ready, or output to complete
-  shared information (buffer)
-  top half:
-     the interrupt handler
-     reads input, or sends more output, from/to device hardware
-     interacts with "bottom half" process
-       put input where bottom half can find it
-       tell bottom half that input has arrived
-       or that more output can be sent
-     does *not* run in context of bottom-half process
-       maybe on different core
-       maybe interrupting some other process
-     so interactions must be arms-length -- buffers, sleep()/wakeup()
+通用设备驱动程序模式：下半部和上半部
+  [图：系统调用调用下半部，中断为上半部]
+  下半部分：
+     由进程的系统调用调用，例如写（）或读（）
+     可以告诉设备开始输出或输入
+     可能等待输入准备好或输出完成
+  共享信息（缓冲区）
+  上半部分：
+     中断处理程序
+     从设备硬件读取输入或向设备硬件发送更多输出
+     与“下半部分”流程交互
+       将输入放在下半部分可以找到的地方
+       告诉下半部分输入已到达
+       或者可以发送更多输出
+     *不*在下半部进程的上下文中运行
+       也许在不同的核心上
+       可能会中断其他进程
+     因此交互必须保持一定距离——缓冲区、sleep()/wakeup()
 
-What if multiple devices ask to interrupt at the same time?
-  The PLIC distributes interrupts among cores
-    Different interrupts can be handled in parallel on different cores
-  Each interrupt is claimed by first core to call plic_claim()
-  Each individual device has at most one interrupt in play
-    PLIC knows done via plic_complete()
+如果多个设备同时请求中断怎么办？
+  PLIC 在内核之间分配中断
+    不同的中断可以在不同的内核上并行处理
+  每个中断由第一个内核调用 plic_claim() 声明
+  每个单独的设备最多有一个正在运行的中断
+    PLIC 知道通过 plic_complete() 完成
     
-If enabled, a device interrupt can occur between any two instructions
+如果启用，设备中断可以发生在任意两条指令之间
   Example:
-    suppose the kernel is counting something in a global variable n
-    bottom half: n = n + 1
-    interrupt top half: n = n + 1
-    the machine code for n=n+1 looks like this:
+    假设内核正在计算全局变量 n 中的某些内容
+    下半部分：n = n + 1
+    中断上半部分：n = n + 1
+    n=n+1 的机器代码如下所示：
       lw a4, n
-      add a4, a4, 1
+      添加a4,a4,1
       sw a4, n
-    what if an interrupt occurs between lw and add?
-      and interrupt handler also says n = n + 1?
-  One solution: briefly disable interrupts in bottom half
+    如果lw和add之间发生中断怎么办？
+      中断处理程序还说 n = n + 1？
+  一种解决方案：暂时禁用下半部分的中断
     intr_off()
     n = n + 1
     intr_on()
     intr_off(): w_sstatus(r_sstatus() & ~SSTATUS_SIE);
-  Good, but not enough: interrupt could arrive on a different CPU
-    More on this when we look at locking
+  很好，但还不够：中断可能到达不同的 CPU
+    当我们查看锁定时会对此进行更多了解
 
-What happens to interrupts while SSTATUS_SIE is zero?
-  PLIC/CPU remember pending interrupts
-  deliver when kernel re-enables interrupts
+当 SSTATUS_SIE 为零时中断会发生什么？
+  PLIC/CPU 记住挂起的中断
+  当内核重新启用中断时传递
 
-Production and consumption are usually decoupled -- concurrent
-  Input from device:
-    Can arrive at time when reader not waiting
-    Can arrive faster, or slower, than reader can read
-    Buffering and batching help match speeds, increase efficiency
-  Output to device:
-    If device is slow, want to buffer output so process can continue
-    If device is fast, want to send in batches for efficiency
-  So producer/consumer buffers are common
-  We've seen this at two levels:
-    UART internal FIFOs, for device and driver -- plus interrupts
-    cons.buf, for bottom-half and top-half -- plus sleep/wakeup
-  We'll see this again:
-    pipes
-    net lab
+生产和消费通常是解耦的——并发的
+  从设备输入：
+    可以在读者不等待的时间到达
+    到达速度可能比读者阅读的速度更快或更慢
+    缓冲和批处理有助于匹配速度、提高效率
+  输出到设备：
+    如果设备速度慢，需要缓冲输出以便进程可以继续
+    如果设备速度很快，希望分批发送以提高效率
+  所以生产者/消费者缓冲区很常见
+  我们在两个层面上看到了这一点：
+    UART 内部 FIFO，用于设备和驱动程序 - 以及中断
+    cons.buf，用于下半部和上半部——加上睡眠/唤醒
+  我们会再次看到这一点：
+    管道
+    网络实验室
 
-Interrupts incur overhead
-  around a microsecond
+中断会产生开销
+  大约一微秒
   "overhead" == cost *excluding* useful device driver work
-  the time required for CPU trap, save registers, maybe
-    switch page table, decide which device,
-    and later restore everything and return
-  pipelines, large register sets, cache/TLB misses, slow RAM
+  CPU 陷阱所需的时间，保存寄存器，也许
+    切换页表，决定使用哪个设备，
+    然后恢复一切并返回
+  管道、大型寄存器集、高速缓存/TLB 未命中、慢速 RAM
 
-What if interrupt rate is high? 
-  Example: ethernet can deliver millions of packets / second
-  At that rate, big fraction of CPU time in interrupt *overhead*
+如果中断率很高怎么办？
+  示例：以太网每秒可以传送数百万个数据包
+  按照这个速度，中断的 CPU 时间的很大一部分*开销*
   
-Polling: an event notification strategy for high rates
-  Tell device (or PLIC) not to generate interrupts for the device
-  Check for input periodically, e.g. in scheduler() or timer interrupt
-  Then process everything accumulated since last poll
-  More efficient than interrupts at high rates
-  Perhaps switch strategies based on measured rate
+轮询：高速率的事件通知策略
+  告诉设备（或 PLIC）不要为设备生成中断
+  定期检查输入，例如在 Scheduler() 或定时器中断中
+  然后处理自上次轮询以来积累的所有内容
+  比高速率中断更高效
+  也许根据测量的速率切换策略
 
-DMA (direct memory access) can move data efficiently
-  the xv6 uart driver reads bytes one at a time in software
-    CPUs are not efficient for this:
-      off chip, not cacheable, 8 bits at a time
-    OK only for low-speed devices
-  most fast devices automatically copy batches of input to RAM -- DMA
-    then interrupt
-    input is already in ordinary RAM
-    CPUs read/write RAM efficiently
+DMA（直接内存访问）可以有效地移动数据
+  xv6 uart 驱动程序在软件中一次读取一个字节
+    CPU 对此效率不高：
+      片外，不可缓存，一次 8 位
+    仅适用于低速设备
+  大多数快速设备会自动将批量输入复制到 RAM——DMA
+    然后中断
+    输入已经在普通 RAM 中
+    CPU 高效地读/写 RAM
 
-Interrupt evolution over time
-  Decades ago:
-    Interrupt overhead was a few cycles
-    so: simple h/w, smart s/w, lots of interrupts
+随着时间的推移中断演变
+  几十年前：
+    中断开销是几个周期
+    所以：简单的硬件，智能的软件，大量的中断
   Now:
-    Overhead is 1000s of cycles
-    so: smart h/w, does lots of work for each interrupt
+    开销是 1000 个周期
+    所以：智能硬件，为每个中断做很多工作
 
-Interrupts and device handling a continuing area of concern
-  Special fast interrupt paths (also for page faults, sys calls)
-  Spread device work over CPUs
-  User-space device drivers -- avoid kernel altogether
+中断和设备处理是持续关注的领域
+  特殊的快速中断路径（也适用于页面错误、系统调用）
+  将设备工作分散到 CPU 上
+  用户空间设备驱动程序——完全避免内核
 
-Next week: networking
+下周：网络

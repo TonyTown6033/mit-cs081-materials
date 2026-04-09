@@ -1,29 +1,22 @@
-<html>
-<head>
-<title>Journaling</title>
-<link rel="stylesheet" href="https://pdos.csail.mit.edu/6.S081/2020/readings/homework.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>写日记</title>
+<link href="https://pdos.csail.mit.edu/6.S081/2020/readings/homework.css" rel="stylesheet" type="text/css"/>
 </head>
-<body>
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>写日记</h1>
 
-<h1>Journaling</h1>
-
-Read: <a href="journal-design.pdf">Journaling the Linux ext2fs Filesystem</a>.
+Read: <a href="journal-design.pdf">记录 Linux ext2fs 文件系统</a>.
 
 <p>
-The paper uses "journal" to refer to the same idea that
-xv6 calls a "log". The file system described in the paper is now called ext3.
+本文使用“journal”来指代 xv6 所称的“log”相同的想法。论文中描述的文件系统现在称为 ext3。
 
-<p>To help you read the paper, try to answer the following question for yourself:
+<p>为了帮助您阅读本文，请尝试自己回答以下问题：
 <div class="question">
-Mid-way down the left column on page 6, the Journaling paper
-says "However, until we have finished syncing those buffers, we cannot
-delete the copy of the data in the journal."
-Give a concrete example in which removing this rule would
-lead to disaster.
-</p>
-</div>
+第 6 页左栏中间，日记论文写道：“但是，在我们完成这些缓冲区的同步之前，我们无法删除日记中的数据副本。”举一个具体的例子来说明取消这条规则会导致灾难。
+</div></p>
 
-<p>You don't have submit your answer.
+<p>您还没有提交答案。
 
-</body>
+</p></p></body>
 </html>

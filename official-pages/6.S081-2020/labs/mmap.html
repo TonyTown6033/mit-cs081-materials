@@ -1,84 +1,54 @@
-<html>
-<head>
-<title>Lab: mmap</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：mmap</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body>
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：mmap <script>g("hard")</script></h1>
 
-<h1>Lab: mmap <script>g("hard")</script></h1>
+的 <tt>mmap</tt> 和 <tt>munmap</tt> 系统调用允许 UNIX 程序对其地址空间进行详细的控制。它们可用于在进程之间共享内存，将文件映射到进程地址空间，并作为用户级页面错误方案的一部分，例如讲座中讨论的垃圾收集算法。在本实验中，您将添加 <tt>mmap</tt> 和 <tt>munmap</tt>
+到 xv6，重点关注内存映射文件。
 
-The <tt>mmap</tt> and <tt>munmap</tt> system calls allow UNIX programs
-to exert detailed control over their address spaces. They can be used
-to share memory among processes, to map files into process address
-spaces, and as part of user-level page fault schemes such as the
-garbage-collection algorithms discussed in lecture.
-In this lab you'll add <tt>mmap</tt> and <tt>munmap</tt>
-to xv6, focusing on memory-mapped files.
-
-<p>Fetch the xv6 source for the lab and check out the <tt>mmap</tt> branch:
+<p>获取实验室的 xv6 源代码并查看 <tt>mmap</tt> branch:
 
 <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout mmap</kbd>
   $ <kbd>make clean</kbd>
 </pre>
-
 <p>
-The manual page
-(run <kbd>man 2 mmap</kbd>) shows this declaration for <tt>mmap</tt>:
+手册页（运行 <kbd>man 2 mmap</kbd>) 显示此声明 <tt>mmap</tt>:
 <pre>
 void *mmap(void *addr, size_t length, int prot, int flags,
            int fd, off_t offset);
 </pre>
 <p>
-<tt>mmap</tt> can be called in many ways,
-but this lab requires only
-a subset of its features relevant to memory-mapping a file.
-You can assume that
-<tt>addr</tt> will always be zero, meaning that the
-kernel should decide the virtual address at which to map the file.
-<tt>mmap</tt> returns that address, or 0xffffffffffffffff if
-it fails.
-<tt>length</tt> is the number of bytes to map; it might not be
-the same as the file's length.
-<tt>prot</tt> indicates whether the memory should be mapped
-readable, writeable, and/or executable; you can assume 
-that <tt>prot</tt> is <tt>PROT_READ</tt> or <tt>PROT_WRITE</tt>
-or both.
-<tt>flags</tt> will be either <tt>MAP_SHARED</tt>,
-meaning that modifications to the mapped memory should
-be written back to the file, or <tt>MAP_PRIVATE</tt>,
-meaning that they should not. You don't have to implement any
-other bits in <tt>flags</tt>.
-<tt>fd</tt> is the open file descriptor of the file to map.
-You can assume <tt>offset</tt> is zero (it's the starting point
-in the file at which to map).
+<tt>mmap</tt> 可以通过多种方式调用，但本实验仅需要其与内存映射文件相关的功能的子集。你可以假设
+<tt>addr</tt> 始终为零，这意味着内核应该决定映射文件的虚拟地址。
+<tt>mmap</tt> 返回该地址，如果失败则返回 0xffffffffffffffff。
+<tt>length</tt> 是要映射的字节数；它可能与文件的长度不同。
+<tt>prot</tt> 指示内存是否应映射为可读、可写和/或可执行；你可以假设 <tt>prot</tt> 是 <tt>PROT_READ</tt> 或 <tt>PROT_WRITE</tt>
+或两者兼而有之。
+<tt>flags</tt> 将是 <tt>MAP_SHARED</tt>，这意味着对映射内存的修改应该写回文件，或者 <tt>MAP_PRIVATE</tt>，这意味着他们不应该。您不必在中实现任何其他位 <tt>flags</tt>.
+<tt>fd</tt> 是要映射的文件的打开文件描述符。你可以假设 <tt>offset</tt> 为零（它是文件中要映射的起点）。
 
 <p>
-It's OK if processes that map the same <tt>MAP_SHARED</tt>
-file do <b>not</b> share physical pages.
+如果映射的进程相同就可以了 <tt>MAP_SHARED</tt>
+文件做 <b>不</b> 共享物理页面。
 
 <p>
-<tt>munmap(addr, length)</tt> should remove mmap mappings in the
-indicated address range. If the process has modified the memory and
-has it mapped <tt>MAP_SHARED</tt>, the modifications should first be
-written to the file. An <tt>munmap</tt> call might cover only a
-portion of an mmap-ed region, but you can assume that it will either
-unmap at the start, or at the end, or the whole region (but not punch
-a hole in the middle of a region).
+<tt>munmap(addr, length)</tt> 应删除指定地址范围内的 mmap 映射。如果进程修改了内存并已映射 <tt>MAP_SHARED</tt>，修改应首先写入文件。安 <tt>munmap</tt> 调用可能只覆盖 mmap 区域的一部分，但您可以假设它将在开始、结束或整个区域取消映射（但不会在区域中间打孔）。
 
 <div class="required">
 <p>
-You should implement enough <tt>mmap</tt> and <tt>munmap</tt>
-functionality to make the
-<tt>mmaptest</tt> test program work. If <tt>mmaptest</tt>
-doesn't use a <tt>mmap</tt> feature, you don't need to implement
-that feature.
-</div>
-
+你应该实施足够的 <tt>mmap</tt> 和 <tt>munmap</tt>
+功能使
+<tt>mmaptest</tt> 测试程序工作。如果 <tt>mmaptest</tt>
+不使用 <tt>mmap</tt> 功能，您不需要实现该功能。
+</p></div>
 <p>
-When you're done, you should see this output:
+完成后，您应该看到以下输出：
 <pre>
 $ <kbd>mmaptest</kbd>
 mmap_test starting
@@ -106,119 +76,47 @@ usertests starting
 ALL TESTS PASSED
 $ 
 </pre>
-
-<p>Here are some hints:
+<p>以下是一些提示：
 
   <ul>
-    <li>Start by adding <tt>_mmaptest</tt> to <tt>UPROGS</tt>,
-      and <tt>mmap</tt> and <tt>munmap</tt> system calls, in order to
-      get <tt>user/mmaptest.c</tt> to compile. For now, just return
-      errors from <tt>mmap</tt> and <tt>munmap</tt>.  We defined
-      <tt>PROT_READ</tt> etc for you in <tt>kernel/fcntl.h</tt>.
-      Run <tt>mmaptest</tt>, which will fail at the first mmap call.
+<li>首先添加 <tt>_mmaptest</tt> 到 <tt>UPROGS</tt>, 和 <tt>mmap</tt> 和 <tt>munmap</tt> 系统调用，以获得 <tt>user/mmaptest.c</tt> 来编译。现在，只需从以下位置返回错误 <tt>mmap</tt> 和 <tt>munmap</tt>。我们定义
+      <tt>PROT_READ</tt> 等为你 <tt>kernel/fcntl.h</tt>。运行 <tt>mmaptest</tt>，这将在第一次 mmap 调用时失败。
 
-    <li>Fill in the page table lazily, in response to page faults.
-      That is, <tt>mmap</tt> should not allocate physical memory or
-      read the file. Instead, do that in page fault handling code
-      in (or called by) <tt>usertrap</tt>, as in the lazy page allocation lab.
-      The reason to be lazy is to ensure that <tt>mmap</tt> of
-      a large file is fast, and that <tt>mmap</tt> of a file larger
-      than physical memory is possible.
+    <li>延迟填充页表，以响应页错误。也就是说， <tt>mmap</tt> 不应分配物理内存或读取文件。相反，请在页面错误处理代码中执行此操作（或由其调用） <tt>usertrap</tt>，如惰性页面分配实验室中所示。偷懒的原因是为了确保 <tt>mmap</tt> 大文件的速度很快，而且 <tt>mmap</tt> 大于物理内存的文件是可能的。
       
-    <li>Keep track of what <tt>mmap</tt> has mapped for each process.
-      Define a structure corresponding to the VMA (virtual
-      memory area) described in Lecture 15,
-      recording the address, length, permissions, file, etc.
-      for a virtual memory range created by <tt>mmap</tt>. Since the xv6
-      kernel doesn't have a memory allocator in the kernel, it's OK to
-      declare a fixed-size array of VMAs and allocate
-      from that array as needed. A size of 16 should be sufficient.
+    <li>跟踪什么 <tt>mmap</tt> 已映射每个进程。定义一个对应第15讲中介绍的VMA（虚拟内存区域）的结构体，记录了创建的虚拟内存范围的地址、长度、权限、文件等 <tt>mmap</tt>。由于 xv6 内核在内核中没有内存分配器，因此可以声明固定大小的 VMA 数组并根据需要从该数组进行分配。 16 的大小应该足够了。
 
-    <li>Implement <tt>mmap</tt>:
-      find an unused region in the process's
-      address space in which to map the file,
-      and add a VMA to the process's
-      table of mapped regions.
-      The VMA should contain a pointer to
-      a <tt>struct file</tt> for the file being mapped; <tt>mmap</tt> should
-      increase the file's reference count so that the structure doesn't
-      disappear when the file is closed (hint:
-      see <tt>filedup</tt>).
-      Run <tt>mmaptest</tt>: the first <tt>mmap</tt> should
-      succeed, but the first access to the mmap-ed memory will 
-      cause a page fault and kill <tt>mmaptest</tt>.
+    <li>实施 <tt>mmap</tt>：在进程的地址空间中找到一个未使用的区域来映射文件，并将VMA添加到进程的映射区域表中。 VMA 应该包含一个指向 <tt>struct file</tt> 对于被映射的文件； <tt>mmap</tt> 应该增加文件的引用计数，以便在文件关闭时该结构不会消失（提示：请参阅 <tt>filedup</tt>）。运行 <tt>mmaptest</tt>：第一个 <tt>mmap</tt> 应该会成功，但是第一次访问 mmap 内存会导致页面错误并终止 <tt>mmaptest</tt>.
 
-    <li>Add code to cause a page-fault in a mmap-ed region to
-      allocate a page of physical memory, read 4096 bytes of
-      the relevant file into
-      that page, and map it into the user address space.
-      Read the file with <tt>readi</tt>,
-      which takes an offset argument at which to read in the
-      file (but you will have to lock/unlock the inode passed
-      to <tt>readi</tt>).  Don't forget to set the permissions correctly
-      on the page.  Run <tt>mmaptest</tt>; it should get to the
-      first <tt>munmap</tt>.
+    <li>添加代码以导致 mmap 区域中的页错误分配物理内存页，将相关文件的 4096 字节读入该页，并将其映射到用户地址空间。读取文件 <tt>readi</tt>，它采用一个偏移量参数来读取文件（但是您必须锁定/解锁传递给的 inode <tt>readi</tt>）。不要忘记在页面上正确设置权限。运行 <tt>mmaptest</tt>;它应该到达第一个 <tt>munmap</tt>.
       
-    <li>Implement <tt>munmap</tt>: find the VMA for the address range and
-      unmap the specified pages (hint: use <tt>uvmunmap</tt>).
-      If <tt>munmap</tt> removes all pages of a
-      previous <tt>mmap</tt>, it should decrement the reference count
-      of the corresponding <tt>struct file</tt>. If an unmapped page
-      has been modified and the file is mapped <tt>MAP_SHARED</tt>,
-      write the page back to the file.
-      Look at <tt>filewrite</tt> for inspiration.
+    <li>实施 <tt>munmap</tt>：找到地址范围的VMA并取消映射指定的页面（提示：使用 <tt>uvmunmap</tt>）。如果 <tt>munmap</tt> 删除以前的所有页面 <tt>mmap</tt>，它应该减少相应的引用计数 <tt>struct file</tt>。如果未映射的页面已被修改并且文件已映射 <tt>MAP_SHARED</tt>，将页面写回文件。看看 <tt>filewrite</tt> 寻求灵感。
 
-    <li>Ideally your implementation would only write back
-      <tt>MAP_SHARED</tt> pages that the program actually modified.
-      The dirty bit (<tt>D</tt>) in the RISC-V PTE indicates whether a
-      page has been written. However, <tt>mmaptest</tt> does not check
-      that non-dirty pages are not written back; thus you can get away
-      with writing pages back without looking at <tt>D</tt> bits.
+    <li>理想情况下，您的实现只会写回
+      <tt>MAP_SHARED</tt> 程序实际修改的页面。脏点（<tt>D</tt>) 在 RISC-V PTE 中表示页面是否已被写入。然而， <tt>mmaptest</tt> 不检查非脏页是否未被写回；因此你可以不用看就可以写回页面 <tt>D</tt> bits.
 
-    <li>Modify <tt>exit</tt> to unmap the process's mapped regions as
-      if <tt>munmap</tt> had been called.
-      Run <tt>mmaptest</tt>; <tt>mmap_test</tt> should pass, but
-      probably not <tt>fork_test</tt>.
+    <li>修改 <tt>exit</tt> 取消映射进程的映射区域，就像 <tt>munmap</tt> 被召唤了。运行 <tt>mmaptest</tt>; <tt>mmap_test</tt> 应该通过，但可能不会 <tt>fork_test</tt>.
 
-    <li>Modify <tt>fork</tt> to ensure that the child has the
-    same mapped regions as the parent.
-    Don't
-    forget to increment the reference count for a VMA's <tt>struct
-    file</tt>.  In the page fault handler of the child, it is OK to
-    allocate a new physical page instead of sharing a page with the
-    parent. The latter would be cooler, but it would require more
-    implementation work.  Run <tt>mmaptest</tt>; it should pass
-    both <tt>mmap_test</tt> and <tt>fork_test</tt>.
+    <li>修改 <tt>fork</tt> 确保子级具有与父级相同的映射区域。不要忘记增加 VMA 的引用计数 <tt>struct
+    file</tt>。在子进程的页面错误处理程序中，可以分配一个新的物理页面，而不是与父进程共享页面。后者会更酷，但需要更多的实施工作。运行 <tt>mmaptest</tt>;它应该通过两个 <tt>mmap_test</tt> 和 <tt>fork_test</tt>.
           
-  </ul>
-  
-<p>Run <tt>usertests</tt> to make sure everything still works.
+  </li></li></li></li></li></li></li></li></li></ul>
+<p>运行 <tt>usertests</tt> 以确保一切仍然有效。
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<h3>Time spent</h3>
+<h3>提交</h3>
 
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -233,82 +131,47 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
+<h2>可选挑战</h2>
+<ul>
+<li>如果两个进程具有相同的文件 mmap-ed（如 <tt>fork_test</tt>），分享他们的物理页面。您将需要物理页上的引用计数。
 
+    <li>您的解决方案可能会为从 mmap 文件读取的每个页面分配一个新的物理页面，即使数据也在缓冲区高速缓存的内核内存中。修改您的实现以使用该物理内存，而不是分配新页面。这要求文件块的大小与页面相同（设置 <tt>BSIZE</tt> 至 4096）。您需要将 mmap 块固定到缓冲区高速缓存中。您需要担心引用计数。
 
+    <li>消除延迟分配的实现和 mmap 文件的实现之间的冗余。 （提示：为惰性分配区域创建一个 VMA。）
 
+    <li>修改 <tt>exec</tt> 对二进制文件的不同部分使用 VMA，以便获得按需分页的可执行文件。这将使启动程序更快，因为 <tt>exec</tt> 不必从文件系统读取任何数据。
 
-  <h2>Optional challenges</h2>
-  
-  <ul>
-    
-    <li>If two processes have the same file mmap-ed (as
-      in <tt>fork_test</tt>), share their physical pages. You will need
-      reference counts on physical pages.
-
-    <li>Your solution probably allocates a new physical page for each page
-    read from the mmap-ed file, even though the data is also in kernel
-    memory in the buffer cache.  Modify your implementation to use
-    that physical memory, instead of allocating a new page.  This requires that
-    file blocks be the same size as pages (set <tt>BSIZE</tt> to
-    4096).  You will need to pin mmap-ed blocks into the buffer cache.
-    You will need worry about reference counts.
-
-    <li>Remove redundancy between your implementation for lazy
-    allocation and your implementation of mmap-ed files.  (Hint:
-    create a VMA for the lazy allocation area.)
-
-    <li>Modify <tt>exec</tt> to use a VMA for different sections of
-    the binary so that you get on-demand-paged executables. This will
-    make starting programs faster, because <tt>exec</tt> will not have
-      to read any data from the file system.
-
-    <li>Implement page-out and page-in: have
-    the kernel move some parts of processes to disk when
-    physical memory is low.  Then, page in the paged-out memory when
-    the process references it.
+    <li>实现页出和页入：当物理内存不足时，让内核将进程的某些部分移至磁盘。然后，当进程引用调出的内存时，对其进行分页。
       
-  </ul>
-
-</body>
+  </li></li></li></li></li></ul>
+</p></p></a></p></p></p></p></p></p></p></p></p></body>
 </html>
-
 <!--  LocalWords:  mmap munmap macOS addr prot fd unmap mmaptest VMA
  -->
 <!--  LocalWords:  usertests reparent bigdir usertrap allocator VMAs

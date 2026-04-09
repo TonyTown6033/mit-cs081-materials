@@ -1,281 +1,284 @@
-6.1810 2025 Lecture 6: System Call Entry/Exit
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+
+6.1810 2025第6讲：系统调用进入/退出
 
 Today: user -> kernel transition
-  system calls, exceptions, device interrupts enter the kernel in the same way
-  lots of careful design and important detail
-  important for isolation (security) and performance
+  系统调用、异常、设备中断以同样的方式进入内核
+  许多精心设计和重要细节
+  对于隔离（安全）和性能很重要
 
-What needs to happen when a program makes a system call, e.g. write()?
-  [CPU | user/kernel diagram]
-  CPU resources are set up for user execution (not kernel)
-    32 registers (incl sp), pc, privilege mode, satp
-  what needs to happen?
-    switch to supervisor mode
-    save 32 user registers and pc
-    switch to kernel page table
-    switch to kernel stack
-    jump to kernel C code
-  additional goals
+当程序进行系统调用时需要发生什么，例如写（）？
+  [CPU |用户/内核图]
+  CPU 资源是为用户执行（而不是内核）而设置的
+    32 个寄存器（包括 sp）、pc、特权模式、satp
+  需要发生什么？
+    切换到主管模式
+    保存32个用户寄存器和PC
+    切换到内核页表
+    切换到内核堆栈
+    跳转到内核C代码
+  额外目标
     don't let user code interfere with user->kernel transition
-      e.g. don't execute user code in supervisor mode!
-    transparent to user code -- resume without:w disturbing
-      most important for device interrupts
+      例如不要在超级用户模式下执行用户代码！
+    对用户代码透明——恢复时不会造成干扰
+      对于设备中断最重要
 
-Today I'll focus on the user/kernel transition
-  and ignore what the system call implemenation does once in the kernel
+今天我将重点讨论用户/内核转换
+  并忽略系统调用实现在内核中执行的操作
 
-RISC-V registers of importance
-  satp
-  stvec
-  sepc
-  scause
-  sscratch
-  sstatus: SPP, SPIE, SIE, 
-  (see riscv-privileged pdf)
+RISC-V 重要寄存器
+  萨特普
+  斯特韦克
+  塞普克
+  原因
+  刮擦
+  状态：SPP、SPIE、SIE、
+  （参见 riscv 特权 pdf）
 
-RISC-V instructions of importance
+RISC-V指令的重要性
   ecall:
-  	saves SIE into SPIE and sets SIE = 0
-	switch CPU to kernel mode (supervisor mode)
-	jumps to $stvec
+  	将 SIE 保存到 SPIE 中并设置 SIE = 0
+	将CPU切换到内核模式（管理模式）
+	跳转到 $stvec
   sret:
-	switch CPU to previous mode (0 for user)
-	set SIE to SPIE (enable interrupts)
-	return to $sepc
+	将CPU切换到先前的模式（0为用户）
+	将 SIE 设置为 SPIE（启用中断）
+	返回$sepc
         
 preview:
-  write()                        write() returns
-  ecall                                                     User
+  write() write() 返回
+  呼叫用户
   ----------------------------------------------------------------
-                                 sret                       Kernel
-  uservec in trampoline.S        userret in trampoline.S  
-  usertrap() in trap.c           usertrapret() in trap.c
-  syscall() in syscall.c           ^
-  sys_write() in sysfile.c      ---|
+                                 sret内核
+  蹦床.S 中的 uservec 蹦床.S 中的 userret
+  trap.c 中的 usertrap() trap.c 中的 usertrapret()
+  syscall.c 中的 syscall() ^
+  sysfile.c 中的 sys_write() ---|
 
-let's watch an xv6 system call entering/leaving the kernel
-  xv6 shell writing its $ prompt
-  user/sh.c line 137: write(2, "$ ", 2);
-  user/usys.S line 29
-    this is the write() function, still in user space
-  a7 tells the kernel what system call we want -- SYS_write = 16
-  ecall -- triggers the user/kernel transition
+让我们看一下进入/离开内核的 xv6 系统调用
+  xv6 shell 编写 $ 提示符
+  user/sh.c 第 137 行： write(2, "$ ", 2);
+  用户/usys.S 第 29 行
+    这是 write() 函数，仍在用户空间中
+  a7 告诉内核我们想要什么系统调用 -- SYS_write = 16
+  ecall——触发用户/内核转换
 
-let's start by putting a breakpoint on the ecall
+让我们首先在 ecall 上放置一个断点
   user/sh.asm
-  search for <write>:
-  write()'s ecall is at address 0xca6
+  搜索<写入>：
+  write() 的 ecall 位于地址 0xca6
 
 $ make CPUS=1 qemu-gdb
 $ gdb
-(gdb) b *0xca8
-(gdb) c
-(gdb) delete 1
-(gdb) b *0xcac (in case stepi sret doesn't step)
-(gdb) x/3i 0xca6
+（gdb）b *0xca8
+（gdb）c
+(gdb) 删除 1
+(gdb) b *0xcac（如果stepi sret不步进）
+（gdb）x/3i 0xca6
 
-let's print the registers
+让我们打印寄存器
 (gdb) p $pc
 (gdb) p $sp
 $pc and $sp are at low addresses -- user memory starts at zero
 
-C on RISC-V puts function arguments in a0, a1, a2, &c
-write() arguments: a0 is fd, a1 is buf, a2 is n
+RISC-V 上的 C 将函数参数放入 a0、a1、a2 和 c 中
+write() 参数：a0 是 fd，a1 是 buf，a2 是 n
 (gdb) p $a0
 (gdb) p/x $a1
 (gdb) x/s $a1
 (gdb) p $a2
 
-the shell is printing the $ prompt, as we expected
+正如我们所期望的，shell 正在打印 $ 提示符
 
-what page table is in use?
+正在使用什么页表？
   (gdb) p/x $satp
-        not very useful
-  qemu: control-a c, info mem
-    there are mappings for seven pages
-    [address space diagram -- 3.4.pdf]
-    instructions x2, data, stack guard (no PTE_U), stack
-    then two high pages: trapframe and trampoline
+        不是很有用
+  qemu：control-a c，信息内存
+    有七个页面的映射
+    [地址空间图--3.4.pdf]
+    指令 x2、数据、堆栈保护（无 PTE_U）、堆栈
+    然后是两个高页面：trapframe和trampoline
       data and code for user->kernel transition
-    there are no mappings for kernel memory, devices, physical mem
+    没有内核内存、设备、物理内存的映射
 
-where will ecall enter the kernel?
+ecall会从哪里进入内核？
 (gdb) p/x $stvec
 
-let's execute the ecall
-(gdb) stepi  (or (gdb) b*$stvec  in case next stepi doesn't step) 
+让我们执行 ecall
+(gdb) stepi （或 (gdb) b*$stvec 如果下一个 stepi 不执行）
 
-where are we?
+我们在哪里？
   (gdb) p $pc
-        a very high virtual address
-  qemu: info mem
-        we're still using the user page table
+        非常高的虚拟地址
+  qemu：信息内存
+        我们仍然使用用户页表
         $pc is in the very last page
   (gdb) x/6i $pc
-        this is uservec in kernel/trampoline.S
-        it's the start of the kernel's trampoline trap handling code
+        这是 kernel/trampoline.S 中的 uservec
+        这是内核的蹦床陷阱处理代码的开始
   (gdb) p $sp
   (gdb) p $a0
-        the registers hold user values (except $pc)
+        寄存器保存用户值（$pc 除外）
 
 trampoline:
-  holds the very first instructions executed as supervisor for trap
-  must be in user page table, since ecall doesn't change satp.
-  at the top to avoid punching a hole in user virtual address space.
-  protected: no PTE_U flag.
+  保存作为 trap 的主管执行的第一条指令
+  必须位于用户页表中，因为 ecall 不会更改 satp。
+  位于顶部，以避免在用户虚拟地址空间中打孔。
+  受保护：没有 PTE_U 标志。
 
-can we tell that we're in supervisor mode?
-  I don't know a way to find the mode directly
-  but observe $pc is executing in a page with no PTE_U flag
-    lack of crash implies we are in supervisor mode
+我们可以看出我们处于主管模式吗？
+  我不知道如何直接找到模式
+  但观察 $pc 正在没有 PTE_U 标志的页面中执行
+    没有崩溃意味着我们处于主管模式
 
-how did we get here?
-  ecall did four things:
-    change mode from user to supervisor
-    save $pc in $sepc
+我们是怎么到这里的？
+  ecall 做了四件事：
+    将模式从用户更改为管理员
+    将 $pc 保存到 $sepc 中
       (gdb) p/x $sepc
-    jump to $stvec (i.e. set $pc to $stvec)
+    跳转到 $stvec （即将 $pc 设置为 $stvec）
       (gdb) p/x $stvec
-      the kernel previously set $stvec, before jumping to user space
-    disable (really postpone) further interrupts
+      内核在跳转到用户空间之前预先设置了 $stvec
+    禁用（真正推迟）进一步的中断
       (gdb) p/x $sstatus
-      SIE 0x2 is clear (the 0x20 is SPIE -- previous)
+      SIE 0x2 已清除（0x20 是 SPIE——以前的）
 
-note: ecall lets user code switch to supervisor mode
-  but ecall also sets $pc = $stvec
-  so the kernel immediately gains control, since only it can set $stvec
-  so the user program itself can't execute as supervisor
-  can ecall do less?  for example, not disable interrupts?
+注意：ecall 让用户代码切换到管理员模式
+  但 ecall 还设置 $pc = $stvec
+  所以内核立即获得控制权，因为只有它可以设置 $stvec
+  所以用户程序本身不能作为主管执行
+  ecall 可以做得更少吗？例如，不禁用中断？
 
-what needs to happen now?
-  we can't execute kernel C code yet...
-  * save the 32 user register values (for later transparent resume)
-  * switch to kernel page table
-  * set up stack for kernel C code
-  * jump to kernel C code -- usertrap()
+现在需要做什么？
+  我们还不能执行内核 C 代码...
+  * 保存32个用户寄存器值（用于以后透明恢复）
+  * 切换到内核页表
+  * 为内核C代码设置堆栈
+  * 跳转到内核C代码——usertrap()
 
-why didn't the RISC-V designers have ecall do these things for us?
-  to give O/S designers scope for very fast syscalls / exceptions / intrs
-    maybe O/S can handle some traps w/o switching page tables
-    maybe we can map BOTH user and kernel into a single page table
-       so no page table switch required
-    maybe some registers do not have to be saved
-    maybe no stack is required for simple system calls
-  so ecall does as little as possible
+为什么 RISC-V 设计者没有让 ecall 为我们做这些事情？
+  为操作系统设计者提供非常快速的系统调用/异常/整数的范围
+    也许操作系统可以处理一些陷阱而无需切换页表
+    也许我们可以将用户和内核都映射到一个页表中
+       所以不需要页表切换
+    也许有些寄存器不需要保存
+    简单的系统调用可能不需要堆栈
+  所以 ecall 尽可能少做
 
-can we just write the 32 registers somewhere convenient in physical memory?
-  no, even supervisor mode is constrained by the page table
-  and the current page table is still the user page table, not kernel
+我们可以将 32 个寄存器写入物理内存中方便的地方吗？
+  不，即使是supervisor模式也受到页表的限制
+  并且当前页表仍然是用户页表，而不是内核页表
 
-can we first set satp to the kernel page table?
-  supervisor mode is allowed to set satp...
-  but we don't know the address of the kernel page table at this point!
+我们可以先将 satp 设置到内核页表吗？
+  管理员模式允许设置 satp...
+  但此时我们还不知道内核页表的地址！
 
-we need one of the 32 general purpose registers to hold an address
-  of the memory into which we'll save the 32 user registers
-  but all 32 hold user values which we must preserve for eventual return
+我们需要 32 个通用寄存器之一来保存地址
+  我们将保存 32 个用户寄存器的内存的大小
+  但所有 32 个都保存有用户值，我们必须保留这些值以供最终返回
 
-two parts to the solution for where to save the 32 user registers:
-  1) xv6 maps a 2nd kernel page, the trapframe, into the user page table
-     at a known virtual address, always the same: 0x3fffffe000
-     trapframe has space to hold the saved registers
-     the kernel gives each process a different trapframe page
-     see struct trapframe in kernel/proc.h
-     (but we still need a register to hold the trapframe's address...)
-  2) RISC-V provides the sscratch register
-     supervisor code can use sscratch for temporary storage
-     user code isn't allowed to use sscratch, so no need to save
+保存 32 个用户寄存器的解决方案分为两部分：
+  1) xv6 将第二个内核页面（trapframe）映射到用户页表中
+     在已知的虚拟地址，始终相同：0x3fffffe000
+     trapframe 有空间保存保存的寄存器
+     内核为每个进程提供不同的 trapframe 页
+     参见 kernel/proc.h 中的 struct trapframe
+     （但我们仍然需要一个寄存器来保存陷阱帧的地址......）
+  2）RISC-V提供sscratch寄存器
+     主管代码可以使用 sscratch 进行临时存储
+     用户代码不允许使用sscratch，因此无需保存
 
-see this at the start of uservec in trampoline.S:
-  csrw sscratch, a0
-then load TRAPFRAME into a0
+在 Trampoline.S 的 uservec 开头看到这个：
+  csrw sscratch，a0
+然后将TRAPFRAME加载到a0中
 
-(gdb) stepi
+(gdb) 斯特皮
 (gdb) p/x $sscratch
-      0x2, the old first argument (fd)
-(gdb) stepi
-(gdb) stepi
-(gdb) stepi
+      0x2，旧的第一个参数 (fd)
+(gdb) 斯特皮
+(gdb) 斯特皮
+(gdb) 斯特皮
 (gdb) p/x $a0
-      address of the trapframe in the user address space
+      trapframe在用户地址空间的地址
 
-now uservec() has 32 saves of user registers to the trapframe, via a0
-  so they can be restored later, when the system call returns
-  let's skip them
+现在 uservec() 通过 a0 将 32 个用户寄存器保存到 trapframe
+  以便稍后当系统调用返回时可以恢复它们
+  让我们跳过它们
 
-(gdb) b *0x3ffffff07e
-(gdb) c
+（gdb）b *0x3ffffff07e
+（gdb）c
 
-now we're setting up to be able to run C code in the kernel
-  couldn't before this, since C code would have overwritten
-  user registers and stack; thus trampoline is assembler.
-first a stack
-  previously, kernel put a pointer to top of this process's
-    kernel stack in trapframe
-  look at struct trapframe in kernel/proc.h
-  "ld sp, 8(a0)" fetches the kernel stack pointer
-  remember a0 points to the trapframe
-  recall at this point the only kernel data mapped in the page table
-    is the trapframe, so everything has to be loaded from there.
+现在我们正在设置能够在内核中运行 C 代码
+  在此之前不能，因为 C 代码会被覆盖
+  用户寄存器和堆栈；因此，trampoline 是汇编程序。
+首先是一个堆栈
+  之前，内核放置了一个指向该进程顶部的指针
+    trapframe 中的内核堆栈
+  查看kernel/proc.h中的struct trapframe
+  “ld sp, 8(a0)”获取内核堆栈指针
+  记住a0指向trapframe
+  回想一下此时页表中映射的唯一内核数据
+    是 trapframe，所以所有东西都必须从那里加载。
 
-(gdb) stepi
+(gdb) 斯特皮
 
-retrieve hart ID into tp
+将hart ID检索到tp中
 
-(gdb) stepi
+(gdb) 斯特皮
 
-we want to jump to the kernel C function usertrap(), which
-  the kernel previously saved in the trapframe.
-  "ld t0, 16(a0)" fetches it into t0, we'll use it in a moment,
-    after switching to the kernel page table
+我们要跳转到内核C函数usertrap()，该函数
+  先前保存在 trapframe 中的内核。
+  “ld t0, 16(a0)”将其提取到 t0 中，我们稍后会使用它，
+    切换到内核页表后
 
-(gdb) stepi
+(gdb) 斯特皮
 
-load a pointer to the kernel pagetable from the trapframe into t1,
-then load it into satp, and issue an sfence to clear the TLB.
+将 trapframe 中指向内核页表的指针加载到 t1 中，
+然后将其加载到 satp 中，并发出 sfence 来清除 TLB。
 
-(gdb) stepi
-(gdb) stepi
-(gdb) stepi
+(gdb) 斯特皮
+(gdb) 斯特皮
+(gdb) 斯特皮
 
-why isn't there a crash when satp is changed?
-  after all we just switched page tables while executing!
-  answer: the trampoline page is mapped at the same virtual address
-    in the kernel page table as well as every user page table
+为什么更改 satp 时不会发生崩溃？
+  毕竟我们只是在执行时切换了页表！
+  答案：trampoline页面映射到同一个虚拟地址
+    在内核页表以及每个用户页表中
 
 (gdb) p $pc
-qemu: info mem
+qemu：信息内存
 
-with the kernel page table we can now use kernel functions and data
+通过内核页表，我们现在可以使用内核函数和数据
 
-the jr t0 is a jump to usertrap() (using t0 retrieved from trapframe)
+jr t0 是跳转到 usertrap() （使用从 trapframe 检索的 t0）
 
 (gdb) p/x $t0
-(gdb) p usertrap
-(gdb) stepi
-(gdb) layout src
+(gdb) p 用户陷阱
+(gdb) 斯特皮
+(gdb) 布局 src
 
-we're now in usertrap() in kernel/trap.c
-  all traps from user-space follow the path we've just seen
-  system calls, device interrupts, exceptions
+我们现在位于 kernel/trap.c 的 usertrap() 中
+  来自用户空间的所有陷阱都遵循我们刚刚看到的路径
+  系统调用、设备中断、异常
 
-Q: what if a device interrupt occurs while executing in the trampoline code?
+问：如果在执行 Trampoline 代码时发生设备中断怎么办？
 
-usertrap() looks in the scause register to see the trap cause
-  (gdb) p $scause
-  what is 8?
-  page 123 of riscv-privileged.pdf
-  scause = 8 is a system call ("Environment call from U-mode")
+usertrap() 在原因寄存器中查找陷阱原因
+  (gdb) p $原因
+  8是什么？
+  riscv-privileged.pdf 第 123 页
+  scause = 8 是系统调用（“来自 U 模式的环境调用”）
 
-(gdb) next ... until syscall()
-(gdb) step
-(gdb) next
+(gdb) 接下来...直到 syscall()
+（gdb）步骤
+(gdb) 下一个
 
-now we're in syscall() kernel/syscall.c
-myproc() uses tp to retrieve current struct proc *
+现在我们在 syscall() kernel/syscall.c 中
+myproc() 使用 tp 检索当前 struct proc *
 p->xxx is usually a slot in the current process's struct proc
 
-syscall() retrieves the system call number from saved register a7
+syscall() 从保存的寄存器 a7 中检索系统调用号
   p->trapframe points to the trapframe, with saved registers
   p->trapframe->a7 holds 16, SYS_write
   p->trapframe->a0 holds write() first argument -- fd
@@ -284,106 +287,106 @@ syscall() retrieves the system call number from saved register a7
 
 Q: why can't this code just look at a7? why must it look in p->trapframe?
 
-(gdb) next ...
-(gdb) p num
+(gdb) 接下来...
+(gdb) p 编号
 
-then dispatches through syscalls[num], a table of functions
+然后通过 syscalls[num] 调度函数表
 
-(gdb) p syscalls[num]
-(gdb) next ...
-(gdb) step
+(gdb) p 系统调用[num]
+(gdb) 接下来...
+（gdb）步骤
 
-aha, we're in sys_write.
-at this point system call implementations are fairly ordinary C code.
-let's skip to the end, to see how a system call returns to user space.
+啊哈，我们在 sys_write 中。
+此时系统调用实现是相当普通的 C 代码。
+让我们跳到最后，看看系统调用如何返回用户空间。
 
-(gdb) finish
+（gdb）完成
 
-notice that write() produced console output (the shell's $ prompt)
+请注意 write() 产生了控制台输出（shell 的 $ 提示符）
 syscall()'s p->tf->a0 assignment causes (eventually) a0 to hold the return value
-  the C calling convention on RISC-V puts return values in a0
+  RISC-V 上的 C 调用约定将返回值放在 a0 中
 
-(gdb) next
+(gdb) 下一个
 
-back to usertrap()
+回到 usertrap()
 
 (gdb) p p->trapframe->a0
 
-sys_write() returned 2 -- two characters -- $ and space
+sys_write() 返回 2 -- 两个字符 -- $ 和空格
 
-(gdb) next
-(gdb) step
+(gdb) 下一个
+（gdb）步骤
 
-now we're in usertrapret(), which starts the process of returning
-  to the user program
+现在我们在 usertrapret() 中，它开始返回的过程
+  到用户程序
 
 we need to prepare for the next user->kernel transition
-  stvec = uservec (the trampoline), for the next ecall
-  trapframe satp = kernel page table, for next uservec
-  trapframe sp = top of kernel stack
-  trapframe trap = usertrap
-  trapframe hartid = hartid (in tp)
+  stvec = uservec（蹦床），用于下一个 ecall
+  trapframe satp = 内核页表，用于下一个用户vec
+  trapframe sp = 内核堆栈顶部
+  trapframe 陷阱 = 用户陷阱
+  trapframe Hartid = Hartid（以 tp 为单位）
 
-at the very end, the trampoline uses the RISC-V sret instruction
-  we need to prepare a few registers that sret uses
-  sstatus -- "previous mode" field = 0 -- user mode
-  sepc -- the saved user program counter (from trap entry)
+最后，蹦床使用 RISC-V sret 指令
+  我们需要准备一些 sret 使用的寄存器
+  sstatus --“先前模式”字段 = 0 -- 用户模式
+  sepc——保存的用户程序计数器（来自陷阱条目）
 
-we'll need to switch to the user page table
-  not OK in usertrapret(), since it's not mapped in the user page table.
-  need a page that's mapped in both user and kernel page table -- the trampoline.
-  jump to userret in trampoline.S
+我们需要切换到用户页表
+  在 usertrapret() 中不行，因为它没有映射到用户页表中。
+  需要一个在用户页表和内核页表中都映射的页面——蹦床。
+  跳转到trampoline.S中的userret
 
-(gdb) b 129
-(gdb) c
-(gdb) tui disable
-(gdb) step
+（gdb）b 129
+（gdb）c
+(gdb) tui 禁用
+（gdb）步骤
 (gdb) x/8i $pc
 
-a0 holds user page table address
-the csrw satp switches to the user address space
+a0保存用户页表地址
+csrw satp 切换到用户地址空间
 
-(gdb) stepi
-(gdb) stepi
-(qemu) info mem
+(gdb) 斯特皮
+(gdb) 斯特皮
+(qemu) 信息内存
 
-now 32 loads from the trapframe into registers
-  these restore the user registers
-  let's skip over them
+现在 32 个从 trapframe 加载到寄存器中
+  这些恢复用户寄存器
+  让我们跳过它们
 
-(gdb) b *0x3ffffff11a
-(gdb) c
+（gdb）b *0x3ffffff11a
+（gdb）c
 
-a0 is restored last, after which we can no longer get at TRAPFRAME
+a0最后被恢复，之后我们就无法再获取TRAPFRAME
 
 (gdb) si
-(gdb) p/x $a0 -- the return value from write()
+(gdb) p/x $a0 -- write() 的返回值
 
-now we're at the sret instruction
+现在我们正在执行 sret 指令
 
 sret:
-  copies sepc to pc
-  changes mode to user
-  re-enables interrupts (really copies SPIE to SIE)
-  continues at new pc...
+  将 sepc 复制到电脑
+  将模式更改为用户
+  重新启用中断（真正将 SPIE 复制到 SIE）
+  在新电脑上继续...
 
 (gdb) p $pc
 (gdb) p/x $sepc
-(gdb) stepi
+(gdb) 斯特皮
 (gdb) p $pc
 
-now we're back in the user program ($pc = 0xcac)
-  returning 2 from the write() function
+现在我们回到用户程序（$pc = 0xcac）
+  从 write() 函数返回 2
 
 (gdb) p/x $a0
 
-and we're done with a system call!
+我们就完成了系统调用！
 
-summary
-  much of the complexity is due to:
-    isolation
-    speed
-  a few design questions to ponder:
-    can an evil program abuse the entry mechanism?
-    can you think of ways to make the hardware or software simpler?
-    can you think of ways to make traps faster?
+总结
+  大部分复杂性是由于：
+    隔离
+    速度
+  需要思考的几个设计问题：
+    邪恶程序可以滥用进入机制吗？
+    你能想办法让硬件或软件变得更简单吗？
+    你能想出让陷阱更快的方法吗？

@@ -1,75 +1,39 @@
-<html>
-<head>
-<title>Lab: Copy-on-Write Fork for xv6</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：xv6 的写时复制 fork</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: Copy-on-Write Fork for xv6</h2>
-
-<p> Virtual memory provides a level of indirection: the kernel can
-intercept memory references by marking PTEs invalid or read-only,
-leading to page faults,
-and can change what addresses mean by modifying PTEs.
-There is a saying in computer systems that any systems problem can be
-solved with a level of indirection.  The lazy allocation lab provided one
-example.  This lab explores another example: copy-on write fork.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：xv6 的写时复制 fork
+<p> 虚拟内存提供了一定程度的间接性：内核可以通过将 PTE 标记为无效或只读来拦截内存引用，从而导致页面错误，并且可以通过修改 PTE 来更改地址的含义。计算机系统中有一种说法，任何系统问题都可以通过一定程度的间接解决。惰性分配实验室提供了一个例子。本实验探讨了另一个示例：copy-on write fork。
     
-<p>To start the lab, switch to the cow branch:
+<p>要启动实验室，请切换到cow分支：
 <pre>
 $ <kbd>git fetch</kbd>
 $ <kbd>git checkout cow</kbd>
 $ <kbd>make clean</kbd>
 </pre>
+<h2>问题</h2>
 
-<h2>The problem</h2>
+xv6 中的 fork() 系统调用将父进程的所有用户空间内存复制到子进程中。如果父级很大，复制可能需要很长时间。更糟糕的是，工作常常被浪费掉。例如，子进程中的 fork() 后跟 exec() 将导致子进程丢弃复制的内存，可能不会使用其中的大部分内存。另一方面，如果父级和子级都使用一个页面，并且一个或两个都写入该页面，则确实需要一个副本。
 
-The fork() system call in xv6 copies all of the parent process's
-user-space memory into the child. If the parent is large, copying can
-take a long time. Worse, the work is often largely wasted; for example,
-a fork() followed by exec() in the child will cause the child to
-discard the copied memory, probably without ever using most of it.
-On the other hand, if both parent and child use a page, and one or both
-writes it, a copy is truly needed.
+<h2>解决方案</h2>
 
-<h2>The solution</h2>
-
-The goal of copy-on-write (COW) fork() is to defer allocating and
-copying physical memory pages for the child until the copies are actually
-needed, if ever.
+写时复制 (COW) fork() 的目标是推迟为子级分配和复制物理内存页，直到实际需要副本（如果有）。
 
 <p>
-COW fork() creates just a pagetable for the child, with PTEs for user
-memory pointing to the parent's physical pages. COW fork() marks all
-the user PTEs in both parent and child as not writable. When either
-process tries to write one of these COW pages, the CPU will force a
-page fault. The kernel page-fault handler detects this case, allocates
-a page of physical memory for the faulting process, copies the
-original page into the new page, and modifies the relevant PTE in the
-faulting process to refer to the new page, this time with the PTE
-marked writeable. When the page fault handler returns, the user
-process will be able to write its copy of the page.
+COW fork() 只为子进程创建一个页表，用户内存的 PTE 指向父进程的物理页。 COW fork() 将父级和子级中的所有用户 PTE 标记为不可写。当任一进程尝试写入其中一个 COW 页时，CPU 将强制发生页错误。内核页面错误处理程序检测到这种情况，为错误进程分配物理内存页面，将原始页面复制到新页面，并修改错误进程中的相关 PTE 以引用新页面，这次 PTE 标记为可写。当页面错误处理程序返回时，用户进程将能够写入其页面副本。
 
 <p>
-COW fork() makes freeing of the physical pages that implement user
-memory a little trickier. A given physical page may be referred to by
-multiple processes' page tables, and should be freed only when the last
-reference disappears.
+COW fork() 使得释放实现用户内存的物理页变得有点棘手。给定的物理页可能被多个进程的页表引用，并且仅当最后一个引用消失时才应释放。
 
-<h2>Implement copy-on write<script>g("hard")</script></h2>
-
+<h2>实现复制写入<script>g("hard")</script></h2>
 <p>
 <div class="required">
-Your task is to implement copy-on-write fork in the xv6 kernel. You are
-done if your modified kernel executes both the cowtest and usertests
-programs successfully.
+您的任务是在 xv6 内核中实现写时复制 fork。如果修改后的内核成功执行了owtest 和usertests 程序，那么您就完成了。
 </div>
-
-<p>To help you test your implementation, we've provided an xv6 program
-called cowtest (source in user/cowtest.c). cowtest runs various tests, but
-even the first will fail on unmodified xv6. Thus, initially, you
-will see:
+<p>为了帮助您测试您的实现，我们提供了一个名为cowtest 的xv6 程序（源代码位于user/cowtest.c 中）。 owtest 运行各种测试，但即使是第一个测试也会在未经修改的 xv6 上失败。因此，最初，您将看到：
 
 <pre>
 $ <kbd>cowtest</kbd>
@@ -77,13 +41,10 @@ simple: fork() failed
 $ 
 </pre>
 
-The "simple" test allocates more than half of available physical
-memory, and then fork()s. The fork fails because there is not enough
-free physical memory to give the child a complete copy of the parent's memory.
+“简单”测试分配一半以上的可用物理内存，然后 fork()。分叉失败是因为没有足够的可用物理内存来为子进程提供父进程内存的完整副本。
 
 <p>
-When you are done, your kernel should pass all the tests in both cowtest and
-usertests. That is:
+完成后，您的内核应该通过owtest和usertest中的所有测试。即：
 
 <pre>
 $ <kbd>cowtest</kbd>
@@ -102,96 +63,52 @@ $ <kbd>usertests</kbd>
 ALL TESTS PASSED
 $
 </pre>
-
 <p>
-Here's a reasonable plan of attack.
+这是一个合理的攻击计划。
 
 <ol>
+<li> 修改 uvmcopy() 以将父级的物理页面映射到子级，而不是分配新页面。清除 <tt>PTE_W</tt> 孩子和家长的 PTE 成绩。
 
-<li> Modify uvmcopy() to map the parent's physical pages into the
-child, instead of allocating new pages. Clear <tt>PTE_W</tt> in the PTEs of
-both child and parent.
-
-<li> Modify usertrap() to recognize page faults. When a page-fault
-occurs on a COW page, allocate a new page with kalloc(), copy the old
-page to the new page, and install the new page in the PTE with <tt>PTE_W</tt>
+<li> 修改 usertrap() 以识别页面错误。当 COW 页面上发生页面错误时，使用 kalloc() 分配一个新页面，将旧页面复制到新页面，然后使用以下命令将新页面安装到 PTE 中： <tt>PTE_W</tt>
 set.
 
-<li> Ensure that each physical page is freed when the last PTE
-reference to it goes away -- but not before.
-A good way to do this is to keep, for each physical page, a "reference count"
-of the number of user page tables that refer to that page.
-Set a page's reference count to one when <tt>kalloc()</tt> allocates it.
-Increment a page's reference count
-when fork causes a child to share the page, and
-decrement a page's count each time any process drops
-the page from its page table.
-<tt>kfree()</tt> should only place a page back on the free list
-if its reference count is zero.
-It's OK to to keep these counts in a fixed-size array of integers.
-You'll have to work out a scheme for how to index the array and
-how to choose its size. For example, you could index the array
-with the page's physical address divided by 4096, and give
-the array a number of elements equal to highest physical
-address of any page placed on the free list by <tt>kinit()</tt> in
+<li> 确保每个物理页在最后一个 PTE 引用消失时被释放——但不是在此之前。实现此目的的一个好方法是为每个物理页保留引用该页的用户页表数量的“引用计数”。当以下情况时，将页面的引用计数设置为 1： <tt>kalloc()</tt> 分配它。当 fork 导致子进程共享页面时增加页面的引用计数，并在每次任何进程从其页表中删除页面时减少页面的计数。
+<tt>kfree()</tt> 仅当其引用计数为零时才应将页面放回空闲列表。将这些计数保存在固定大小的整数数组中是可以的。您必须制定一个如何索引数组以及如何选择其大小的方案。例如，您可以使用页面的物理地址除以 4096 来索引该数组，并为该数组提供等于放置在空闲列表上的任何页面的最高物理地址的元素数 <tt>kinit()</tt> in
 kalloc.c.
 
-<li> Modify copyout() to use the
-same scheme as page faults when it encounters a COW page.
+<li> 修改 copyout() 以在遇到 COW 页面时使用与页面错误相同的方案。
 
-</ol>
-
-<p>Some hints:
+</li></li></li></li></ol>
+<p>一些提示：
 
   <ul>
-    
-<li>The lazy page allocation lab has likely made you familiar with much of
-the xv6 kernel code that's relevant for copy-on-write. However, you
-should not base this lab on your lazy allocation solution; instead,
-please start with a fresh copy of xv6 as directed above.
+<li>惰性页面分配实验室可能使您熟悉了许多与写时复制相关的 xv6 内核代码。但是，您不应该将此实验基于您的惰性分配解决方案；相反，请按照上面的指示从 xv6 的新副本开始。
 
 <li>
-It may be useful to have a way to record, for each PTE, whether it is
-a COW mapping. You can use the RSW (reserved for software) bits in
-the RISC-V PTE for this.
+对于每个 PTE，有一种方法来记录它是否是 COW 映射可能会很有用。为此，您可以使用 RISC-V PTE 中的 RSW（为软件保留）位。
 
 <li>
-<tt>usertests</tt> explores scenarios that <tt>cowtest</tt> does not test,
-so don't forget to check that all tests pass for both.
+<tt>usertests</tt> 探索场景 <tt>cowtest</tt> 不进行测试，所以不要忘记检查两者的所有测试是否都通过。
 
-<li>Some helpful macros and definitions for page table flags are at the
-end of <tt>kernel/riscv.h</tt>.
+<li>一些有用的宏和页表标志的定义位于 <tt>kernel/riscv.h</tt>.
 
-<li>If a COW page fault occurs and there's no free memory, the process
-should be killed.
+<li>如果发生 COW 页面错误并且没有可用内存，则应终止该进程。
 
-  </ul>
-  
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+  </li></li></li></li></li></ul>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<h3>Time spent</h3>
+<h3>提交</h3>
 
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -206,58 +123,38 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-
-
-
-
-<h2>Optional challenge exercises</h2>
-
+<h2>可选的挑战练习</h2>
 <ul>
+<li>修改 xv6 以支持惰性页面分配和 COW。
 
-  <li>Modify xv6 to support both lazy page allocation and COW.
+  <li>测量您的 COW 实现减少了多少字节 xv6 副本数及其分配的物理页数。寻找并利用机会进一步减少这些数字。
 
-  <li>Measure how much your COW implementation reduces the number
-  of bytes xv6 copies and the number of physical pages it allocates.
-  Find and exploit opportunities to further reduce those numbers.
-
-</ul>
-
-</body>
+</li></li></ul>
+</p></p></a></p></p></p></p></p></p></p></p></p></p></h1></body>
 </html>

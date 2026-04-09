@@ -1,242 +1,245 @@
-6.1810 2024 Lecture 20: Networking
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-topics
-  layering of packet formats
-  layering of kernel software stack
-  overload behavior -- today's paper
+6.1810 2024第20讲：网络
 
-why do we care how software handles network traffic?
-  s/w stacks -- and linux -- used pervasively for packet processing
-  low-end routers, firewalls, VPNs
-  services: DNS, web
-  performance, design, overload behavior are hot topics
+主题
+  数据包格式的分层
+  内核软件堆栈的分层
+  过载行为——今日报纸
 
-paper's scenario:
-  [3-iface router, two LANs, hosts, Internet]
+为什么我们关心软件如何处理网络流量？
+  软件堆栈——以及Linux——普遍用于数据包处理
+  低端路由器、防火墙、VPN
+  服务：DNS、网络
+  性能、设计、过载行为是热门话题
 
-ethernet packet format
-  [kernel/net.h, struct eth]
-  (preamble bits for synchronization, e.g. 10101010)
-  (start symbol, e.g. 10101011)
-  destination ethernet address -- 48 bits
-  source ethernet address -- 48 bits
-  ether type -- 16 bits
-  payload
+论文场景：
+  [3-iface 路由器、两个 LAN、主机、互联网]
+
+以太网数据包格式
+  [内核/net.h，结构eth]
+  （用于同步的前导码位，例如 10101010）
+  （起始符号，例如 10101011）
+  目标以太网地址——48位
+  源以太网地址——48位
+  以太类型——16位
+  有效负载
   (CRC-32)
-  (end symbol; e.g. 8b/10b or manchester)
+  （结束符号；例如 8b/10b 或曼彻斯特）
 
-[tcpdump -t -xx -n | more]
+[tcpdump -t -xx -n | tcpdump -t -xx -n |更多]
 
-ethernet addresses
-  every Ethernet NIC has a unique ethernet address, built in
-    assigned by NIC manufacturer
+以太网地址
+  每个以太网 NIC 都有一个内置的唯一以太网地址
+    由NIC制造商指定
     <24-bit manufacturer ID, 24-bit serial number>
-  original Ethernet was broadcast on a cable
-    a host uses dest addr to decide if the packet is really for it
-  today's ethernet LAN is a switch, with a cable to each host
-    the switch uses the dest addr to decide which host to send a packet to
+  最初的以太网是通过电缆广播的
+    主机使用 dest addr 来决定数据包是否真正适合它
+  今天的以太网 LAN 是一个交换机，每个主机都有一根电缆
+    交换机使用 dest addr 来决定将数据包发送到哪台主机
 
-could we use ethernet addresses for everything?
-  1. no: ethernet was not the only kind of bottom-layer address
-  2. no: "flat" addresses make wide-area routing hard
-  so: 32-bit IP addresses, with routing hints in the high bits
+我们可以使用以太网地址来处理所有事情吗？
+  1. 否：以太网不是唯一的底层地址
+  2. 否：“平面”地址使广域路由变得困难
+  so：32位IP地址，高位带有路由提示
 
-IP header
-  [kernel/net.h, struct ip]
-  ether type 0x0800
-  lots of stuff, but addresses are the most critical
-  a 32-bit IP address is enough to route to any Internet computer
-  the high bits contain a "network number" that helps routers
-    understand how to forward through the Internet
-  the protocol number tells the destination what to do with the packet
-    i.e. which higher-layer protocol to hand it to (usually UDP or TCP)
+IP标头
+  [kernel/net.h，结构ip]
+  以太类型0x0800
+  很多东西，但地址是最关键的
+  32 位 IP 地址足以路由到任何互联网计算机
+  高位包含一个“网络号”，可以帮助路由器
+    了解如何通过互联网转发
+  协议号告诉目的地如何处理数据包
+    即将其交给哪个高层协议（通常是 UDP 或 TCP）
 
-[tcpdump -t -n -xx ip | more]
+[tcpdump -t -n -xx ip | tcpdump -t -n -xx ip |更多]
 
 note:
-  pattern: "nest" higher-layer packets inside lower-layer packets
-  [diagram: eth | ip | udp | DNS]
-  one layer's payload starts with the next layer's header
-  so you often see a sequence of headers
+  模式：将高层数据包“嵌套”在低层数据包中
+  [图：eth | ip | UDP |域名解析]
+  一层的有效负载从下一层的标头开始
+  所以你经常会看到一系列的标题
 
-UDP header
-  [kernel/net.h, struct udp]
-  once a packet is at the right host, what app should it go to?
-  UDP header sits inside IP packet
-  contains src and dst port numbers
-  an application uses the "socket API" system calls to tell
-    the kernel it would like to receive all packets sent to a particular port
-  some ports are "well known", e.g. port 53 is reserved for DNS server
-  others are allocated as-needed for the client ends of connections
-  after the UDP header: payload, e.g. DNS request or response
+UDP报头
+  [kernel/net.h，结构udp]
+  一旦数据包到达正确的主机，它应该发送到哪个应用程序？
+  UDP 标头位于 IP 数据包内部
+  包含 src 和 dst 端口号
+  应用程序使用“socket API”系统调用来告诉
+    内核希望接收发送到特定端口的所有数据包
+  有些端口是“众所周知的”，例如端口53是为DNS服务器保留的
+  其他的根据需要分配给连接的客户端
+  在 UDP 标头之后：有效负载，例如DNS 请求或响应
 
 [tcpdump -t -n udp]
 
 **********
 
-what does the network code look like in a typical kernel?
-  design matters for performance, overload
+典型内核中的网络代码是什么样的？
+  设计对性能、过载至关重要
 
-control flow
-  * NIC hardware (often more than one NIC!)
-    NIC internal buffers
-  * NIC DMA engine
-    DMA RX ring
-  * rx interrupt handler, copies from NIC to s/w input queue
-    IP input queue
-  * network thread
-    IP &c processing
-    maybe forward
-    maybe socket queue
-  * applications
-  * output processing
-  - IP output queue
-  * tx interrupt handler
-  - frees finished NIC TX DMA ring slots
-  - copies from s/w output queue to TX ring
-  * NIC
+控制流程
+  * NIC 硬件（通常不止一个 NIC！）
+    NIC 内部缓冲区
+  * 网卡DMA引擎
+    DMA 接收环
+  * rx中断处理程序，从NIC复制到软件输入队列
+    IP输入队列
+  * 网络线程
+    IP&C处理
+    也许向前
+    也许套接字队列
+  * 应用
+  * 输出处理
+  - IP输出队列
+  * tx中断处理程序
+  - 释放已完成的 NIC TX DMA 环插槽
+  - 从软件输出队列复制到 TX 环
+  * 网卡
 
-the net lab is a subset of this arrangement
+网络实验室是这种安排的一个子集
 
 notes:
-  -- each layer parses, validates, and strips headers on the way in
-     discards packet if damaged or queue too long
-  -- each layer prepends a header on the way out
+  -- 每一层都会解析、验证并剥离头部
+     如果数据包损坏或队列太长则丢弃
+  -- 每层在输出前都添加一个标头
   
-why all these packet queues?
-  absorb temporary input bursts, to avoid forcing discard if s/w is busy
-  keep output NIC busy while computing
-  allow independent control flow (NICs vs network thread vs apps)
-    queues at boundaries
+为什么有这些数据包队列？
+  吸收临时输入突发，以避免在软件繁忙时强制丢弃
+  计算时保持输出 NIC 繁忙
+  允许独立的控制流（NIC、网络线程、应用程序）
+    边界处排队
 
-other arrangements are possible and sometimes much better
-  e.g. user-level stack
-  e.g. direct user access to NIC (see Intel's DPDK)
-  e.g. polling, as in today's paper
+其他安排也是可能的，有时甚至更好
+  例如用户级堆栈
+  例如用户直接访问 NIC（参见 Intel 的 DPDK）
+  例如民意调查，如今天的报纸
 
 **********
 
-Today's paper: Eliminating Receive Livelock in an Interrupt-Driven Kernel,
-by Mogul and Ramakrishnan, 1996
+今天的论文：消除中断驱动内核中的接收活锁，
+作者：Mogul 和 Ramakrishnan，1996 年
 
-Why are we reading this paper?
-  To examine some tradeoffs in kernel network stack structure
-  It's a famous and influential paper
-  Analogues to livelock arise in many systems
+我们为什么要阅读这篇论文？
+  检查内核网络堆栈结构中的一些权衡
+  这是一篇著名且有影响力的论文
+  许多系统中都出现了类似于活锁的情况
 
-Context
-  software routers very common, often Linux
-    e.g. firewalls, cable modems, wifi access points
-  max network speed often > router speed
-  thus overload a possibility
+背景
+  软件路由器很常见，通常是Linux
+    例如防火墙、电缆调制解调器、wifi 接入点
+  最大网络速度通常>路由器速度
+  从而超载了一种可能性
 
-Explain Figure 6-1
-  This is the original system, without the authors' fixes.
-    The system is a router: [NIC, RX intr, input q, IP, output q, TX intr,  NIC]
-    (Figure 6-2)
-  Why do the black dots go up?
-  What determines how high the peak is?
+解释图6-1
+  这是原始系统，没有经过作者的修复。
+    系统是路由器：[NIC, RX intr, 输入 q, IP, 输出 q, TX intr, NIC]
+    （图6-2）
+  为什么黑点会上升？
+  是什么决定了峰值有多高？
     peak @ 5000 => 200 us/pkt.
-  Why do the black dots go down?
-  What determines how fast it goes down?
-  What happens to the packets that aren't forwarded?
+  为什么黑点会往下掉？
+  是什么决定了它下降的速度？
+  未转发的数据包会发生什么情况？
 
-The problem:
-  NIC interrupts have priority over all other processing.
-  As input rate grows, interrupts eventually use 100% of CPU.
-  No CPU time then available for the rest of IP processing.
-    (only one core!)
-  IP input queue grows to maximum allowed length.
-  NIC interrupts then read each packet, see max queue, discard packet.
+问题：
+  NIC 中断优先于所有其他处理。
+  随着输入速率的增加，中断最终会使用 100% 的 CPU。
+  然后没有 CPU 时间可用于其余的 IP 处理。
+    （只有一个核心！）
+  IP 输入队列增长到允许的最大长度。
+  然后NIC中断读取每个数据包，查看最大队列，丢弃数据包。
 
-A higher-level view:
-  Software wastes time partially processing packets that it
-    will eventually discard.
+更高层次的观点：
+  软件浪费时间部分处理数据包
+    最终会被丢弃。
 
-Could livelock happen in the net lab?
+网络实验室会发生活锁吗？
 
-Suppose the router design was as good as is possible.
-  What would the graph then look like?
-  That is, what is it reasonable to aim for?
+假设路由器设计尽可能好。
+  那么图表会是什么样子呢？
+  也就是说，合理的目标是什么？
 
-What's the paper's solution?
-  No IP input queue
-  NIC receive interrupt just wakes up net thread
-    Then leaves interrupts *disabled* for that NIC
-  Thread does all processing,
-    re-checks NIC for more input,
-    only re-enables interrupts if no input waiting.
+论文的解决方案是什么？
+  无IP输入队列
+  网卡接收中断只是唤醒网络线程
+    然后为该 NIC 留下中断*禁用*
+  线程完成所有处理，
+    重新检查 NIC 以获取更多输入，
+    仅当没有输入等待时才重新启用中断。
 
-polling net thread:
-while(1)
-  if NIC packets waiting
-    read a packet from NIC
-    completely process the packet
-  else
-    enable interrupts
-    sleep
+轮询网络线程：
+同时(1)
+  如果 NIC 数据包正在等待
+    从网卡读取数据包
+    完全处理数据包
+  否则
+    启用中断
+    睡觉
 
-What happens when packets arrive quickly?
+当数据包快速到达时会发生什么？
 
-Why interrupt at all? Why not always poll?
-  What happens when packets arrive slowly?
+为什么要打断呢？为什么不总是轮询？
+  当数据包到达缓慢时会发生什么？
 
-Modern Linux uses a scheme -- NAPI -- inspired by this paper.
+现代 Linux 使用一种方案——NAPI——受到这篇论文的启发。
 
-Explain Figure 6-3
-  This graph includes their system.
-  Why do the empty squares level off?
-  Why don't the empty squares go down like Figure 6-1?
-  What happens to the excess packets?
+解释图6-3
+  该图包括他们的系统。
+  为什么空的方块会变平？
+  为什么空的方块不像图6-1那样向下呢？
+  多余的数据包会怎样？
 
-A higher-level view:
-  Discard happens as early as possible (in the NIC).
-  CPU does not waste time partially processing doomed packets.
+更高层次的观点：
+  丢弃会尽早发生（在 NIC 中）。
+  CPU 不会浪费时间部分处理注定失败的数据包。
 
-Why does "Polling (no quota)" work badly?
-  Input starves xmit-complete processing
+为什么“轮询（无配额）”效果不佳？
+  输入缺乏 xmit-complete 处理
 
-Why does "no quota" rapidly fall, rather than gradually decreasing?
-  Livelock is made worse by doing even more processing before discard
-  I.e. each excess rx pkt consumes many tx pkts of CPU time
+为什么“无配额”会迅速下降，而不是逐渐减少？
+  在丢弃之前进行更多处理会使活锁变得更糟
+  即每个多余的 rx pkt 都会消耗许多 tx pkt 的 CPU 时间
 
-Explain Figure 6-4
-  (this is with every packet going through a user-level program)
-  Why does "Polling, no feedback" behave badly?
-    There's a queue in front of screend
-    If overload, 100% to net thread, 0% to screend
-  Why does "Polling w/ feedback" behave well?
-    Net thread sleeps when queue to screend near-full
-    Wakes up when queue near-empty
+解释图6-4
+  （这是每个数据包都经过用户级程序的情况）
+  为什么“轮询，无反馈”表现不佳？
+    屏幕前已经排起了长队
+    如果过载，100%为净线程，0%为屏蔽
+  为什么“带反馈的轮询”表现良好？
+    当要筛选的队列接近满时，网络线程会休眠
+    当队列接近空时醒来
 
-Big picture: polling loop is a place to exert scheduling control
-  quotas, feedback
+大局观：轮询循环是发挥调度控制的地方
+  配额、反馈
 
-General principles?
-  Don't start new work if that might prevent completion of existing work
-  When discard needed, do it as early as possible
-  Design so that efficiency increases with load,
-    rather than decreasing. E.g. the paper's switch from
-    interrupts to polling under high load.
+一般原则？
+  如果可能妨碍现有工作的完成，请勿开始新工作
+  当需要丢弃时，尽早丢弃
+  设计使效率随着负载而增加，
+    而不是减少。例如。报纸的切换自
+    高负载下中断轮询。
 
-Other approaches to the same problem
-  interrupt coalescing
-  multi-core and multiple NIC queues
-  expose NIC DMA rings to user code (DPDK)
+解决同一问题的其他方法
+  中断合并
+  多核和多NIC队列
+  将 NIC DMA 环公开给用户代码 (DPDK)
 
-Similar phenomena arise in other areas of systems
-  Timeout + resend in networks, as number of connections grows
-  Spin-locks, as number of cores grows
+类似的现象也出现在系统的其他领域
+  随着连接数量的增加，网络中超时+重新发送
+  自旋锁，随着核心数量的增加
 
-A general lesson: complex (multi-stage) systems need careful
-  scheduling of resources if they are to survive overload
+一般教训：复杂（多阶段）系统需要小心
+  如果资源要承受过载，则进行资源调度
 
-Linux's NAPI polling/interrupting scheme:
+Linux的NAPI轮询/中断方案：
   https://www.usenix.org/legacy/publications/library/proceedings/als01/full_papers/jamal/jamal.pdf
   https://lwn.net/Articles/833840/
 screend:
   https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=a822dc4058040a5a3866af897d9af9f618ba83ed
   http://bitsavers.informatik.uni-stuttgart.de/pdf/dec/tech_reports/NSL-TN-2.pdf
-AMD LANCE NIC interface:
+AMD LANCE 网卡接口：
   https://www.ardent-tool.com/datasheets/AMD_Am7990.pdf
   https://en.wikipedia.org/wiki/AMD_LANCE_Am7990

@@ -1,383 +1,386 @@
-6.1810 2025 L21: Containers and virtual machines
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Paper: Blending Containers and Virtual Machines: a study of
-Firecracker and gVisor (VEE 2020) by Anjali et al.
+6.1810 2025 L21：容器和虚拟机
 
-Goal: "jail" untrusted code
-  OS isolation is based on kernel + processes + virtual memory
-    Compromise of kernel breaks isolation
-  Modern OS have a wide system call interface 
-    syscalls have many shared names spaces (fs, pid, etc.)
-  Paper surveys techniques for stronger isolation
-    reduce access to system calls and name spaces
+论文：混合容器和虚拟机：一项研究
+Firecracker 和 gVisor (VEE 2020)，作者：Anjali 等人。
+
+目标：“监禁”不可信代码
+  操作系统隔离基于内核+进程+虚拟内存
+    内核的妥协破坏了隔离
+  现代操作系统有广泛的系统调用接口
+    系统调用有许多共享名称空间（fs、pid 等）
+  纸质调查技术可增强隔离性
+    减少对系统调用和名称空间的访问
   
-Motivation: serverless computing
-  Tenants provide applications to provider
-  Provider wants to run apps on possibly same server to achieve high utilization
-  Isolation challenge: arbitrary code, need to isolate apps from different tenants
-  Performance challenge: load might vary widely
-    Can vary from a small fraction of machine to many machines
-    Can vary quickly, so need to start new instances quickly  
-  Many of the specific isolation techniques are used more broadly too.
-    Android phones, web servers, Chrome web browser, OpenSSH, ...
+动机：无服务器计算
+  租户向提供商提供申请
+  提供商希望在可能的同一服务器上运行应用程序以实现高利用率
+  隔离挑战：任意代码，需要将应用程序与不同租户隔离
+  性能挑战：负载可能差异很大
+    范围可以从一小部分机器到许多机器
+    变化很快，因此需要快速启动新实例
+  许多特定的隔离技术也得到了更广泛的使用。
+    Android 手机、网络服务器、Chrome 网络浏览器、OpenSSH...
 
-Isolation approaches
-  Linux processes with chroot
-  Containers, using Linux namespaces + cgroups
-  "User-space kernel" or "library OS" (gVisor, Drawbridge)
-  VMs
+隔离方法
+  使用 chroot 的 Linux 进程
+  容器，使用 Linux 命名空间 + cgroup
+  “用户空间内核”或“库操作系统”（gVisor、Drawbridge）
+  虚拟机
 
-Linux processes
-  User IDs
-  Per-file permissions
-  Intended for fine-grained sharing between users, rather than coarse isolation
-  Note: xv6 has no user ids, permissions
+Linux进程
+  用户 ID
+  每个文件的权限
+  旨在用户之间进行细粒度共享，而不是粗粒度隔离
+  注意：xv6 没有用户 ID、权限
 
-Why is isolation challenging in Linux?
-  Lots of shared state ("resources") in the kernel.
-  System calls access shared state by naming it.
+为什么 Linux 中的隔离具有挑战性？
+  内核中有很多共享状态（“资源”）。
+  系统调用通过命名来访问共享状态。
     PIDs.
-    File names.
-    IP addresses / ports.
-    (Even user IDs, in some form.)
-  Typical access control revolves around user IDs (e.g., file permissions).
-    Hard to use permissions to enforce isolation between two applications.
-    Lots of files with permissions.
-    Applications create shared files by accident or on purpose (e.g., world-writable).
+    文件名。
+    IP 地址/端口。
+    （甚至是某种形式的用户 ID。）
+  典型的访问控制围绕用户 ID（例如文件权限）。
+    很难使用权限来强制两个应用程序之间的隔离。
+    很多具有权限的文件。
+    应用程序无意中或有意创建共享文件（例如，全局可写）。
 
-Unix/Linux mechanism: chroot <dir>
-  Change the root directory of a process to the directory <dir>
-    / names <dir>
-  Benefit: "jails" the process
-    limits the files that one application can name
-      doesn't matter if an application accidentally creates world-writable files
-        jailed process cannot access it
-  Challenge: don't allow process to escape the jail
-    risk: .., symlinks, etc.
-  Good starting point for better isolation, but shortcomings
-    many system calls still available in jail with access to other shared resources
-    e.g., kill <pid>
+Unix/Linux 机制：chroot <dir>
+  将进程的根目录更改为目录 <dir>
+    / 名称 <目录>
+  好处：“监禁”进程
+    限制一个应用程序可以命名的文件
+      如果应用程序意外创建了全局可写文件也没关系
+        被监禁的进程无法访问它
+  挑战：不允许进程越狱
+    风险：..、符号链接等。
+  更好隔离的良好起点，但存在缺点
+    许多系统调用在监狱中仍然可用，可以访问其他共享资源
+    例如，杀死 <pid>
  
-Namespaces provide a way of scoping the resources that can be named in syscall
-  [[ Ref: https://blog.quarkslab.com/digging-into-linux-namespaces-part-1.html ]]
-  Process belongs to a particular namespace (for each namespace kind)
-    New processes inherit namespace of the parent process
-    E.g., PID namespace limits the PIDs that a process can name
-  Name spaces: PIDs, IPC (shared-memory, etc), NET, UTS (hostname), USER, etc
-  Coarse-grained isolation, not subject to what application might do
-  A better-designed chroot for different kinds of resources (not just file system)
+命名空间提供了一种确定可在系统调用中命名的资源范围的方法
+  [[参考：https://blog.quarkslab.com/digging-into-linux-namespaces-part-1.html]]
+  进程属于特定的命名空间（对于每种命名空间类型）
+    新进程继承父进程的命名空间
+    例如，PID 命名空间限制进程可以命名的 PID
+  命名空间：PID、IPC（共享内存等）、NET、UTS（主机名）、USER 等
+  粗粒度隔离，不受应用程序可能执行的操作的影响
+  针对不同类型的资源（不仅仅是文件系统）设计更好的 chroot
 
-Challenge: process in jail needs to run
-  It needs:
-    dynamically-linked libraries
-    configuration files (timezone, etc.)
-    maybe python interpreter or other programs
+挑战：监狱中的进程需要运行
+  它需要：
+    动态链接库
+    配置文件（时区等）
+    也许是Python解释器或其他程序
     ..
-  It needs a Linux environment
-  Sol: Open Container Initiative (OCI) has a standard container format.
-    [[ Ref: https://opencontainers.org/ ]]
-    E.g., Alpine Linux, a small Linux environment
-  Popular: Linux containers, gvisor, and Firecracker use it
+  需要Linux环境
+  Sol：开放容器计划 (OCI) 拥有标准容器格式。
+    [[参考：https://opencontainers.org/]]
+    例如，Alpine Linux，一个小型Linux环境
+  流行：Linux 容器、gvisor 和 Firecracker 使用它
 
-Linux containers
-  Namespaces enable control over what files, processes, etc, are visible.
-  Container image for a per-process Linux environment
-  Cgroups control resource use for performance isolation.
-  Note word "container" can mean two things
-  - a container image (in OCI format)
-  - an isolation technique using namespaces and cgroups
+Linux容器
+  命名空间可以控制哪些文件、进程等可见。
+  每个进程 Linux 环境的容器镜像
+  Cgroup 控制资源使用以实现性能隔离。
+  注意“容器”一词有两种含义
+  - 容器镜像（OCI 格式）
+  - 使用命名空间和 cgroup 的隔离技术
 
-Containers provide jailed process with its "own" Linux environment
-  Its own dynamically-linked libraries, etc.
-  Useful even without isolation: what if two apps need different libssl versions?
-    Open Container Initiative (OCI) has a standard container format.
-    Docker container can run with Linux container isolation or gVisor.
-      Even support for running Docker containers on Firecracker.
-      [[ Ref: https://github.com/weaveworks/ignite ]]
-  Container isolation built on two Linux mechanisms: namespaces and cgroups.
+容器为被监禁的进程提供“自己的”Linux 环境
+  自己的动态链接库等
+  即使没有隔离也很有用：如果两个应用程序需要不同的 libssl 版本怎么办？
+    开放容器倡议 (OCI) 具有标准容器格式。
+    Docker 容器可以与 Linux 容器隔离或 gVisor 一起运行。
+      甚至支持在 Firecracker 上运行 Docker 容器。
+      [[参考：https://github.com/weaveworks/ignite]]
+  容器隔离建立在两种 Linux 机制之上：命名空间和 cgroup。
 
-Linux cgroups.
-  Limit / scheduling for resource use.
-  Memory, CPU, disk I/O, network I/O, etc.
-  Applies to processes, much like namespaces.
-    New processes inherit cgroup of the parent process.
-  Not a security boundary, but important for preventing DoS attacks.
-    E.g., one process or VM tries to monopolize all CPU or memory
+Linux cgroup。
+  资源使用的限制/调度。
+  内存、CPU、磁盘I/O、网络I/O等
+  适用于进程，就像命名空间一样。
+    新进程继承父进程的cgroup。
+  不是安全边界，但对于防止 DoS 攻击很重要。
+    例如，一个进程或虚拟机试图独占所有 CPU 或内存
 
-Why might namespaces/containers not be enough?
-  Shared Linux kernel.
-  Wide attack surface: 350+ system calls, many specialized functions under ioctl...
-  Large amount of code, written in C.
-    Bugs (buffer overflows, use-after-free, ...) continue to be discovered.
-    No isolation within the Linux kernel itself.
-  Kernel bugs let adversary escape isolation ("local privilege escalation" or LPE).
-    Relatively common: new LPE bugs every year.
+为什么命名空间/容器还不够？
+  共享 Linux 内核。
+  广泛的攻击面：350+系统调用，ioctl下的许多专门函数...
+  代码量大，用C语言编写。
+    错误（缓冲区溢出、释放后使用等）不断被发现。
+    Linux 内核本身没有隔离。
+  内核错误让攻击者能够逃脱隔离（“本地权限升级”或 LPE）。
+    相对常见：每年都会出现新的 LPE 错误。
 
-Additional security mechanism: seccomp-bpf.
-  Idea: filter what system calls can be invoked by a process.
-    See Janus lecture earlier in the term
-  Might help us address the wide attack surface of the Linux kernel.
-  Common pattern: rarely-used syscalls or features are more likely to be buggy.
-  Every process is (optionally) associated with a system call filter.
-    Filter written as a little program in the BPF bytecode language.
-    Linux kernel runs this filter on each syscall invocation, before running syscall.
-    Filter program can decide if syscall should be allowed or not.
-    Can look at syscall#, arguments, etc.
-    New processes inherit syscall filter of parent process: "sticky".
-  Can use seccomp-bpf to prevent access to suspect syscalls.
-  Used by some container implementations.
-    Set up bpf filter to disallow suspect system calls.
-  Why might this not be good enough?
-    Restricting syscalls could limit compatibility.
-    Could break application code that uses uncommon syscalls.
-    But still might not be enough for security (lots of code/bugs in common syscalls).
-  Containers: all system calls, except 44 (see Table 1)
+附加安全机制：seccomp-bpf。
+  思路：过滤进程可以调用哪些系统调用。
+    请参阅本学期早些时候的 Janus 讲座
+  可能会帮助我们解决 Linux 内核的广泛攻击面。
+  常见模式：很少使用的系统调用或功能更有可能出现错误。
+  每个进程（可选）与系统调用过滤器关联。
+    过滤器用 BPF 字节码语言编写为一个小程序。
+    Linux 内核在运行系统调用之前在每个系统调用调用上运行此过滤器。
+    过滤器程序可以决定是否允许系统调用。
+    可以查看系统调用#、参数等。
+    新进程继承父进程的系统调用过滤器：“sticky”。
+  可以使用 seccomp-bpf 来防止访问可疑的系统调用。
+  由一些容器实现使用。
+    设置 bpf 过滤器以禁止可疑的系统调用。
+  为什么这可能不够好？
+    限制系统调用可能会限制兼容性。
+    可能会破坏使用不常见系统调用的应用程序代码。
+    但对于安全性来说仍然可能不够（常见系统调用中存在大量代码/错误）。
+  容器：所有系统调用，除了 44（参见表 1）
 
-Challenge: reduce number of systems calls available
-  Constraint: applications should work
-  Idea: give container is own Linux kernel
-  Two approaches: gvisor and VMs  (see fig 2 and fig 3)
-  VMs and gvisor make systems calls to host but jailed application doesn't
-    See Table 1: 36 systems calls to implement firecracker VM
+挑战：减少可用系统调用的数量
+  限制：应用程序应该可以工作
+  想法：给容器自己的Linux内核
+  两种方法：gvisor 和 VM（见图 2 和图 3）
+  虚拟机和 gvisor 对主机进行系统调用，但被监禁的应用程序不会
+    参见表1：实现firecracker VM的36个系统调用
 
-What is a virtual machine?
-  simulation of a computer, accurate enough to run an O/S
-  Diagram: h/w, host/VMM, guest linux and apps
-    VMM might be stand-alone, or
-    VMM might run in a host O/S, e.g. Linux
-  Why is this better than containers?
-    Smaller attack surface: no complex syscalls, just x86 + virtual devices.
-    Fewer bugs / vulnerabilities: VM escape bugs discovered less than once a year.
+什么是虚拟机？
+  计算机模拟，精确到足以运行操作系统
+  图表：硬件、主机/VMM、客户 Linux 和应用程序
+    VMM 可能是独立的，或者
+    VMM 可能在主机操作系统中运行，例如Linux
+  为什么这比容器更好？
+    更小的攻击面：没有复杂的系统调用，只有 x86 + 虚拟设备。
+    更少的错误/漏洞：虚拟机逃逸错误每年发现的次数不到一次。
 
-VMs have a long history
-  1960s: IBM used VMs to share big expensive machines
-  1980s: (computers got small and cheap)
-         (then machine rooms got full)
-  1990s: VMWare re-popularized VMs, for x86 hardware
-  2000s: widely used in cloud, enterprise
+虚拟机有着悠久的历史
+  20 世纪 60 年代：IBM 使用虚拟机来共享大型昂贵机器
+  20 世纪 80 年代：（计算机变得更小、更便宜）
+         （然后机房就满了）
+  20 世纪 90 年代：VMWare 重新普及适用于 x86 硬件的虚拟机
+  2000年代：广泛应用于云、企业
 
-Slow VMs: emulate hardware
-  VMM interprets each guest instruction
-  maintain virtual machine state for the guest
-    32 registers, satp, mode, RAM, disk, net, &c
-  pro: this works; we use it in the labs
-    xv6 kernel runs on top of QEMU
-    VMs useful beyond isolation
-      e.g., run Windows on top of Linux (or the other way around)
-  con: slow
+慢速虚拟机：模拟硬件
+  VMM 解释每条访客指令
+  维护来宾虚拟机状态
+    32 个寄存器、satp、模式、RAM、磁盘、网络等
+  亲：这有效；我们在实验室使用它
+    xv6 内核运行在 QEMU 之上
+    虚拟机除了隔离之外还有用处
+      例如，在 Linux 之上运行 Windows（或相反）
+  缺点：慢
 
-Idea: execute guest instructions directly on the CPU -- fast!
-  observation: guest OS and application use same instruction set (x86)
-    [not true for xv6]
-  run add instructions using CPUs add instruction instead of emulating it
-    fast!
-  what if the guest kernel executes a privileged instruction?
-    e.g. guest loads a new page table into satp
+想法：直接在 CPU 上执行客户指令——快！
+  观察：来宾操作系统和应用程序使用相同的指令集（x86）
+    [不适用于 xv6]
+  使用 CPU 添加指令运行添加指令而不是模拟它
+    快！
+  如果来宾内核执行特权指令怎么办？
+    例如guest 将新页表加载到 satp 中
 
-Idea: run the guest kernel in user mode
-  similar to running the guest kernel as a user process
-    of course the guest kernel assumes it is in supervisor mode
-  ordinary instructions work fine
-    adding two registers, function call, &c
-  privileged x86/RISC-V instructions are illegal in user mode
-    will cause a trap, to the VMM
-  VMM trap handler emulates privileged instruction
-    maybe apply the privileged operation to the "virtual state"
-      e.g. read/write sepc
-    maybe transform and apply to real hardware
-      e.g. assignment to satp
-  "trap-and-emulate" 
-     better but still slow: lots of traps into VMM
+想法：在用户模式下运行来宾内核
+  类似于将来宾内核作为用户进程运行
+    当然，客户内核假设它处于管理模式
+  普通指令工作正常
+    添加两个寄存器、函数调用等
+  特权 x86/RISC-V 指令在用户模式下是非法的
+    会导致 VMM 陷入陷阱
+  VMM 陷阱处理程序模拟特权指令
+    也许将特权操作应用于“虚拟状态”
+      例如读/写sepc
+    或许可以改造并应用到真实的硬件上
+      例如分配给卫星技术方案
+  “陷阱与模仿”
+     更好但仍然很慢：VMM 中存在很多陷阱
 
-Example: RISC-V trap and emulate
-  guest user code executes ecall to make a system call?
-  [diagram: guest user, guest kernel, VMM, virtual state, real sepc]
-  CPU traps into the VMM (ecall always generates a trap)
-    h/w saves guest's PC in (real) sepc
-  VMM trap handler:
-    examine the guest instruction
-    virtual sepc <- real sepc
-    virtual mode <- supervisor
-    virtual scause <- 8 "system call"
-    real sepc <- virtual stvec
-    [[ ignore page table for now; what do with guest kernel's non PTE_U entries? ]]
-    sret: return from trap (sets real mode to user)
+示例：RISC-V 捕获和仿真
+  来宾用户代码执行 ecall 来进行系统调用？
+  [图：来宾用户，来宾内核，VMM，虚拟状态，真实sepc]
+  CPU 陷阱进入 VMM（ecall 总是生成陷阱）
+    h/w 将访客的 PC 保存在（真实）sepc 中
+  VMM 陷阱处理程序：
+    检查客人指示
+    虚拟 sepc <- 真实 sepc
+    虚拟模式 <- 主管
+    虚拟原因<- 8“系统调用”
+    真实 sepc <- 虚拟 stvec
+    [[暂时忽略页表；如何处理来宾内核的非 PTE_U 条目？ ]]
+    sret：从陷阱返回（将实模式设置为用户）
 
-VT-x/VMX/SVM: hardware supported virtualization
-  modern Intel (and AMD) CPUs support virtualization in hardware
-    guest can execute privileged instructions without trapping!
-    can modify control registers, change page table, handle exceptions!
-    can switch to user mode, and receive system call traps
+VT-x/VMX/SVM：硬件支持的虚拟化
+  现代 Intel（和 AMD）CPU 支持硬件虚拟化
+    来宾可以执行特权指令而不被捕获！
+    可以修改控制寄存器，改变页表，处理异常！
+    可以切换到用户模式，并接收系统调用陷阱
     etc.
-  faster than trap-and-emulate, and simpler VMM software
-  widely used to implement virtual machines (e.g., KVM)
+  比捕获和仿真更快，并且 VMM 软件更简单
+  广泛用于实现虚拟机（例如 KVM）
 
-(How can this possibly be secure?)
+（这怎么可能是安全的？）
 
-Some terminology
-  Each CPU is in either root mode -- running the host
-    or in non-root mode -- running the guest (kernel + user processes)
-    execution switches back and forth
-  VMCS (VM Control Structure)
-    configuration,
-    save/restore of guest privileged state
-      e.g., virtual sepc, mode, scause, stvec
-  Special instructions switch VT-x mode
+一些术语
+  每个CPU都处于任一根模式——运行主机
+    或在非root模式下——运行来宾（内核+用户进程）
+    执行来回切换
+  VMCS（VM控制结构）
+    配置，
+    保存/恢复访客特权状态
+      例如，虚拟 sepc、模式、原因、stvec
+  特别说明切换VT-x模式
     VMLAUNCH/VMRESUME: host -> guest
-      CPU uses guests spec, mode, scause, stvec
-      system calls require no switch to host! 
+      CPU 使用客人规格、模式、原因、stvec
+      系统调用不需要切换到主机！
     VMCALL: guest -> host
 
-the VMCS memory area holds saved host state
-  VMLAUNCH and VMRESUME save all of host privileged state (registers &c)
-  and restore all of guest's (previously saved) state
-  exit from guest to host restores host's state
-    so guest cannot disturb host's privileged state
-  Thus: if the host configures things properly, the guest cannot escape
-    Can host allow guest to use host's satp?
-    VT-x must prevent host from reading/writing outside of its memory!
+VMCS 内存区域保存已保存的主机状态
+  VMLAUNCH 和 VMRESUME 保存所有主机特权状态（寄存器和c）
+  并恢复所有客人的（之前保存的）状态
+  从访客退出到主机恢复主机状态
+    所以客人不能打扰主人的特权状态
+  因此：如果主机配置正确，访客就无法逃脱
+    主机可以允许访客使用主机的 satp 吗？
+    VT-x 必须防止主机在其内存之外读取/写入！
 
-VT-x's EPT (extended page table) constrains guest memory access
+VT-x 的 EPT（扩展页表）限制 guest 内存访问
   problem:
-    we want to let the guest kernel control its own page table,
-    we also want to restrict the guest to just its allowed physical memory,
-  CPU's MMU has *two* layers of address translation in VT-x guest mode
+    我们想让客户内核控制它自己的页表，
+    我们还想限制来宾仅使用其允许的物理内存，
+  CPU 的 MMU 在 VT-x 访客模式下具有“两层”地址转换
     first, %cr3/satp page table maps guest va -> guest pa (as usual)
     second, EPT maps guest pa -> host pa
-  VMM sets up EPT to have only mappings for guest's own memory
-  guest cannot see or change the EPT
+  VMM 将 EPT 设置为仅具有来宾自己的内存的映射
+  访客无法查看或更改 EPT
   so:
-    guest can freely read/write %cr3, change PTEs, read D bits, &c
-    VMM can still provide isolation via EPT
+    来宾可以自由读取/写入 %cr3、更改 PTE、读取 D 位等
+    VMM 仍然可以通过 EPT 提供隔离
 
-Linux KVM (Kernel-based virtual machines).
-  [[ Ref: https://lwn.net/Articles/658511/ ]]
-  [[ Ref: https://www.kernel.org/doc/html/latest/virt/kvm/api.html ]]
-  Abstraction for using hardware support for virtualization.
-  Manages virtual CPUs, virtual memory.
-  Corresponding hardware support: extend page tables.
+Linux KVM（基于内核的虚拟机）。
+  [[参考：https://lwn.net/Articles/658511/]]
+  [[参考：https://www.kernel.org/doc/html/latest/virt/kvm/api.html]]
+  使用硬件支持虚拟化的抽象。
+  管理虚拟CPU、虚拟内存。
+  相应的硬件支持：扩展页表。
   QEMU:
-    implements virtual devices
-    implements purely-virtual devices (virtio).
-    implements emulation of CPU instructions.
-      Mostly not needed when using hardware support.
-      But still used for instructions that hardware doesn't support natively.
-      E.g., CPUID, INVD, ..
-      [[ Ref: https://revers.engineering/day-5-vmexits-interrupts-cpuid-emulation/ ]]
-    provides some BIOS implementation to start running the VM.
+    实现虚拟设备
+    实现纯虚拟设备（virtio）。
+    实现CPU指令的仿真。
+      使用硬件支持时大多不需要。
+      但仍用于硬件本身不支持的指令。
+      例如，CPUID、INVD、..
+      [[参考：https://revers.engineering/day-5-vmexits-interrupts-cpuid-emulation/]]
+    提供一些 BIOS 实现来开始运行 VM。
 
-What's the downside VMs?
-  High start-up cost: takes a long time to boot up VM
-  High overhead: large memory cost for every running VM
-  Rigid/coarse resource allocation and sharing (VM memory; virtual disk; vCPU)
-  Potential bugs in VMM itself (QEMU): 1.4M lines of C code.
+VM 有什么缺点？
+  启动成本高：虚拟机启动时间长
+  高开销：每个正在运行的虚拟机都会消耗大量内存
+  刚性/粗略的资源分配和共享（VM内存；虚拟磁盘；vCPU）
+  VMM 本身 (QEMU) 中的潜在错误：140 万行 C 代码。
 
-Firecracker design.
-  Figure 3 in the paper.
-  Use KVM for virtual CPU and memory.
-  Re-implement QEMU, in Rust.
-  Support minimal set of devices.
-    virtio network, virtio block (disk), keyboard, serial.
-  Block devices instead of file system: stronger isolation boundary.
-    File system has complex state.
-      Directories, files of variable length, symlinks / hardlinks.
-    File system has complex operations.
-      Create/delete/rename files, move whole directories, r/w range, append, ...
-    Block device is far simpler:
-      4 KByte blocks.
-      Blocks are numbered 0 through N, which is the size of the disk.
-      Read and write a whole block.  (And maybe flush / barrier.)
-  Do not support instruction emulation.
-    (Except for necessary instructions like CPUID, VMCALL/VMEXIT, ..)
-  Do not support any BIOS at all.
-    Just load the kernel into VM at initialization and start running it.
+鞭炮设计。
+  论文中的图3。
+  使用KVM虚拟CPU和内存。
+  用 Rust 重新实现 QEMU。
+  支持最少的设备集。
+    virtio 网络、virtio 块（磁盘）、键盘、串行。
+  块设备代替文件系统：更强的隔离边界。
+    文件系统具有复杂的状态。
+      目录、可变长度文件、符号链接/硬链接。
+    文件系统的操作比较复杂。
+      创建/删除/重命名文件，移动整个目录，读/写范围，追加，...
+    块设备要简单得多：
+      4 KB 块。
+      块编号为 0 到 N，这是磁盘的大小。
+      读取和写入整个块。 （也许齐平/屏障。）
+  不支持指令仿真。
+    （除了必要的指令，如 CPUID、VMCALL/VMEXIT 等）
+  根本不支持任何BIOS。
+    只需在初始化时将内核加载到VM中并开始运行即可。
 
-Firecracker implementation: Rust.
-  Memory-safe language (modulo "unsafe" code).
-  50K lines of code: much smaller than QEMU.
-  Makes it unlikely that VMM implementation has bugs like buffer overflows.
-  [[ Ref: https://github.com/firecracker-microvm/firecracker ]]
+Firecracker 实现：Rust。
+  内存安全语言（模“不安全”代码）。
+  50K 行代码：比 QEMU 小得多。
+  使得 VMM 实现不太可能出现缓冲区溢出等错误。
+  [[参考：https://github.com/firecracker-microvm/firecracker]]
 
-Firecracker VMM runs in a "jailed" process.
-  chroot to limit files that can be accessed by VMM.
-  namespaces to limit VMM from accessing other processes and network.
-  running as a separate user ID.
-  seccomp-bpf to limit what system calls the VMM can invoke.
-  All to ensure that, if bugs in VMM are exploited, hard to escalate attack.
+Firecracker VMM 在“被监禁”的进程中运行。
+  chroot 以限制 VMM 可以访问的文件。
+  命名空间以限制 VMM 访问其他进程和网络。
+  作为单独的用户 ID 运行。
+  seccomp-bpf 用于限制 VMM 可以调用的系统调用。
+  所有这些都是为了确保，如果 VMM 中的错误被利用，攻击很难升级。
 
-gVisor plan: re-implement the OS syscall interface in a separate user-space process.
-  Figure 2 in the paper.
-  Intercept syscalls from processes running in the container (using ptrace or KVM).
-  User-space process that implements those syscalls, written in Go.
-    Again, better language than C for avoiding buffer overflows, other mistakes.
-  Benefit: less likely to have memory management bugs in Go code.
-  Benefit: bugs aren't in kernel code, likely contained by Linux process.
-    Use seccomp-bpf to limit what syscalls the gVisor emulator can invoke.
-  Benefit: finer-grained sharing.
-    Could share specific files or directories.
-  Benefit: finer-grained resource allocation.
-    Not just a monolithic virtual disk or entire VM memory allocation.
-    Perhaps important for running a small application in isolation.
-  Downside: performance overheads could be significant.
-    Every system call must be redirected to gVisor process.
-    Context-switch overhead, data copying overhead, etc.
-  Possible downside (or upside): compatibility (real Linux vs gVisor)
-    gVisor does a credible job faithfully implementing Linux syscalls, though!
-    Could make it possible to emulate new syscalls on old host
+gVisor计划：在单独的用户空间进程中重新实现操作系统系统调用接口。
+  论文中的图2。
+  拦截来自容器中运行的进程的系统调用（使用 ptrace 或 KVM）。
+  实现这些系统调用的用户空间进程，用 Go 编写。
+    同样，在避免缓冲区溢出和其他错误方面，这是比 C 更好的语言。
+  好处：Go 代码中不太可能出现内存管理错误。
+  好处：错误不在内核代码中，可能包含在 Linux 进程中。
+    使用 seccomp-bpf 限制 gVisor 模拟器可以调用的系统调用。
+  好处：更细粒度的共享。
+    可以共享特定的文件或目录。
+  好处：更细粒度的资源配置。
+    不仅仅是单一虚拟磁盘或整个虚拟机内存分配。
+    也许对于独立运行小型应用程序很重要。
+  缺点：性能开销可能很大。
+    每个系统调用都必须重定向到 gVisor 进程。
+    上下文切换开销、数据复制开销等。
+  可能的缺点（或优点）：兼容性（真正的 Linux 与 gVisor）
+    不过，gVisor 在忠实地实现 Linux 系统调用方面做得非常可靠！
+    可以在旧主机上模拟新的系统调用
 
-Security comparison: syscalls accessible.
-  Total of ~350 syscalls
-  LXC (Docker): blocks 44 syscalls (so 300+ allowed)
-  Firecracker: 36 syscalls allowed for VMM
-  gVisor: 53-68 syscalls allowed for Sentry
+安全性比较：系统调用可访问。
+  总共约 350 个系统调用
+  LXC (Docker)：阻止 44 个系统调用（因此允许超过 300 个）
+  Firecracker：VMM 允许 36 个系统调用
+  gVisor：Sentry 允许 53-68 个系统调用
 
-What are some potential benefits or downsides of each of the platforms?
-  Linux: simple, least code being executed, least overhead.
-  LXC: isolation and container abstraction, flexible sharing, near-native perf.
-  gVisor: strong isolation but still flexible sharing, resource allocation.
-  Firecracker: strong isolation, better perf than gVisor, but
+每个平台有哪些潜在的优点或缺点？
+  Linux：简单，执行的代码最少，开销最小。
+  LXC：隔离和容器抽象、灵活共享、接近原生的性能。
+  gVisor：强隔离但仍然灵活的共享、资源分配。
+  Firecracker：隔离性强，性能比 gVisor 好，但是
   coarse-grained.
 
---- demo
+--- 演示
 
 chroot
   https://community.hetzner.com/tutorials/setup-chroot-jail
-  chroot . /bin/bash
-  pwd, ls
+  chroot 。 /bin/bash
+  密码, ls
 
-arch minimal jail
-  sudo mkdir /mnt/myjail
-  sudo pacstrap /mnt/myjail base
-  sudo arch-chroot /mnt/myjail
-  chroot . /bin/bash
-  pwd, ls, ps
-  run top outside of jail
-  kill it from inside jail
+拱门最小监狱
+  须藤 mkdir /mnt/myjail
+  sudo pacstrap /mnt/myjail 基地
+  须藤 arch-chroot /mnt/myjail
+  chroot 。 /bin/bash
+  pwd、ls、ps
+  跑出监狱
+  从监狱里杀掉它
 
-name spaces
+名称空间
   sudo nshare --fork --pid --mount-proc bash
-  chroot . /bin/bash
-  combine with minimal jail
+  chroot 。 /bin/bash
+  结合最低限度的监狱
   ps
-  top inside jail
-  ps outside of jail
+  监狱内的顶部
+  监狱外的ps
 
-docker
-  systemctl start docker.service
-  docker image ls
+泊坞窗
+  systemctl 启动 docker.service
+  docker 镜像 ls
   docker run -it --rm bash
-  cat /etc/os-release
+  猫 /etc/os-release
   ls /lib
   uname -a
-  top
-  ps outside of container
+  顶部
+  ps 容器外
 
 vm
-  download arch linux image from https://gitlab.archlinux.org/archlinux/arch-boxes
-  without kvm:
-   qemu-system-x86_64 -m 2G arch-linux.qcow2	
-  with kvm:
-   qemu-system-x86_64 -enable-kvm -m 2G arch-linux.qcow2 
-  login: arch/arch
-  top
+  从 https://gitlab.archlinux.org/archlinux/arch-boxes 下载 arch linux 镜像
+  不带 kvm：
+   qemu-system-x86_64 -m 2G arch-linux.qcow2
+  使用 kvm：
+   qemu-system-x86_64 -enable-kvm -m 2G arch-linux.qcow2
+  登录： 拱门/拱门
+  顶部
   uname -a

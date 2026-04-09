@@ -1,35 +1,23 @@
-<html>
-<head>
-<title>Lab: Xv6 and Unix utilities</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：xv6 与 Unix 工具</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：xv6 与 Unix 工具</h1>
+<p>本实验将让您熟悉 xv6 及其系统调用。
 
-<body>
-
-<h1>Lab: Xv6 and Unix utilities</h1>
-
-<p>This lab will familiarize you with xv6 and its system calls.
-
-<h2>Boot xv6 <script>g("easy")</script></h2>
-
+<h2>启动xv6 <script>g("easy")</script></h2>
 <p>
-You can do these labs on an Athena machine or on your own computer.
-If you use your own computer, have a look at the
-<a href="../tools.html">lab tools page</a> for setup tips.
+您可以在 Athena 计算机或您自己的计算机上进行这些实验。如果您使用自己的计算机，请查看
+<a href="../tools.html">实验工具页面</a> 有关设置提示。
 
-<p>If you use Athena, you must use an x86 machine; that is, <tt>uname -a</tt>
-should mention <tt>i386 GNU/Linux</tt> or <tt>i686 GNU/Linux</tt> or
-<tt>x86_64 GNU/Linux</tt>.
-You can log into a public Athena host with <tt>ssh -X athena.dialup.mit.edu</tt>.
-We have set up the appropriate compilers and simulators for you on
-Athena.  To use them, run <kbd>add -f 6.828</kbd>.  You must run this
-command every time you log in (or add it to your
-<tt>~/.environment</tt> file).  If you get obscure errors while
-compiling or running <tt>qemu</tt>, check that you added the
-course locker.</p>
-
-<p>Fetch the xv6 source for the lab and check out the <tt>util</tt> branch:
+<p>如果使用Athena，则必须使用x86机器；也就是说， <tt>uname -a</tt>
+应该提到 <tt>i386 GNU/Linux</tt> 或 <tt>i686 GNU/Linux</tt> 或
+<tt>x86_64 GNU/Linux</tt>。您可以使用以下命令登录公共 Athena 主机 <tt>ssh -X athena.dialup.mit.edu</tt>。我们已在 Athena 上为您设置了合适的编译器和模拟器。要使用它们，请运行 <kbd>add -f 6.828</kbd>。您必须在每次登录时运行此命令（或将其添加到您的
+<tt>~/.environment</tt> 文件）。如果您在编译或运行时遇到模糊错误 <tt>qemu</tt>，检查您是否添加了课程储物柜。</p>
+<p>获取实验室的 xv6 源代码并查看 <tt>util</tt> branch:
 <pre>
 $ <kbd>git clone git://g.csail.mit.edu/xv6-labs-2020</kbd>
 Cloning into 'xv6-labs-2020'...
@@ -39,28 +27,13 @@ $ <kbd>git checkout util</kbd>
 Branch 'util' set up to track remote branch 'util' from 'origin'.
 Switched to a new branch 'util'
 </pre>
-
-<p>The xv6-labs-2020 repository differs slightly from the book's
-  xv6-riscv; it mostly adds some files. If you are curious look
-  at the git log:
+<p>xv6-labs-2020 存储库与本书的 xv6-riscv 略有不同；它主要添加一些文件。如果你好奇的话可以看看 git log：
 <pre>
 $ <kbd>git log</kbd>
 </pre>
-
-<p>The files you will need for this and subsequent lab assignments
-are distributed using
-the <a href="http://www.git-scm.com/">Git</a> version control system.
-Above you switched to a branch (<kbd>git checkout util</kbd>) 
-containing a version of xv6 tailored to this lab.
-To learn more about Git, take a look at the
-<a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git
-user's manual</a>, or, you may find this
-<a href="http://eagain.net/articles/git-for-computer-scientists/">CS-oriented
-overview of Git</a> useful.
-Git allows you to keep track of the changes you make to the code.
-For example, if you are finished with one of the exercises, and want
-to checkpoint your progress, you can <i>commit</i> your changes
-by running:
+<p>本次实验以及后续实验作业所需的文件将使用 <a href="http://www.git-scm.com/">git</a> 版本控制系统。上面你切换到了一个分支（<kbd>git checkout util</kbd>）包含为本实验室定制的 xv6 版本。要了解有关 Git 的更多信息，请查看
+<a href="http://www.kernel.org/pub/software/scm/git/docs/user-manual.html">Git 用户手册</a>，或者，你可能会发现这个
+<a href="http://eagain.net/articles/git-for-computer-scientists/">面向 CS 的 Git 概述</a> 有用的。 Git 允许您跟踪对代码所做的更改。例如，如果您完成了其中一项练习，并想要检查您的进度，您可以 <i>提交</i> 通过运行进行更改：
 </p>
 <pre>
 $ <kbd>git commit -am 'my solution for util lab exercise 1'</kbd>
@@ -68,26 +41,20 @@ Created commit 60d2135: my solution for util lab exercise 1
  1 files changed, 1 insertions(+), 0 deletions(-)
 $
 </pre>
-
 <p>
-You can keep track of your changes by using the <kbd>git diff</kbd>
-command.  Running <kbd>git diff</kbd> will display the changes to your
-code since your last commit, and <kbd>git diff
-origin/util</kbd> will display the changes relative to the
-initial xv6-labs-2020 code.  Here, <tt>origin/xv6-labs-2020</tt> is the
-name of the git branch with the initial code you downloaded for the
-class.
+您可以使用以下方式跟踪您的更改 <kbd>git diff</kbd>
+命令。跑步 <kbd>git diff</kbd> 将显示自上次提交以来对代码的更改，并且 <kbd>git diff
+origin/util</kbd> 将显示相对于初始 xv6-labs-2020 代码的更改。在这里， <tt>origin/xv6-labs-2020</tt> 是包含您为该类下载的初始代码的 git 分支的名称。
 </p>
-
-<p>Build and run xv6:
+<p>构建并运行 xv6：
 <pre>
 $ <kbd>make qemu</kbd>
 riscv64-unknown-elf-gcc    -c -o kernel/entry.o kernel/entry.S
 riscv64-unknown-elf-gcc -Wall -Werror -O -fno-omit-frame-pointer -ggdb -DSOL_UTIL -MD -mcmodel=medany -ffreestanding -fno-common -nostdlib -mno-relax -I. -fno-stack-protector -fno-pie -no-pie   -c -o kernel/start.o kernel/start.c
 ...  
 riscv64-unknown-elf-ld -z max-page-size=4096 -N -e main -Ttext 0 -o user/_zombie user/zombie.o user/ulib.o user/usys.o user/printf.o user/umalloc.o
-riscv64-unknown-elf-objdump -S user/_zombie > user/zombie.asm
-riscv64-unknown-elf-objdump -t user/_zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > user/zombie.sym
+riscv64-unknown-elf-objdump -S user/_zombie &gt; user/zombie.asm
+riscv64-unknown-elf-objdump -t user/_zombie | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' &gt; user/zombie.sym
 mkfs/mkfs fs.img README  user/xargstest.sh user/_cat user/_echo user/_forktest user/_grep user/_init user/_kill user/_ln user/_ls user/_mkdir user/_rm user/_sh user/_stressfs user/_usertests user/_grind user/_wc user/_zombie 
 nmeta 46 (boot, super, log blocks 30 inode blocks 13, bitmap blocks 1) blocks 954 total 1000
 balloc: first 591 blocks have been allocated
@@ -101,10 +68,8 @@ hart 1 starting
 init: starting sh
 $ 
 </pre>
-
 <p>
-If you type <tt>ls</tt> at the prompt, you should see output similar
-to the following:
+如果您输入 <tt>ls</tt> 在提示符处，您应该看到类似于以下内容的输出：
 <pre>
 $ <kbd>ls</kbd>
 .              1 1 1024
@@ -129,82 +94,50 @@ wc             2 18 25344
 zombie         2 19 22408
 console        3 20 0
 </pre>
-These are the files that <tt>mkfs</tt> includes in the
-initial file system; most are programs you can run.  You just ran one of them: <tt>ls</tt>.
+这些是文件 <tt>mkfs</tt> 包含在初始文件系统中；大多数是您可以运行的程序。您刚刚运行了其中之一： <tt>ls</tt>.
 
-<p>xv6 has no <tt>ps</tt> command, but, if you type <kbd>Ctrl-p</kbd>,
-the kernel will print information about each process.
-If you try it now, you'll see two lines: one for <tt>init</tt>,
-and one for <tt>sh</tt>.
+<p>xv6没有 <tt>ps</tt> 命令，但是，如果您输入 <kbd>Ctrl-p</kbd>，内核将打印每个进程的信息。如果您现在尝试，您将看到两行：一行代表 <tt>init</tt>，还有一个用于 <tt>sh</tt>.
       
-<p>To quit qemu type: <kbd>Ctrl-a x<kbd>.
+<p>要退出 qemu，请输入： <kbd>Ctrl-a x<kbd>.
 
-<h2>Grading and hand-in procedure</h2>
-
+<h2>评分和上交程序</h2>
 <p>
-You can run <kbd>make grade</kbd>
-to test your solutions with the grading program. The TAs will use the same
-grading program to assign your lab submission a
-grade. Separately, we will also have check-off meetings for labs (see
-<a href="../general.html#grading">Grading policy</a>).
+你可以运行 <kbd>make grade</kbd>
+使用评分程序测试您的解决方案。助教将使用相同的评分程序来为您提交的实验室提交评分。另外，我们还将举行实验室检查会议（请参阅
+<a href="../general.html#grading">评分政策</a>).
 </p>
-	
-<p>The lab code comes with GNU Make rules to make submission easier. After
-committing your final changes to the lab, type <kbd>make handin</kbd> to submit
-  your lab.  For detailed instructions on how to submit see <a href="util.html#submit">below</a>.
+<p>实验室代码附带 GNU Make 规则，使提交更容易。将最终更改提交到实验室后，输入 <kbd>make handin</kbd> 提交您的实验室。有关如何提交的详细说明，请参阅 <a href="util.html#submit">下面</a>.
 
-<h2>sleep <script>g("easy")</script></h2>
-
+<h2>睡觉 <script>g("easy")</script></h2>
 <div class="required">
-<p>Implement the UNIX program <tt>sleep</tt> for xv6; your <tt>sleep</tt> should pause
-  for a user-specified number of ticks.  A tick is a notion of time
-  defined by the xv6 kernel, namely the time between two interrupts
-  from the timer chip.  Your solution should be in the file
+<p>实施 UNIX 程序 <tt>sleep</tt> 对于xv6；你的 <tt>sleep</tt> 应暂停用户指定的刻度数。时钟周期是 xv6 内核定义的时间概念，即定时器芯片两次中断之间的时间。您的解决方案应该在文件中
   <tt>user/sleep.c</tt>.
-</div>
-
+</p></div>
 <p>
-
-<p>Some hints:
+<p>一些提示：
   <ul>
+<li>在开始编码之前，请阅读本书的第 1 章 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a>.
 
-    <li>Before you start coding, read Chapter 1 of
-    the <a href="../xv6/book-riscv-rev1.pdf">xv6 book</a>.
+    <li>看看其他一些程序 <tt>user/</tt>
+    （例如， <tt>user/echo.c</tt>, <tt>user/grep.c</tt>, 和 <tt>user/rm.c</tt>）以了解如何获取传递给程序的命令行参数。
 
-    <li>Look at some of the other programs in <tt>user/</tt>
-    (e.g., <tt>user/echo.c</tt>, <tt>user/grep.c</tt>,
-    and <tt>user/rm.c</tt>)
-    to see
-    how you can obtain the command-line arguments passed to a program.
+    <li>如果用户忘记传递参数，sleep 应该打印一条错误消息。
 
-    <li>If the user
-    forgets to pass an argument, sleep should print an error message.
+    <li>命令行参数作为字符串传递；您可以使用将其转换为整数 <tt>atoi</tt> （参见 user/ulib.c）。
 
-    <li>The command-line argument is passed as a string; you can convert it to an
-      integer using <tt>atoi</tt> (see user/ulib.c).
+    <li>使用系统调用 <tt>sleep</tt>.
 
-    <li>Use the system call <tt>sleep</tt>.
+    <li>参见 <tt>kernel/sysproc.c</tt> 对于实现以下功能的 xv6 内核代码 <tt>sleep</tt> 系统调用（寻找 <tt>sys_sleep</tt>), <tt>user/user.h</tt>
+    对于 C 的定义 <tt>sleep</tt> 可从用户程序调用，以及 <tt>user/usys.S</tt> 对于从用户代码跳转到内核的汇编代码 <tt>sleep</tt>.
 
-    <li>See <tt>kernel/sysproc.c</tt> for
-    the xv6 kernel code that implements the <tt>sleep</tt> system
-    call (look for <tt>sys_sleep</tt>), <tt>user/user.h</tt>
-    for the C definition of <tt>sleep</tt> callable from a
-    user program, and <tt>user/usys.S</tt> for the assembler
-    code that jumps from user code into the kernel for <tt>sleep</tt>.
+    <li>确保 <tt>main</tt> 来电 <tt>exit()</tt> 以便退出您的程序。
 
-    <li>Make sure <tt>main</tt> calls <tt>exit()</tt> in order to exit
-    your program.
+    <li>添加您的 <tt>sleep</tt> 编程到 <tt>UPROGS</tt> 在 Makefile 中；一旦你这样做了， <tt>make qemu</tt> 将编译您的程序，您将能够从 xv6 shell 运行它。
 
-    <li>Add your <tt>sleep</tt> program to <tt>UPROGS</tt> in Makefile; once you've
-    done that, <tt>make qemu</tt> will compile your program and you'll
-    be able to run it from the xv6 shell.
+    <li>看看克尼根和里奇的书 <i>C语言程序设计（第二版）</i> (K&amp;R) 了解 C.
 
-    <li>Look at Kernighan and Ritchie's book <i>The C programming language
-        (second edition)</i> (K&R) to learn about C.
-
-  </ul>
-
-  <p>Run the program from the xv6 shell:
+  </li></li></li></li></li></li></li></li></li></ul>
+<p>从 xv6 shell 运行程序：
     <pre>
       $ <kbd>make qemu</kbd>
       ...
@@ -213,57 +146,34 @@ committing your final changes to the lab, type <kbd>make handin</kbd> to submit
       (nothing happens for a little while)
       $
     </pre>
-  <p>Your solution is correct if your program pauses when
-  run as shown above.
-  Run <kbd>make grade</kbd> to see if you indeed pass the
-    sleep tests.
+<p>如果您的程序在运行时暂停，如上所示，您的解决方案是正确的。运行 <kbd>make grade</kbd> 看看您是否确实通过了睡眠测试。
 
- <p>Note that <kbd>make grade</kbd> runs all tests, including the ones for the assignments
- below. If you want to run the grade tests for one assignment, type:
+ <p>请注意 <kbd>make grade</kbd> 运行所有测试，包括下面作业的测试。如果您想运行一项作业的成绩测试，请输入：
    <pre>
      $ <kbd>./grade-lab-util sleep</kbd>
    </pre>
-   This will run the grade tests that match "sleep".  Or, you can type:
+   这将运行与“睡眠”匹配的等级测试。或者，您可以输入：
    <pre>
      $ <kbd>make GRADEFLAGS=sleep grade</kbd>
    </pre>
-   which does the same.
+   其作用相同。
    
    
-<h2>pingpong <script>g("easy")</script></h2>
-
+<h2>乒乓球 <script>g("easy")</script></h2>
 <div class="required">
-<p> Write a program that uses UNIX system calls to ''ping-pong'' a
-  byte between two processes over a pair of pipes, one for each
-  direction.
-  The parent should send a byte to the child;
-  the child should print "&lt;pid&gt;: received ping",
-  where &lt;pid&gt; is its process ID,
-  write the byte on the pipe to the parent,
-  and exit;
-  the parent should read the byte from the child,
-  print "&lt;pid&gt;: received pong",
-  and exit.
-  Your
-  solution should be in the file <tt>user/pingpong.c</tt>.
-</div>
-
-<p>Some hints:
+<p> 编写一个程序，使用 UNIX 系统调用通过一对管道（每个方向一个）在两个进程之间“乒乓”一个字节。父进程应向子进程发送一个字节；子进程应打印“&lt;pid&gt;：已收到 ping”，其中 &lt;pid&gt; 是其进程 ID，将管道上的字节写入到父进程，然后退出；父进程应该从子进程读取字节，打印“&lt;pid&gt;：收到 pong”，然后退出。您的解决方案应该在文件中 <tt>user/pingpong.c</tt>.
+</p></div>
+<p>一些提示：
   <ul>
-    <li>Use <tt>pipe</tt> to create a pipe.
-    <li>Use <tt>fork</tt> to create a child.
-    <li>Use <tt>read</tt> to read from the pipe, and <tt>write</tt> to write to the pipe.
-    <li>Use <tt>getpid</tt> to find the process ID of the calling process.
-    <li>Add the program to <tt>UPROGS</tt> in Makefile.
-    <li>User programs on xv6 have a limited set of library
-    functions available to them. You can see the list in
-    <tt>user/user.h</tt>; the source (other than for system calls)
-    is in <tt>user/ulib.c</tt>, <tt>user/printf.c</tt>,
-    and <tt>user/umalloc.c</tt>.
-  </ul>
-
-  <p>Run the program from the xv6 shell and it should produce the
-  following output:
+<li>使用 <tt>pipe</tt> 创建一个管道。
+    <li>使用 <tt>fork</tt> 创造一个孩子。
+    <li>使用 <tt>read</tt> 从管道中读取，以及 <tt>write</tt> 写入管道。
+    <li>使用 <tt>getpid</tt> 查找调用进程的进程 ID。
+    <li>将程序添加到 <tt>UPROGS</tt> 在 Makefile 中。
+    <li>xv6 上的用户程序具有一组有限的可用库函数。您可以在以下位置查看该列表：
+    <tt>user/user.h</tt>;源（系统调用除外）位于 <tt>user/ulib.c</tt>, <tt>user/printf.c</tt>, 和 <tt>user/umalloc.c</tt>.
+  </li></li></li></li></li></li></ul>
+<p>从 xv6 shell 运行该程序，它应该产生以下输出：
   <pre>
     $ <kbd>make qemu</kbd>
     ...
@@ -273,55 +183,32 @@ committing your final changes to the lab, type <kbd>make handin</kbd> to submit
     3: received pong
     $
   </pre>
-    <p>Your solution is correct if your program exchanges a byte
-    between two processes and produces output as shown above.
+<p>如果您的程序在两个进程之间交换一个字节并产生如上所示的输出，则您的解决方案是正确的。
 
   
-<h2>primes <script>g("moderate")</script>/<script>g("hard")</script></h2>
-
+<h2>素数 <script>g("moderate")</script>/<script>g("hard")</script></h2>
 <div class="required">
-  <p>Write a concurrent version of prime sieve using pipes.  This idea
-    is due to Doug McIlroy, inventor of Unix pipes.  The picture
-    halfway down <a href="http://swtch.com/~rsc/thread/">this page</a>
-    and the surrounding text explain how to do it.  Your
-    solution should be in the file <tt>user/primes.c</tt>.
-</div>
-
-    <p>Your goal is to use <tt>pipe</tt> and <tt>fork</tt> to set up
-    the pipeline. The first process feeds the numbers 2 through 35
-    into the pipeline.  For each prime number, you will arrange to
-    create one process that reads from its left neighbor over a pipe
-    and writes to its right neighbor over another pipe. Since xv6 has
-    limited number of file descriptors and processes, the first
-    process can stop at 35.
+<p>使用管道编写素数筛的并发版本。这个想法源自 Unix 管道的发明者 Doug McIlroy。图画到一半了 <a href="http://swtch.com/~rsc/thread/">本页</a>
+    周围的文字解释了如何操作。您的解决方案应该在文件中 <tt>user/primes.c</tt>.
+</p></div>
+<p>你的目标是使用 <tt>pipe</tt> 和 <tt>fork</tt> 设置管道。第一个进程将数字 2 到 35 输入管道。对于每个质数，您将安排创建一个进程，通过管道从其左邻居读取数据，并通过另一个管道向其右邻居写入数据。由于xv6的文件描述符和进程数量有限，第一个进程可以停在35个。
     
-<p>Some hints:
+<p>一些提示：
   <ul>
-    <li>Be careful to close file descriptors that a process doesn't
-    need, because otherwise your program will run xv6 out of resources
-    before the first process reaches 35.
+<li>请小心关闭进程不需要的文件描述符，否则您的程序将在第一个进程达到 35 之前耗尽资源来运行 xv6。
       
-    <li>Once the first process reaches 35, it should wait until the
-    entire pipeline terminates, including all children, grandchildren,
-    &c. Thus the main primes process should only exit after all the
-    output has been printed, and after all the other primes processes
-    have exited.
+    <li>一旦第一个进程达到 35，它应该等待整个管道终止，包括所有子进程、孙进程等。因此，主 primes 进程仅应在所有输出打印完毕以及所有其他 primes 进程退出后退出。
 
-    <li>Hint: <tt>read</tt> returns zero when the write-side of
-    a pipe is closed.
+    <li>Hint: <tt>read</tt> 当管道的写入端关闭时返回零。
 
-    <li>It's simplest to directly write 32-bit (4-byte) <tt>int</tt>s to the
-        pipes, rather than using formatted ASCII I/O.
+    <li>最简单直接写32位（4字节） <tt>int</tt>s 到管道，而不是使用格式化的 ASCII I/O。
 
-    <li>You should create the processes in the pipeline only as they are
-      needed.
+    <li>您应该仅在需要时在管道中创建流程。
 
-    <li>Add the program to <tt>UPROGS</tt> in Makefile.
+    <li>将程序添加到 <tt>UPROGS</tt> 在 Makefile 中。
 
-  </ul>
-
-<p>Your solution is correct if it implements a pipe-based
-sieve and produces the following output:
+  </li></li></li></li></li></li></ul>
+<p>如果您的解决方案实现了基于管道的筛子并产生以下输出，则它是正确的：
   <pre>
     $ <kbd>make qemu</kbd>
     ...
@@ -340,135 +227,95 @@ sieve and produces the following output:
     prime 31
     $
   </pre>
-  
-<h2>find <script>g("moderate")</script></h2>
-
+<h2>找到 <script>g("moderate")</script></h2>
 <div class="required">
-<p>Write a simple version of the UNIX find program: find all the files
-  in a directory tree with a specific name.  Your solution
-  should be in the file <tt>user/find.c</tt>.
+<p>编写一个简单版本的 UNIX 查找程序：查找目录树中具有特定名称的所有文件。您的解决方案应该在文件中 <tt>user/find.c</tt>.
   
-</div>
-  
-<p>Some hints:
+</p></div>
+<p>一些提示：
   <ul>
-    <li>Look at user/ls.c to see how to read directories.
-    <li>Use recursion to allow find to descend into sub-directories.
-    <li>Don't recurse into "." and "..".
-    <li>Changes to the file system persist across runs of qemu; to get
-    a clean file system run <kbd>make clean</kbd> and then <kbd>make qemu</kbd>.
-    <li>You'll need to use C strings. Have a look at K&R (the C book),
-      for example Section 5.5.
+<li>查看 user/ls.c 以了解如何读取目录。
+    <li>使用递归允许 find 深入到子目录。
+    <li>不要递归成“.”和 ”..”。
+    <li>文件系统的更改在 qemu 运行期间持续存在；获得干净的文件系统运行 <kbd>make clean</kbd> 然后 <kbd>make qemu</kbd>.
+    <li>您需要使用 C 字符串。看一下 K&amp;R（C 书），例如第 5.5 节。
     <li> Note that == does not compare strings like in Python. Use strcmp() instead.
-    <li>Add the program to <tt>UPROGS</tt> in Makefile.
-  </ul>
-
-<p>Your solution is correct if produces the following output (when the
-  file system contains the files <tt>b</tt> and <tt>a/b</tt>):
+    <li>将程序添加到 <tt>UPROGS</tt> 在 Makefile 中。
+  </li></li></li></li></li></li></li></ul>
+<p>如果产生以下输出（当文件系统包含文件时，您的解决方案是正确的） <tt>b</tt> 和 <tt>a/b</tt>):
   <pre>
     $ <kbd>make qemu</kbd>
     ...
     init: starting sh
-    $ <kbd>echo > b</kbd>
+    $ <kbd>echo &gt; b</kbd>
     $ <kbd>mkdir a</kbd>
-    $ <kbd>echo > a/b</kbd>
+    $ <kbd>echo &gt; a/b</kbd>
     $ <kbd>find . b</kbd>
     ./b
     ./a/b
     $ 
   </pre>
-
-<h2>xargs <script>g("moderate")</script></h2>
-
+<h2>参数 <script>g("moderate")</script></h2>
 <div class="required">
-<p>Write a simple version of the UNIX xargs program: read lines from
-  the standard input and run a command for each line, supplying the line as
-  arguments to the command.   Your solution
-  should be in the file <tt>user/xargs.c</tt>.
-</div>
+<p>编写一个简单版本的 UNIX xargs 程序：从标准输入读取行并为每行运行一个命令，将该行作为参数提供给命令。您的解决方案应该在文件中 <tt>user/xargs.c</tt>.
+</p></div>
 
-  The following example illustrates xarg's
-  behavior:
+  以下示例说明了 xarg 的行为：
   <pre>
     $ <kbd>echo hello too | xargs echo bye</kbd>
     bye hello too
     $
   </pre>
-  Note that the command here is "echo bye" and the additional
-  arguments are "hello too", making the command "echo bye hello too",
-  which outputs "bye hello too".
+  请注意，这里的命令是“echo bye”，附加参数是“hello too”，使得命令“echo bye hello too”输出“bye hello too”。
 
-  <p> Please note that xargs on UNIX makes an optimization where it will feed more than argument to the command at a time. We don't expect you to make this optimization. To make xargs on UNIX behave the way we want it to for this lab, please run it with the -n option set to 1. For instance</p>
-  <pre>
+  <p> 请注意，UNIX 上的 xargs 进行了优化，它一次向命令提供多个参数。我们不希望您进行此优化。要使 UNIX 上的 xargs 按照我们在本实验中希望的方式运行，请在 -n 选项设置为 1 的情况下运行它。例如</p>
+<pre>
     $ <kbd>echo "1\n2" | xargs -n 1 echo line</kbd>
     line 1
     line 2
     $
-  </pre>  
-  
-<p>Some hints:
+  </pre>
+<p>一些提示：
   <ul>
-    <li>Use <tt>fork</tt> and <tt>exec</tt> to invoke the
-      command on each line of input.  Use <tt>wait</tt> in the parent
-      to wait for the child to complete the command.
-    <li>To read individual lines of input, read a character at a time
-        until a newline ('\n') appears.
-    <li>kernel/param.h declares MAXARG, which may be useful if you need
-      to declare an argv array.
-    <li>Add the program to <tt>UPROGS</tt> in Makefile.
-    <li>Changes to the file system persist across runs of qemu; to get
-    a clean file system run <kdb>make clean</kdb> and then <kdb>make qemu</kdb>.
-  </ul>
-
-<p>xargs, find, and grep combine well:
+<li>使用 <tt>fork</tt> 和 <tt>exec</tt> 在每一行输入上调用该命令。使用 <tt>wait</tt> 在父进程中等待子进程完成命令。
+    <li>要读取单行输入，请一次读取一个字符，直到出现换行符 ('\n')。
+    <li>kernel/param.h 声明了 MAXARG，如果您需要声明 argv 数组，这可能很有用。
+    <li>将程序添加到 <tt>UPROGS</tt> 在 Makefile 中。
+    <li>文件系统的更改在 qemu 运行期间持续存在；获得干净的文件系统运行 <kdb>使干净</kdb> 然后 <kdb>制作qemu</kdb>.
+  </li></li></li></li></li></ul>
+<p>xargs、find 和 grep 结合得很好：
   <pre>
   $ <kbd>find . b | xargs grep hello</kbd>
   </pre>
-  will run "grep hello" on each file named b in the directories below
-  ".".
+  将对“.”下面的目录中名为 b 的每个文件运行“grep hello”。
 
-<p>To test your solution for xargs, run the shell script xargstest.sh.
-Your solution is correct if it produces the following output:
+<p>要测试 xargs 的解决方案，请运行 shell 脚本 xargstest.sh。如果您的解决方案产生以下输出，则它是正确的：
   <pre>
   $ <kbd>make qemu</kbd>
   ...
   init: starting sh
-  $ <kbd>sh < xargstest.sh</kbd>
+  $ <kbd>sh &lt; xargstest.sh</kbd>
   $ $ $ $ $ $ hello
   hello
   hello
   $ $   
   </pre>
-You may have to go back and fix bugs in your find program.  The output has
-many <tt>$</tt> because the xv6 shell doesn't realize
-it is processing commands from a file instead of from the console, and
-prints a <tt>$</tt> for each command in the file.
+您可能必须返回并修复查找程序中的错误。输出有很多 <tt>$</tt> 因为 xv6 shell 没有意识到它正在处理来自文件而不是来自控制台的命令，并打印 <tt>$</tt> 对于文件中的每个命令。
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<h3>Time spent</h3>
+<h3>提交</h3>
 
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -483,80 +330,43 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-
-
-
-  
-<h2>Optional challenge exercises</h2>
-
+<h2>可选的挑战练习</h2>
 <ul>
-    
-  <li><p>Write an uptime program that prints the uptime in terms of
-      ticks using the <tt>uptime</tt> system call. <script>g("easy")</script>
-      </li>
+<li><p>编写一个正常运行时间程序，使用以下命令以滴答数形式打印正常运行时间 <tt>uptime</tt> 系统调用。 <script>g("easy")</script>
+</p></li>
+<li><p>支持正则表达式的名称匹配 <tt>find</tt>.  <tt>grep.c</tt> 对正则表达式有一些原始支持。  <script>g("easy")</script>
+</p></li>
+<li><p>xv6 外壳（<tt>user/sh.c</tt>）只是另一个用户程序，您可以改进它。它是一个最小的 shell，缺乏真实 shell 中的许多功能。例如，修改 shell 以不打印 <tt>$</tt> 处理文件中的 shell 命令时 <script>g("moderate")</script>、修改shell以支持等待 <script>g("easy")</script>，修改 shell 以支持命令列表，以“;”分隔
+      <script>g("moderate")</script>，通过实现“(”和“)”修改shell以支持子shell
+      <script>g("moderate")</script>、修改shell以支持tab补全 <script>g("easy")</script>、修改 shell 以保留传递的 shell 命令的历史记录
+      <script>g("moderate")</script>，或者您希望 shell 执行的任何其他操作。 （如果您雄心勃勃，您可能必须修改内核以支持您需要的内核功能；xv6 支持的不多。）
 
-  <li><p>Support regular expressions in name matching
-  for <tt>find</tt>.  <tt>grep.c</tt> has some primitive support for
-  regular expressions.  <script>g("easy")</script>
-      </li>
-
-  <li><p>The xv6 shell (<tt>user/sh.c</tt>) is just another user
-      program and you can improve it. It is a minimal shell and lacks
-      many features found in real shell. For example, modify the shell
-      to not print a <tt>$</tt> when processing shell commands from a
-      file <script>g("moderate")</script>, modify the shell to
-      support wait <script>g("easy")</script>, modify the shell to
-      support lists of commands, separated by ";"
-      <script>g("moderate")</script>, modify the shell to support
-      sub-shells by implementing "(" and ")"
-      <script>g("moderate")</script>, modify the shell to support
-      tab completion <script>g("easy")</script>, modify the shell to
-      keep a history of passed shell commands
-      <script>g("moderate")</script>, or anything else you would
-      like your shell to do. (If you are very ambitious, you may have
-      to modify the kernel to support the kernel features you need;
-      xv6 doesn't support much.)
-
-</ul>
-
-</body>
+</p></li></ul>
+</p></p></a></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></kbd></kbd></p></p></p></p></p></p></p></p></body>
 </html>
-
-

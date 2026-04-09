@@ -1,134 +1,137 @@
-Frequently Asked Questions for Appel & Li's paper "Virtual memory
-primitives for user programs"
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Q: What is the relationship of the garbage collector to the OS?
+Appel & Li 论文《虚拟内存》的常见问题
+用户程序的原语”
 
-A: No direct relation. The garbage collector is part of a language
-runtime (e.g., Python or Go runtime). The python interpreter, for
-example, runs as a user program, on top of the kernel, and one
-component of the interpreter is the garbage collector.  Unlike in C,
-in these languages the developer doesn't have to call malloc/free to
-manage memory but the language garbage collector manages memory for
-the developer.  This avoids many common programming mistakes such as
-double free, use after free, etc.
+问：垃圾收集器与操作系统有什么关系？
 
-Q: What GC algorithm does Python use?
+答：没有直接关系。垃圾收集器是语言的一部分
+运行时（例如，Python 或 Go 运行时）。 python 解释器，用于
+例如，作为用户程序运行在内核之上，并且一个
+解释器的组件是垃圾收集器。与 C 中不同的是，
+在这些语言中，开发人员不必调用 malloc/free 来
+管理内存，但语言垃圾收集器管理内存
+开发商。这可以避免许多常见的编程错误，例如
+双重免费、免费后使用等。
 
-A: Cpython, a common python interpreter uses several different garbage
-collector implementations (see
+问：Python 使用什么 GC 算法？
+
+A：Cpython，常见的python解释器使用几种不同的垃圾
+收集器实现（参见
 https://github.com/python/cpython/blob/main/InternalDocs/garbage_collector.md).
-One of them is a generational one.
+其中之一是一代人。
 
-Q: Do page faults work correctly on pipelined processors?
+问：页面错误在流水线处理器上能正常工作吗？
 
-A: Today's CPUs provide what is called "precise" interrupts, which
-guarantee that the save process state corresponds to a sequential CPU
-that completes one instruction before starting on the next one.
-Implementing precise interrupts in a pipelined processor is
+答：当今的 CPU 提供所谓的“精确”中断，这
+保证保存进程状态对应于顺序CPU
+在开始下一条指令之前完成一条指令。
+在流水线处理器中实现精确中断是
 nontrivial.
 
-Q: Who keeps track if a page is dirty?
+问：谁来跟踪页面是否脏了？
 
-A: The hardware typically keeps track of whether a page has been
-written too (dirtied).  For example, the RISC-V maitains a Dirty bit
-in the PTE (see figure 3-2 in the xv6 text). Many operating systems
-don't make that bit visible to user applications, however; the paper
-argues that is a shame because user applications could benefit from
+答：硬件通常会跟踪页面是否已被访问。
+也写了（弄脏了）。例如，RISC-V 维护一个脏位
+在 PTE 中（参见 xv6 文本中的图 3-2）。许多操作系统
+但是，不要让该位对用户应用程序可见；报纸
+认为这是一种耻辱，因为用户应用程序可以从中受益
 it.
 
-Q: Are data page compression algorithms for VM used in practice?
+问：VM 的数据页压缩算法是否在实际中使用？
 
-A: Check out https://en.wikipedia.org/wiki/Virtual_memory_compression
-for a history of developments, and recent usages, including Android
+答：查看 https://en.wikipedia.org/wiki/Virtual_memory_compression
+了解开发历史和最近的使用情况，包括 Android
 (https://developer.android.com/topic/performance/memory-management),
-which uses Linux's zram.
+它使用 Linux 的 zram。
 
-Q: Is it possible to combine concurrent and generational garbage collection?
+问：是否可以将并发垃圾收集和分代垃圾收集结合起来？
 
-A: Yes,  see, for example: https://dl.acm.org/doi/pdf/10.1145/96709.96735
+答：是的，例如：https://dl.acm.org/doi/pdf/10.1145/96709.96735
 
-Q: Why doesn't xv6 support user VM primitives? How would we go about
-adding this feature??
+问：为什么 xv6 不支持用户 VM 原语？我们该怎么办
+添加这个功能？？
 
-A: Because xv6 goal is to be a minimal educational OS. You will
-implement, however, some user-level VM primitives in the mmap lab.
+答：因为 xv6 的目标是成为一个最小的教育操作系统。你会
+然而，在 mmap 实验室中实现一些用户级 VM 原语。
 
-Q: How relevant is the information about disk locality (and some of
-the other assumptions made in the paper) with the developments of
-flash memory?
+问：有关磁盘位置的信息（以及一些
+论文中提出的其他假设）随着发展
+闪存？
 
-A: Less so. Access times to flash memory are much lower than to
-magnetic disks. Yet, flash memory is still orders of magnitude slower
-than RAM, so it still matters.
+答： 不太如此。对闪存的访问时间远低于对闪存的访问时间
+磁盘。然而，闪存仍然慢几个数量级
+比RAM，所以它仍然很重要。
 
-Q: Would there be a tradeoff between cross-platform compatibility and
-user-level algorithms aimed specifically at things like Prot1 vs ProtN?
-Or do modern programs write separate low-level code for each, or do
-modern OSes all implement a similar set of primitives?
+问：跨平台兼容性和跨平台兼容性之间是否需要权衡？
+用户级算法专门针对 Prot1 与 ProtN 之类的东西？
+或者现代程序是否为每个程序编写单独的低级代码，或者做
+现代操作系统都实现了一组类似的原语？
 
-A: Modern OSes implement a similar set of primitives; check out mmap,
-munmap, sigaction, and related systems calls (e.g., run ``man mmap''
-on the command line).
+答：现代操作系统实现了一组类似的原语；查看 mmap，
+munmap、sigaction 和相关系统调用（例如，运行“man mmap”
+在命令行上）。
 
-Q: How often does checkpointing happen? Every time a thread needs
-writes to memory, does the OS have to checkpoint by saving the
-writable main memory space for the program and restart all threads?:
+问：检查点多久发生一次？每当一个线程需要
+写入内存，操作系统是否必须通过保存来检查点
+程序的可写主内存空间并重新启动所有线程？：
 
-A: It is up to the application to chose how often to
-checkpoint---checkpointing every write doesn't make sense because it
-is too costly; you should think more in terms of many minutes time
-frame. For example, you may want to checkpoint a long-running compute
-application periodically so that you don't have to start from scratch
-in case the computer crashes.
+答：由应用程序选择频率
+检查点——对每次写入进行检查点没有意义，因为它
+成本太高；你应该更多地考虑几分钟的时间
+框架。例如，您可能想要对长时间运行的计算进行检查点
+定期申请，这样您就不必从头开始
+以防电脑死机。
 
-Q: How exactly is data compressed and uncompressed in the
- data-compression paging scheme?
+问：数据到底是如何压缩和解压缩的
+ 数据压缩分页方案？
 
-A: Using a compression algorithm. zram (see above) uses zstd
-(https://en.wikipedia.org/wiki/Zstd).
+答：使用压缩算法。 zram（见上文）使用 zstd
+（https://en.wikipedia.org/wiki/Zstd）。
 
-Q: I'm also not clear about intuition behind why we translate between
-32-bit and 64-bit addresses for pointers to extend addressability.
+问：我也不清楚为什么我们在之间进行翻译背后的直觉
+用于扩展寻址能力的指针的 32 位和 64 位地址。
 
-A: This example is a bit arcane given that today pointers on most CPU
-are 64 bits.
+答：鉴于当今大多数 CPU 上的指针，这个示例有点神秘
+是 64 位。
 
-Q: What exactly is a mutator and a collector?
+问： 变异器和收集器到底是什么？
 
-A: This is garbage-collector jargon: the mutator is an application
-program (say a python program) that has objects and read/writes them,
-and the collector is a component of the runtime doing the garbage
+答：这是垃圾收集器的行话：变异器是一个应用程序
+具有对象并读取/写入它们的程序（例如Python程序），
+收集器是运行时处理垃圾的一个组件
 collection.
 
-Q: How does the OS guarantee security when the user mode can specify a
-fault handler?
+问：当用户态可以指定一个权限时，操作系统如何保证安全性？
+故障处理程序？
 
-A: The kernel forwards the page faults to the process who experienced
-the fault.  Thus, a process sees only its own page faults and can
-modify only its own address space.  If the handler has a bug, then the
-process may crash, but only that processes crashes.
+A：内核将页面错误转发给经历过页面错误的进程
+的错。因此，进程只能看到自己的页面错误并且可以
+只修改自己的地址空间。如果处理程序有错误，那么
+进程可能会崩溃，但仅限于进程崩溃。
 
-Q: When are persistent stores used?
+问：什么时候使用持久存储？
 
-A: A file system is an example of a persistent store.  The persistent
-store in the paper extends persistence to objects of a running
-program, so that the developer doesn't explicitly have to persist
-objects (i.e., invoke file system calls).  It is not a super popular
-idea currently but some systems provide it.
+答：文件系统是持久存储的一个示例。执着的
+论文中的 store 将持久性扩展到正在运行的对象
+程序，这样开发人员就不必明确地坚持
+对象（即调用文件系统调用）。这不是一个超级流行的
+目前的想法，但有些系统提供了它。
 
-Q: How much do vm techniques affect database implementations
+问：vm 技术对数据库实现有多大影响
 currently?
 
-A: Databases commonly use mmap to map databases files into the address
-space of the database server so that the database can rely on the OS
-page cache for caching blocks of the file (instead of having to
-implement its own buffer cache and potentially suffer double
-buffering). There are some interesting critiques of using mmap for
-databases; for example, see https://db.cs.cmu.edu/mmap-cidr2022/.
+A：数据库常用mmap将数据库文件映射到地址
+数据库服务器空间，让数据库可以依赖操作系统
+页缓存用于缓存文件块（而不必
+实现自己的缓冲区高速缓存并可能遭受双重打击
+缓冲）。对于使用 mmap 有一些有趣的批评
+数据库；例如，请参阅 https://db.cs.cmu.edu/mmap-cidr2022/。
 
-Q: How are persistent stores that haven't been saved to the disk recovered in
-the instance of a crash?
+问：未保存到磁盘的持久存储如何恢复
+崩溃的例子？
 
-A: Often they support transactions to update a group of objects
-atomically.  The transaction system typically uses logging.  From
-today's paper perspective crash-safety is an orthogonal issue.
+答：通常他们支持事务来更新一组对象
+原子地。事务系统通常使用日志记录。来自
+今天的论文观点碰撞安全是一个正交问题。

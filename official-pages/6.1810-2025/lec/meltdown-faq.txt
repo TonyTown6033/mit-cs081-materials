@@ -1,152 +1,155 @@
-Frequently Asked Questions for Lipp et al.'s "Meltdown: Reading Kernel
-Memory from User Space"
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Q: Are newer CPUs vulnerable to Meltdown?
+Lipp 等人的“Meltdown：阅读内核”的常见问题
+来自用户空间的内存”
 
-A: Recent Intel CPUs are not vulnerable to Meltdown, but many
-generations of past CPUs are vulnerable, and require software defenses
-such as KAISER. AMD CPUs are believed not to be vulnerable to
+问：较新的 CPU 是否容易受到 Meltdown 的影响？
+
+答：最近的 Intel CPU 不易受到 Meltdown 的影响，但许多
+过去几代 CPU 很容易受到攻击，需要软件防御
+比如凯撒。 AMD CPU 被认为不易受到
 Meltdown.
 
-There are other attacks related to Meltdown (see below) that are harder
-to fix and require software as well as hardware defenses. This had led
-to a general discussion about the hardware/software contract with
-respect to isolation.
+还有其他与 Meltdown 相关的更难的攻击（见下文）
+修复并需要软件和硬件防御。这导致了
+关于硬件/软件合同的一般性讨论
+尊重隔离。
 
-Q: Are there other microarchitectural side-channel attacks?
+问：还有其他微架构旁路攻击吗？
 
-A: Yes, many. Meltdown/Spectre were the first but afterwards
-researchers have uncovered many others; see, for example,
+答：是的，很多。熔毁/幽灵是第一个，但后来
+研究人员还发现了许多其他的东西；例如，参见
 https://en.wikipedia.org/wiki/Spectre_(security_vulnerability).  Course
-6 offers now a class in hardware security (6.5950,
+6 现在提供硬件安全级别（6.5950，
 https://shd.mit.edu/).
 
-On Linux, run "grep . /sys/devices/system/cpu/vulnerabilities/*" to
-see vulnerabilities and mitigations for your CPU.
+在 Linux 上，运行“grep . /sys/devices/system/cpu/vulnerability/*”
+查看您的 CPU 的漏洞和缓解措施。
 
-Q: How do we protect against side-channel attacks in general?
+问：一般来说，我们如何防范旁道攻击？
 
-A: Side channel attacks come in many shapes (see
+答：侧信道攻击有多种形式（参见
 https://en.wikipedia.org/wiki/Side-channel_attack). Historically
-people worried about EM signals leaking (take a look at
+人们担心电磁信号泄漏（看看
 http://cryptome.org/nsa-tempest.pdf).  Crypto code worries about
-timing side channels to avoid leaking bits of secret keys and attempt
-to write the crypto code in a way that is constant time.  Spectre and
-Meltdown attacks are a new class of side-channel attacks, based on
-leaking secrets through micro-architectural features. Before
-these attacks, these kind of side channels were assumed away, but now
-they are exploitable, and there is a tremendous activities in finding
-new ones and identifying solutions (see above).
+定时侧通道以避免泄漏密钥和尝试
+以恒定时间的方式编写加密代码。幽灵和
+Meltdown 攻击是一种新型的旁路攻击，基于
+通过微架构特征泄露秘密。之前
+这些攻击，这些侧通道被假定消失，但现在
+它们是可利用的，并且有大量的活动在寻找
+新的问题和确定的解决方案（见上文）。
 
-Q: Is it possible to eliminate the existence of all side channels?
+问：是否有可能消除所有侧通道的存在？
 
-A: There is not likely to be a single solution that eliminates
-all vulernabilities. On the other hand, for many specific attack
-classes, people have worked out effective defenses.
+答：不可能有单一的解决方案可以消除
+所有漏洞。另一方面，对于许多特定的攻击
+课堂上，人们已经制定了有效的防御措施。
 
-Q: Before Meltdown was discovered, why was it common to map kernel
-memory in the user page table?
+问：在Meltdown被发现之前，为什么映射内核很常见
+内存在用户页表中？
 
-A: Mapping kernel memory in each user page table makes system calls
-faster: no page table switch is required, and kernel system call code
-can use user addresses directory (e.g. when evaluating system call
-arguments).
+A：在每个用户页表中映射内核内存会进行系统调用
+更快：不需要页表切换和内核系统调用代码
+可以使用用户地址目录（例如，在评估系统调用时
+论据）。
 
-Q: How does KAISER relate to xv6's use of page tables?
+问：KAISER 与 xv6 对页表的使用有何关系？
 
-A: Xv6 implements a form of KAISER: user process page tables don't map
-the kernel's memory, and user/kernel transitions switch page tables.
-So (with a small exception) no user address refers to kernel memory,
-and thus Meltdown wouldn't be effective with xv6.
+A：xv6实现了KAISER的一种形式：用户进程页表不映射
+内核的内存和用户/内核转换切换页表。
+所以（有一个小例外）没有用户地址引用内核内存，
+因此 Meltdown 对 xv6 无效。
 
-Q: How does Meltdown ensure that out-of-order execution occurs?
+问：Meltdown 如何保证乱序执行发生？
 
-A: The Intel CPUs attacked in the paper are very likely to
-speculatively execute past a mov instruction to keep the instruction
-pipeline full and the execution units busy. The attack doesn't work
-entirely reliably, however, as seen from the XX's in listings 3 and 4.
-One reason might be that it works well only if the mov on line 4 hits
-in the L1 cache.
+A：论文中攻击的Intel CPU很有可能
+推测性地执行过去的 mov 指令以保留该指令
+管道已满且执行单元繁忙。攻击不起作用
+然而，从清单 3 和清单 4 中的 XX 可以看出，这是完全可靠的。
+原因之一可能是只有当第 4 行的 mov 命中时它才能正常工作
+在L1缓存中。
 
-Q: How do we know if an instruction is transient?
+问：我们如何知道指令是否是瞬态的？
 
-A: We don't, because we don't know how the CPU is implemented (Intel
-CPUs are not open source), and thus we cannot know up front if an
-instruction leaves measurable side effects.  Only if someone figures
-out a way to exploit the instruction do we know it is transient.
+A：我们不知道，因为我们不知道CPU是如何实现的（Intel
+CPU 不是开源的），因此我们无法预先知道是否有
+指导会留下可测量的副作用。只有当有人算出
+找出一种利用该指令的方法，我们知道它是瞬态的吗？
 
-Q: How could a CPU be fixed to stop the meltdown attack?
+问：如何修复 CPU 来阻止 Meltdown 攻击？
 
-A: Since Intel CPUs are closed source, it is hard to know what Intel
-did. The CPU could check the permission in the TLB in parallel with
-the lookup in the L1 and use a 0 instead of the actual value when the
-permissions don't check out, so that subsequent speculative
-instructions will see a 0 until the mov retires (and the exception is
-raised).
+答：由于Intel CPU是闭源的，所以很难知道Intel的CPU是什么
+做到了。 CPU 可以并行检查 TLB 中的权限
+在 L1 中查找并使用 0 代替实际值
+权限不检查出来，以便后续推测
+指令将看到 0，直到 mov 退出（例外情况是
+提出）。
 
-Q: What is the relationship between Meltdown and Spectre?
+问：Meltdown 和 Spectre 之间有什么关系？
 
-A: They are both micro-architectural side-channel attacks leveraging
-speculative execution, but different in what they exploit. Meltdown
-exploits that a data access bypasses a page-table protection check.
-Spectre exploits that a data access bypasses an array-bound check.
-This paper reviews them together:
+答：它们都是利用微架构侧通道攻击
+投机执行，但它们利用的内容不同。崩溃
+利用数据访问绕过页表保护检查。
+Spectre 利用数据访问绕过数组绑定检查。
+本文将它们一起回顾：
 https://css.csail.mit.edu/6.858/2022/readings/spectre-meltdown.pdf
 
-Q: What is KASLR?
+问：什么是 KASLR？
 
-A: KASLR (Kernel Address space layout randomization) puts the kernel
-text at a random offset in the virtual address space so that it makes
-it harder for attackers to guess where kernel functions are located.
-But, once an attacker knows the offset, the attacker can figure out
-the address for each function.
+A：KASLR（内核地址空间布局随机化）把内核
+虚拟地址空间中随机偏移的文本，以便它使得
+攻击者更难猜测内核函数所在的位置。
+但是，一旦攻击者知道偏移量，攻击者就可以计算出
+每个函数的地址。
 
-Address space randomization makes Meltdown slightly more challenging
-to succeed because the attacker has to figure out the offset, but this
-turns out not to be a huge hurdle.
+地址空间随机化使 Meltdown 更具挑战性
+想要成功，因为攻击者必须找出偏移量，但是这个
+事实证明这并不是一个巨大的障碍。
 
-You can read about KASLR here:
+您可以在这里阅读有关 KASLR 的信息：
 https://lwn.net/Articles/569635/.
 
-KAISER was originally developed to defend KASLR against side-channel
-attacks. KAISER also happens to defend against Meltdown.
+KAISER 最初是为了保护 KASLR 免受侧通道攻击而开发的
+攻击。 KAISER 也恰好可以防御 Meltdown。
 
-Q: Has Meltdown been used in the wild, for real attacks?
+问：Meltdown 是否已在野外用于真正的攻击？
 
-A: I am not aware of any "in-the-wild" attacks, but, of course, we
-might not know because the attacker wouldn't say so.
+答：我不知道有任何“野外”攻击，但是，当然，我们
+可能不知道，因为攻击者不会这么说。
 
-Q: What is the performance impact of KAISER/KPTI?
+问：KAISER/KPTI 对性能有何影响？
 
-A: KPTI/KAISER has a performance impact ranging from neglible to 10%
-on io-intensive workloads, depending on the exact workload.  See
+答：KPTI/KAISER 对性能的影响从可以忽略不计到 10%
+在 io 密集型工作负载上，具体取决于具体的工作负载。参见
 https://en.wikipedia.org/wiki/Meltdown_(security_vulnerabil for some
-references.  This thesis also explores this:
+参考文献。本论文也对此进行了探讨：
 https://pdos.csail.mit.edu/papers/behrensj-phd-thesis.pdf
 
-Q: Do modern OSes have notions of "sensitive" data, which might allow
-for more fine-grained control over page mappings?
+问：现代操作系统是否有“敏感”数据的概念，这可能允许
+对页面映射进行更细粒度的控制？
 
-A: There are efforts in this direction; for example, see MAP_EXCLUSIVE
-( https://lwn.net/Articles/804658/).
+A：有这方面的努力；例如，请参阅 MAP_EXCLUSIVE
+（https://lwn.net/Articles/804658/）。
 
-Q: How can future mitigations like KAISER address speculative
-execution vulnerabilities like Meltdown, balancing security and
+问：像 KAISER 这样的未来缓解措施如何解决投机问题
+执行漏洞，如 Meltdown，平衡安全性和
 performance?
 
-A: Users can chose this trade-off by deciding which mitigations to
-enable.  You can see this on Linux using by running "grep
-. /sys/devices/system/cpu/vulnerabilities/*".  Linux distributions
-ship with defaults that make an implicit judgement (e.g., enable SMT
-even though it is a security risk).
+答：用户可以通过决定采取哪些缓解措施来选择这种权衡
+启用。您可以在 Linux 上通过运行“grep
+。 /sys/devices/system/cpu/vulnerability/*"。Linux 发行版
+附带进行隐式判断的默认值（例如，启用 SMT
+即使这是一个安全风险）。
 
-Q: How are microarchitectural side channels persisted and cleared?
+问：微架构侧通道如何持久化和清除？
 
-A: There is no explicit API for this. It is a side-effect how the CPU
-implements micro-architectural features.  For example, in the paper
-the L1 cache is the place where a side-channel is "persisted" as a
-side-effect of speculative execution.  The L1 cache-line might be
-"cleared" because of a cache conflict that replaces the line of
-interest.  You can see from the XXs in listing 3 and 4 that indeed the
-attack isn't reliable.
+答：没有明确的 API 可以实现这一点。这是 CPU 的副作用
+实现微架构功能。例如，在论文中
+L1 缓存是侧通道“持久化”的地方
+推测执行的副作用。 L1 缓存行可能是
+“已清除”，因为缓存冲突替换了该行
+兴趣。您可以从清单 3 和 4 中的 XX 看出，确实
+攻击不可靠。
 

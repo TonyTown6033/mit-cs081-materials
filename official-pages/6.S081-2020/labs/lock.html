@@ -1,59 +1,35 @@
-<html>
-<head>
-<title>Lab: locks</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：锁</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: locks</h1>
-
-<p>In this lab you'll gain experience in re-designing code to increase
-parallelism. A common symptom of poor parallelism on multi-core
-machines is high lock contention. Improving parallelism often involves
-changing both data structures and locking strategies in order to
-reduce contention. You'll do this for the xv6 memory allocator and
-block cache.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：锁</h1>
+<p>在本实验中，您将获得重新设计代码以提高并行性的经验。多核机器上并行性差的一个常见症状是高锁争用。提高并行性通常涉及更改数据结构和锁定策略以减少争用。您将为 xv6 内存分配器和块缓存执行此操作。
 
 <div class="prereq">
-
-  <p>Before writing code, make sure to read the following
-    parts from  the <a href="../xv6/book-riscv-rev1.pdf">xv6 book</a> :
+<p>在编写代码之前，请务必阅读以下部分： <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a> :
     <ul>
+<li> 第6章：“锁定”以及相应的代码。
 
-    <li> Chapter 6: "Locking" and the corresponding code.
+    <li> 第 3.5 节：“代码：物理内存分配器”
 
-    <li> Section 3.5: "Code: Physical memory allocator"
+    <li> 第 8.1 节到 8.3 节：“概述”、“缓冲区高速缓存层”和“代码：缓冲区高速缓存”
 
-    <li> Section 8.1 through 8.3: "Overview", "Buffer cache layer", and
-    "Code: Buffer cache"
-
-    </ul>
-
-</div>
-
-  
+    </li></li></li></ul>
+</p></div>
 <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout lock</kbd>
   $ <kbd>make clean</kbd>
 </pre>
-
-  
-<h2>Memory allocator <script>g("moderate")</script></h2>
-
-<p>The program user/kalloctest stresses xv6's memory allocator: three
-  processes grow and shrink their address spaces, resulting in many
-  calls to <tt>kalloc</tt> and <tt>kfree</tt>.
-  <tt>kalloc</tt> and <tt>kfree</tt>
-  obtain <tt>kmem.lock</tt>.  kalloctest prints (as "#fetch-and-add") the number of
-  loop iterations in <tt>acquire</tt> due to attempts to acquire a lock
-  that another core already holds, for the
-  <tt>kmem</tt> lock and a few other locks.
-  The number of loop iterations in <tt>acquire</tt>
-  is a rough measure of lock contention.
-  The output of <tt>kalloctest</tt> looks similar to this
-  before you complete the lab:
+<h2>内存分配器 <script>g("moderate")</script></h2>
+<p>程序 user/kalloctest 强调 xv6 的内存分配器：三个进程增大和缩小其地址空间，导致多次调用 <tt>kalloc</tt> 和 <tt>kfree</tt>.
+  <tt>kalloc</tt> 和 <tt>kfree</tt>
+  获得 <tt>kmem.lock</tt>。 kalloctest 打印（如“#fetch-and-add”）循环迭代次数 <tt>acquire</tt> 由于尝试获取另一个核心已经持有的锁，对于
+  <tt>kmem</tt> 锁和其他一些锁。循环迭代次数 <tt>acquire</tt>
+  是锁争用的粗略度量。的输出 <tt>kalloctest</tt> 在完成实验之前，它看起来与此类似：
 
 <pre>
 $ <kbd>kalloctest</kbd>
@@ -71,52 +47,19 @@ lock: proc: #fetch-and-add 4080 #acquire() 130786
 tot= 83375
 test1 FAIL
 </pre>
-
 <p>
-<tt>acquire</tt> maintains, for each lock, the count of
-calls to <tt>acquire</tt> for that lock, and the
-number of times the loop in <tt>acquire</tt> tried but failed to set the lock.
-  kalloctest calls
-  a system call that causes the kernel to print those counts for the
-  kmem and bcache locks (which are the focus of this lab) and for
-  the 5 most contended locks.  If there is lock contention the
-  number of <tt>acquire</tt> loop iterations will be large.
-  The system call returns
-  the sum of the number of loop iterations for the kmem and bcache locks.
+<tt>acquire</tt> 对于每个锁，维护调用的计数 <tt>acquire</tt> 对于该锁，以及循环次数 <tt>acquire</tt> 尝试设置锁但失败。 kalloctest 调用一个系统调用，使内核打印 kmem 和 bcache 锁（这是本实验的重点）以及 5 个竞争最激烈的锁的计数。如果存在锁争用的数量 <tt>acquire</tt> 循环迭代将会很大。该系统调用返回 kmem 和 bcache 锁的循环迭代次数之和。
 
-<p>For this lab, you must use a dedicated unloaded machine with multiple
-cores. If you use a machine that is doing other things, the 
-counts that kalloctest prints will be nonsense. You can use a dedicated
-Athena workstation, or your own laptop, but don't use a dialup machine.
+<p>对于本实验，您必须使用具有多个内核的专用卸载计算机。如果您使用正在执行其他操作的机器，则 kalloctest 打印的计数将是无意义的。您可以使用专用的 Athena 工作站或您自己的笔记本电脑，但不要使用拨号计算机。
 
-<p>The root cause of lock contention in kalloctest is that <tt>kalloc()</tt> has a
-  single free list, protected by a single lock.  To remove lock
-  contention, you will have to redesign the memory allocator to avoid
-  a single lock and list.  The basic idea is to maintain a free list
-  per CPU, each list with its own lock. Allocations and frees on different
-  CPUs can run in parallel, because each CPU will operate on a
-  different list. The main challenge will be to deal with the case
-  in which one CPU's free list is empty, but another CPU's list has free
-  memory; in that case, the one CPU must "steal" part of the other
-  CPU's free list.  Stealing may introduce lock contention, but that
-  will hopefully be infrequent.
+<p>kalloctest 中锁争用的根本原因是 <tt>kalloc()</tt> 有一个空闲列表，由一个锁保护。要消除锁争用，您必须重新设计内存分配器以避免单个锁和列表。基本思想是为每个 CPU 维护一个空闲列表，每个列表都有自己的锁。不同CPU上的分配和释放可以并行运行，因为每个CPU将在不同的列表上操作。主要挑战是处理一个CPU的空闲列表为空，但另一个CPU的列表有空闲内存的情况；在这种情况下，一个 CPU 必须“窃取”另一个 CPU 的空闲列表的一部分。窃取可能会导致锁争用，但希望这种情况不会频繁发生。
 
 <div class="required">
-<p>Your job is to implement per-CPU freelists, and stealing when a
-  CPU's free list is empty.
-  You must give all of your locks names that start with "kmem".
-That is, you should call
+<p>您的工作是实现每个 CPU 的空闲列表，并在 CPU 的空闲列表为空时进行窃取。您必须给出所有以“kmem”开头的锁名称。也就是说，你应该打电话
 <tt>initlock</tt>
-for each of your locks,
-and pass a name that starts with "kmem".
- Run kalloctest to see if your
-  implementation has reduced lock contention. To check that it can still allocate
-  all of memory, run <tt>usertests sbrkmuch</tt>. Your output will look similar to that shown below,
-  with much-reduced contention in total on kmem locks, although
-  the specific numbers will differ. Make sure all tests in <tt>usertests</tt> pass.
-  <tt>make grade</tt> should say that the kalloctests pass.
-</div>
-
+对于每个锁，并传递一个以“kmem”开头的名称。运行 kalloctest 来查看您的实现是否减少了锁争用。要检查它是否仍然可以分配所有内存，请运行 <tt>usertests sbrkmuch</tt>。您的输出将类似于下图所示，尽管具体数字会有所不同，但 kmem 锁的争用总数大大减少。确保所有测试都在 <tt>usertests</tt> pass.
+  <tt>make grade</tt> 应该说 kalloctests 通过了。
+</p></div>
 <pre>
 $ <kbd>kalloctest</kbd>
 start test1
@@ -147,33 +90,19 @@ $ <kbd>usertests</kbd>
 ALL TESTS PASSED
 $
 </pre>
-  
-<p>Some hints:
+<p>一些提示：
   <ul>
-    <li>You can use the constant <tt>NCPU</tt> from kernel/param.h
-    <li>Let <tt>freerange</tt> give all free memory to the CPU
-      running <tt>freerange</tt>.
-    <li>The function <tt>cpuid</tt> returns the current core number, but 
-    it's only safe to call it and use its result when
-    interrupts are turned off. You should use
-    <tt>push_off()</tt> and <tt>pop_off()</tt> to turn
-    interrupts off and on.
-    <li>Have a look at the <tt>snprintf</tt> function in kernel/sprintf.c for string formatting ideas. It 	is OK to just name all locks "kmem" though.
-  </ul>
+<li>您可以使用常量 <tt>NCPU</tt> 来自内核/param.h
+    <li>让 <tt>freerange</tt> 将所有可用内存分配给正在运行的 CPU <tt>freerange</tt>.
+    <li>功能 <tt>cpuid</tt> 返回当前的核心编号，但只有在中断关闭时调用它并使用其结果才是安全的。你应该使用
+    <tt>push_off()</tt> 和 <tt>pop_off()</tt> 关闭和打开中断。
+    <li>看看 <tt>snprintf</tt> kernel/sprintf.c 中的函数用于字符串格式化的想法。不过，将所有锁命名为“kmem”就可以了。
+  </li></li></li></li></ul>
+<h2>缓冲区高速缓存  <script>g("hard")</script></h2>
+<p> 这一半的作业与前半部分是独立的；无论您是否完成了前半部分，您都可以完成这半部分（并通过测试）。
 
-<h2>Buffer cache  <script>g("hard")</script></h2>
-
-<p> This half of the assignment is independent from the first half;
-you can work on this half (and pass the tests) whether or not you
-have completed the first half.
-
-<p>If multiple processes use the file system intensively, they
-  will likely contend for <tt>bcache.lock</tt>, which protects the disk block
-  cache in kernel/bio.c.
-  <tt>bcachetest</tt> creates
-  several processes that repeatedly read different files
-  in order to generate contention on <tt>bcache.lock</tt>;
-  its output looks like this (before you complete this lab):
+<p>如果多个进程密集使用文件系统，它们可能会争用 <tt>bcache.lock</tt>，它保护 kernel/bio.c 中的磁盘块缓存。
+  <tt>bcachetest</tt> 创建多个重复读取不同文件的进程，以产生争用 <tt>bcache.lock</tt>;其输出如下所示（在完成本实验之前）：
 
 <pre>
 $ <kbd>bcachetest</kbd>
@@ -193,32 +122,16 @@ test0: FAIL
 start test1
 test1 OK
 </pre>
-You will likely see different output, but
-the number of <tt>acquire</tt> loop iterations for the <tt>bcache</tt> lock will be high.
-If you look at the code in <tt>kernel/bio.c</tt>, you'll see that
-<tt>bcache.lock</tt> protects the list of cached block buffers,
-the reference count (<tt>b->refcnt</tt>) in each block buffer, and the identities of
-the cached blocks (<tt>b->dev</tt> and <tt>b->blockno</tt>).
+您可能会看到不同的输出，但数量 <tt>acquire</tt> 循环迭代 <tt>bcache</tt> 锁会很高。如果你看一下代码 <tt>kernel/bio.c</tt>，你会看到
+<tt>bcache.lock</tt> 保护缓存块缓冲区列表、引用计数（<tt>b-&gt;refcnt</tt>）在每个块缓冲区中，以及缓存块的标识（<tt>b-&gt;dev</tt> 和 <tt>b-&gt;blockno</tt>).
 
 <p>
-
 <div class="required">
-  <p>Modify the block cache so that the number of <tt>acquire</tt> loop iterations
-    for all locks in the bcache is close to zero when running <tt>bcachetest</tt>.
-    Ideally the sum of the counts for all locks involved in the block
-    cache should be zero, but it's OK if the sum is less than 500.
-    Modify <tt>bget</tt>
-    and <tt>brelse</tt> so that concurrent lookups and releases for
-    different blocks that are in the bcache are unlikely to conflict
-    on locks (e.g., don't all have to wait for
-  <tt>bcache.lock</tt>).
-You must maintain the invariant that at
-  most one copy of each block is cached.  When you are done, your
-  output should be similar to that shown below (though not identical).
-  Make sure usertests still passes.
-  <tt>make grade</tt> should pass all tests when you are done.
-</div>
-
+<p>修改块缓存，使数量 <tt>acquire</tt> 运行时 bcache 中所有锁的循环迭代次数接近于零 <tt>bcachetest</tt>。理想情况下，块缓存涉及的所有锁的计数总和应该为零，但总和小于 500 也可以。 修改 <tt>bget</tt>
+    和 <tt>brelse</tt> 因此，bcache 中不同块的并发查找和释放不太可能在锁上发生冲突（例如，不必全部等待
+  <tt>bcache.lock</tt>）。您必须保持每个块最多缓存一个副本的不变性。完成后，您的输出应类似于下图所示（尽管不相同）。确保用户测试仍然通过。
+  <tt>make grade</tt> 完成后应该通过所有测试。
+</p></div>
 <pre>
 $ <kbd>bcachetest</kbd>
 start test0
@@ -256,113 +169,60 @@ $ <kbd>usertests</kbd>
 ALL TESTS PASSED
 $
 </pre>
-
 <p>
-Please give all of your locks  names that start with "bcache".
-That is, you should call
+请提供所有以“bcache”开头的锁名称。也就是说，你应该打电话
 <tt>initlock</tt>
-for each of your locks,
-and pass a name that starts with "bcache".
+对于每个锁，并传递一个以“bcache”开头的名称。
 
 <p>
-  Reducing contention in the block cache is more
-  tricky than for kalloc, because bcache buffers are truly
-  shared among processes (and thus CPUs).
-  For kalloc, one could eliminate most contention by
-  giving each CPU its own
-  allocator; that won't work for the block cache.
-We suggest you look up block numbers in the cache with a hash table
-that has a lock per hash bucket.
+  减少块缓存中的争用比 kalloc 更棘手，因为 bcache 缓冲区真正在进程（以及 CPU）之间共享。对于 kalloc，可以通过为每个 CPU 提供自己的分配器来消除大多数争用。这不适用于块缓存。我们建议您使用每个哈希桶都有一个锁的哈希表在缓存中查找块号。
 
 <p>
-There are some circumstances in which it's OK if your solution
-has lock conflicts:
+在某些情况下，如果您的解决方案存在锁冲突也没关系：
 <ul>
-<li>When two processes concurrently use the same block number.
-<tt>bcachetest</tt> <tt>test0</tt> doesn't ever do this.
-<li>When two processes concurrently miss in the cache, and
-need to find an unused block to replace.
-<tt>bcachetest</tt> <tt>test0</tt> doesn't ever do this.
-<li>When two processes concurrently use blocks that conflict
-in whatever scheme you use to partition the blocks and
-locks; for example, if two processes use blocks whose block
-numbers hash to the same slot in a hash table.
-<tt>bcachetest</tt> <tt>test0</tt> might do this, depending on your
-design, but you should try to adjust your scheme's
-details to avoid conflicts (e.g., change the size of
-your hash table).
-</ul>
-
+<li>当两个进程同时使用相同的块号时。
+<tt>bcachetest</tt> <tt>test0</tt> 从来不这样做。
+<li>当两个进程同时在缓存中丢失，并且需要找到一个未使用的块来替换时。
+<tt>bcachetest</tt> <tt>test0</tt> 从来不这样做。
+<li>当两个进程同时使用块时，无论您使用什么方案来分区块和锁，这些块都会发生冲突；例如，如果两个进程使用的块的块号散列到哈希表中的同一槽。
+<tt>bcachetest</tt> <tt>test0</tt> 可能会这样做，具体取决于您的设计，但您应该尝试调整方案的详细信息以避免冲突（例如，更改哈希表的大小）。
+</li></li></li></ul>
 <p>
-<tt>bcachetest</tt>'s <tt>test1</tt> uses more distinct blocks than there are buffers,
-  and exercises lots of file system code paths.
+<tt>bcachetest</tt>的 <tt>test1</tt> 使用比缓冲区更多的不同块，并使用大量文件系统代码路径。
 
-<p>Here are some hints:
+<p>以下是一些提示：
   <ul>
-    <li>Read the description of the block cache in the xv6 book (Section 8.1-8.3).
+<li>阅读 xv6 书中对块缓存的描述（第 8.1-8.3 节）。
 
-    <li>It is OK to use a fixed number of buckets and not resize the
-    hash table dynamically. Use a prime number of
-    buckets (e.g., 13) to reduce the likelihood of hashing conflicts.
+    <li>使用固定数量的桶并且不动态调整哈希表的大小是可以的。使用素数的桶（例如 13）来减少哈希冲突的可能性。
 
-    <li>Searching in the hash table for a buffer and allocating an
-      entry for that buffer when the buffer is not found must be
-      atomic.
+    <li>在哈希表中搜索缓冲区并在未找到缓冲区时为该缓冲区分配条目必须是原子的。
 
-    <li>Remove the list of all buffers (<tt>bcache.head</tt> etc.)
-    and instead time-stamp buffers using the
-    time of their last use (i.e., using <tt>ticks</tt> in kernel/trap.c).
-    With this change <tt>brelse</tt> doesn't need to acquire the bcache
-    lock, and <tt>bget</tt> can select the least-recently used block
-    based on the time-stamps.
+    <li>删除所有缓冲区的列表（<tt>bcache.head</tt> 等），而不是使用上次使用时间的时间戳缓冲区（即使用 <tt>ticks</tt> 在内核/trap.c 中）。随着这个改变 <tt>brelse</tt> 不需要获取 bcache 锁，并且 <tt>bget</tt> 可以根据时间戳选择最近最少使用的块。
 
-    <li>It is OK to serialize eviction in <tt>bget</tt> (i.e., the
-    part of <tt>bget</tt> that selects a buffer to re-use when
-    a lookup misses in the cache).
+    <li>可以连续驱逐 <tt>bget</tt> （即，的一部分 <tt>bget</tt> 当缓存中查找未命中时，选择一个要重新使用的缓冲区）。
 
-    <li>Your solution might need to hold two locks in some cases; for
-    example, during eviction you may need to hold the bcache lock and
-    a lock per bucket.  Make sure you avoid deadlock.
+    <li>在某些情况下，您的解决方案可能需要持有两个锁；例如，在驱逐期间，您可能需要持有 bcache 锁和每个存储桶的锁。确保避免僵局。
 
-    <li>When replacing a block, you might move a <tt>struct buf</tt> from one
-    bucket to another bucket, because the new block hashes to a
-    different bucket.  You might have a
-    tricky case: the new block might hash to the same bucket as the
-    old block.  Make sure you avoid deadlock in that case.
+    <li>更换块时，您可能会移动一个 <tt>struct buf</tt> 从一个桶到另一个桶，因为新块散列到不同的桶。您可能会遇到一个棘手的情况：新块可能会散列到与旧块相同的存储桶。在这种情况下请确保避免死锁。
 
-    <li>Some debugging tips: implement bucket locks but leave the global 
-    bcache.lock acquire/release at the beginning/end of bget to serialize
-    the code. Once you are sure it is correct without race conditions,
-    remove the global locks and deal with concurrency issues. You can also
-    run <tt>make CPUS=1 qemu</tt> to test with one core.
+    <li>一些调试技巧：实现桶锁，但将全局 bcache.lock acquire/release 保留在 bget 的开头/结尾以序列化代码。一旦确定它在没有竞争条件的情况下是正确的，请删除全局锁并处理并发问题。你也可以运行 <tt>make CPUS=1 qemu</tt> 用一个核心进行测试。
           
-  </ul>
+  </li></li></li></li></li></li></li></li></ul>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>提交</h3>
 
-<h3>Time spent</h3>
-
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -377,54 +237,35 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-
-
-
-
-<h2>Optional challenge exercises</h2>
-  
-  <ul>
-  <li>make lookup in the buffer cache lock-free. Hint: use
-    gcc's <tt>__sync_*</tt> functions. How do you convince yourself
-    that your implementation is correct?
-  </ul>
-
-</body>
+<h2>可选的挑战练习</h2>
+<ul>
+<li>使缓冲区高速缓存中的查找无锁。提示：使用 gcc <tt>__sync_*</tt> 功能。您如何说服自己您的实施是正确的？
+  </li></ul>
+</p></p></a></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></body>
 </html>

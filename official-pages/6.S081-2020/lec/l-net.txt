@@ -1,237 +1,240 @@
-6.S081 2020 Lecture 21: Networking
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-topics
-  packet formats and protocols
-  software stack in kernel
-  today's paper -- livelock
+6.S081 2020第21讲：网络
 
-overall network architecture
-  diagram: apps, host, NIC, LAN, NIC, host, apps
-  diagram: hosts, LAN, router, ..., LAN, hosts
+主题
+  数据包格式和协议
+  内核中的软件堆栈
+  今日报纸——活锁
 
-ethernet packet format
-  [printout of kernel/net.h, struct eth]
-  start "flag"
-  destination ethernet address -- 48 bits
-  source ethernet address -- 48 bits
-  ether type -- 16 bits
-  payload
-  end "flag"
+整体网络架构
+  图表：应用程序、主机、NIC、LAN、NIC、主机、应用程序
+  图表：主机、LAN、路由器、...、LAN、主机
 
-[eth tcpdump output]
+以太网数据包格式
+  [kernel/net.h、struct eth 的打印输出]
+  开始“旗帜”
+  目标以太网地址——48位
+  源以太网地址——48位
+  以太类型——16位
+  有效负载
+  结束“旗帜”
 
-ethernet addresses
-  a simple ethernet LAN broadcasts: all host NICs see all packets
-    a host uses dest addr to decide if the packet is really for it
-  today's ethernet LAN is a switch, with a cable to each host
-    the switch uses the dest addr to decide which host to send a packet to
-  ethernet addresses are assigned by NIC manufacturer
+[eth tcpdump 输出]
+
+以太网地址
+  一个简单的以太网 LAN 广播：所有主机 NIC 都能看到所有数据包
+    主机使用 dest addr 来决定数据包是否真正适合它
+  今天的以太网 LAN 是一个交换机，每个主机都有一根电缆
+    交换机使用 dest addr 来决定将数据包发送到哪台主机
+  以太网地址由 NIC 制造商分配
     <24-bit manufacturer ID, 24-bit serial number>
 
 ARP
-  [kernel/net.h, struct arp]
-  a request/response protocol to translate IP address to ethernet address
-  "nested" inside an ethernet packet, with ether type 0x0806
-  ARP header indicates request vs response
-  request: desired IP address
-    request packets are broadcast to every host on a switch
-    all the hosts process the packet, but only owner of that IP addr responds
-  response: the corresponding ethernet address
+  [内核/net.h，结构arp]
+  将 IP 地址转换为以太网地址的请求/响应协议
+  “嵌套”在以太网数据包内，以太网类型为 0x0806
+  ARP 标头指示请求与响应
+  请求：所需的IP地址
+    请求数据包被广播到交换机上的每个主机
+    所有主机都处理该数据包，但只有该 IP 地址的所有者响应
+  响应：对应的以太网地址
 
-[arp tcpdump output]
+[arp tcpdump 输出]
 
 note:
-  the habit is to "nest" higher-level packets inside lower-level packets
-  e.g. ARP inside ethernet
-  so you often see a sequence of headers (ether, then ARP)
-  one layer's payload is the next layer's header
+  习惯是将较高级别的数据包“嵌套”在较低级别的数据包中
+  例如以太网内的 ARP
+  所以你经常会看到一系列标头（以太，然后是 ARP）
+  一层的有效负载是下一层的标头
 
-the ethernet header is enough to get a packet to a local host
-  but more is needed to route the packet to a distant Internet host
+以太网标头足以将数据包发送到本地主机
+  但需要更多才能将数据包路由到远程互联网主机
 
-IP header
-  [kernel/net.h, struct ip]
-  ether type 0x0800
-  lots of stuff, but addresses are the most critical
-  a 32-bit IP address is enough to route to any Internet computer
-  the high bits contain a "network number" that helps routers
-    understand how to forward through the Internet
-  the protocol number tells the destination what to do with the packet
-    i.e. which higher-level protocol to hand it to (usually UDP or TCP)
+IP标头
+  [kernel/net.h，结构ip]
+  以太类型0x0800
+  很多东西，但地址是最关键的
+  32 位 IP 地址足以路由到任何互联网计算机
+  高位包含一个“网络号”，可以帮助路由器
+    了解如何通过互联网转发
+  协议号告诉目的地如何处理数据包
+    即将其交给哪个更高级别的协议（通常是 UDP 或 TCP）
 
-[ip tcpdump output]
+[ip tcpdump 输出]
 
-UDP header
-  [kernel/net.h, struct udp]
-  once a packet is at the right host, what app should it go to?
-  UDP header sits inside IP packet
-  contains src and dst port numbers
-  an application uses the "socket API" system calls to tell
-    the kernel it would like to receive all packets sent to a particular port
-  some ports are "well known", e.g. port 53 is reserved for DNS server
-  others are allocated as-needed for the client ends of connections
-  after the UDP header: payload, e.g. DNS request or response
+UDP报头
+  [kernel/net.h，结构udp]
+  一旦数据包到达正确的主机，它应该发送到哪个应用程序？
+  UDP 标头位于 IP 数据包内部
+  包含 src 和 dst 端口号
+  应用程序使用“socket API”系统调用来告诉
+    内核希望接收发送到特定端口的所有数据包
+  有些端口是“众所周知的”，例如端口53是为DNS服务器保留的
+  其他的根据需要分配给连接的客户端
+  在 UDP 标头之后：有效负载，例如DNS 请求或响应
 
-[udp tcpdump output]
+[udp tcpdump 输出]
 
-TCP
-  like UDP but has sequence number fields so it can retransmit lost packets,
-    and match send rate to network and destination capacity
+传输控制协议
+  与 UDP 类似，但具有序列号字段，因此可以重新传输丢失的数据包，
+    并将发送速率与网络和目标容量相匹配
 
-layering view of a typical kernel network stack
-  apps e.g. web browser, DNS server
+典型内核网络堆栈的分层视图
+  应用程序例如网络浏览器、DNS 服务器
   socket, port->fd table
-  UDP | TCP
-  IP, routing table | ARP, table
-  NIC drivers
-  -- packet buffers w/ allocator (see struct mbuf in net.h)
-  -- each layer parses, validates, and strips headers on the way in
-     discards packet if there's a problem
-  -- each layer prepends a header on the way out
-  -- software layer structure partially follows header nesting
+  UDP |传输控制协议
+  IP、路由表 | ARP、表
+  网卡驱动程序
+  -- 带分配器的数据包缓冲区（请参阅 net.h 中的 struct mbuf）
+  -- 每一层都会解析、验证并剥离头部
+     如果有问题则丢弃数据包
+  -- 每层在输出前都添加一个标头
+  -- 软件层结构部分遵循标头嵌套
 
-control flow view of a typical kernel network stack
-  multiple independent actors
-  each has input packets, processes them, produces output
-  here's a typical setup (much variation; lab setup is simpler)
-  NICs, with internal or DMA buffering
-  rx interrupt handler, copies from NIC to s/w input queue
-  tx interrupt handler, copies from s/w output queue to NIC
-  "network thread"
-    reads packets from s/w input queue
-    what to do with it? ARP, forward, put on socket queue
-  applications -- read from per-socket queue
+典型内核网络堆栈的控制流视图
+  多个独立演员
+  每个都有输入数据包，处理它们，产生输出
+  这是一个典型的设置（变化很大；实验室设置更简单）
+  NIC，具有内部或 DMA 缓冲
+  rx 中断处理程序，从 NIC 复制到软件输入队列
+  tx 中断处理程序，从软件输出队列复制到 NIC
+  “网络线程”
+    从软件输入队列读取数据包
+    该怎么办？ ARP、转发、放入套接字队列
+  applications -- 从每个套接字队列读取
   
-why all these queues of buffers?
-  absorb temporary input bursts
-  keep output NIC busy while computing
-  allow independent control flow (NICs vs network thread vs apps)
+为什么所有这些缓冲区队列？
+  吸收临时输入突发
+  计算时保持输出 NIC 繁忙
+  允许独立的控制流（NIC、网络线程、应用程序）
 
-other arrangements are possible and sometimes much better
-  e.g. user-level stack
-  e.g. direct user access to NIC (see Intel's DPDK)
-  e.g. polling, as in today's paper
+其他安排也是可能的，有时甚至更好
+  例如用户级堆栈
+  例如用户直接访问 NIC（参见 Intel 的 DPDK）
+  例如民意调查，如今天的报纸
 
-NIC packet buffering
-  paper's NIC queues packets in its own memory
-    driver s/w must copy to RAM
-  lab assignment's NIC (the Intel e1000) DMAs into host RAM
-    s/w prepares a "ring" of buffer pointers for rx, and tx
-    NIC DMAs each packet to memory pointed to by successive ring elements
-    why: DMA is faster than s/w copy loop
-         DMA can go on concurrently with compute tasks
+网卡数据包缓冲
+  paper 的 NIC 在自己的内存中对数据包进行排队
+    驱动程序软件必须复制到 RAM
+  实验室分配的 NIC（Intel e1000）DMA 到主机 RAM
+    软件为 rx 和 tx 准备一个缓冲区指针“环”
+    NIC DMA 将每个数据包发送到连续环元素指向的内存
+    为什么：DMA 比软件复制循环更快
+         DMA 可以与计算任务同时进行
 
-Today's paper: Eliminating Receive Livelock in an Interrupt-Driven Kernel,
-by Mogul and Ramakrishnan
+今天的论文：消除中断驱动内核中的接收活锁，
+作者：大亨和拉马克里希南
 
-Why are we reading this paper?
-  To illustrate some tradeoffs in kernel network stack structure
-  It's a famous and influential paper
-  Livelock / congestion collapse comes up in many situations
+我们为什么要阅读这篇论文？
+  说明内核网络堆栈结构中的一些权衡
+  这是一篇著名且有影响力的论文
+  活锁/拥塞崩溃在许多情况下都会出现
 
-Explain Figure 6-1
-  This is the original system, without the authors' fixes.
-  Why does it go up?
-  What determines how high the peak is?
+解释图6-1
+  这是原始系统，没有经过作者的修复。
+  为什么会上涨？
+  是什么决定了峰值有多高？
     peak @ 5000 => 200 us/pkt.
-  Why does it go down?
-  What determines how fast it goes down?
-  What happens to the packets that aren't forwarded?
+  为什么会下跌？
+  是什么决定了它下降的速度？
+  未转发的数据包会发生什么情况？
 
-A disk uses interrupts -- would a disk cause this kind of problem?
-  How about the UART?
-  How about a host receiving TCP traffic?
+磁盘使用中断——磁盘会导致这种问题吗？
+  UART 怎么样？
+  接收 TCP 流量的主机怎么样？
 
-Why not completely process each packet in the interrupt handler?
-  I.e. forward it?
-  (this is what the network lab does)
-  (still need out Q. starve tx intr. starve other devs' rx intrs.
-   no story for user processing.)
+为什么不在中断处理程序中完整处理每个数据包？
+  即转发吗？
+  （这就是网络实验室所做的）
+  （仍然需要 Q. 饥饿 tx intr。饥饿其他开发者的 rx intrs。
+   没有用户处理的故事。）
 
-Why not always poll, never use interrupts?
+为什么不总是轮询，从不使用中断？
 
-Overall goal:
-  once we've started to spend CPU on a packet, make sure we finish that packet!
-    i.e. avoid partially processing, then discarding due to overload
-  for special case of forwarding:
-    give output priority over input
-  interrupts allow us no control
+总体目标：
+  一旦我们开始在数据包上花费 CPU，请确保我们完成该数据包！
+    即避免部分处理，然后因过载而丢弃
+  对于特殊情况的转发：
+    输出优先于输入
+  中断让我们无法控制
 
-What's the paper's solution?
-  No IP input queue
-  NIC receive interrupt just wakes up thread
-    Then leaves interrupts *disabled* for that NIC
-  Thread does all processing,
-    re-checks NIC for more input,
-    only re-enables interrupts if no input waiting
+论文的解决方案是什么？
+  无IP输入队列
+  网卡接收中断只是唤醒线程
+    然后为该 NIC 留下中断*禁用*
+  线程完成所有处理，
+    重新检查 NIC 以获取更多输入，
+    仅在没有输入等待时重新启用中断
 
-NIC intr:
-  wake up net thread (but don't read any packets)
-  disable NIC interrupts
+网卡信息：
+  唤醒网络线程（但不读取任何数据包）
+  禁用网卡中断
 
 loop:
-  if NIC packets waiting
-    read a few packets from NIC
-    process each packet
-    (this is the polling part)
-  else
-    enable interrupts
-    sleep
+  如果 NIC 数据包正在等待
+    从NIC读取一些数据包
+    处理每个数据包
+    （这是投票部分）
+  否则
+    启用中断
+    睡觉
 
-What happens when packets arrive too fast?
-  Why does this help avoid livelock?
+当数据包到达太快时会发生什么？
+  为什么这有助于避免活锁？
 
-What happens when packets arrive slowly?
+当数据包到达缓慢时会发生什么？
 
-Modern Linux uses a scheme -- NAPI -- inspired by this paper.
+现代 Linux 使用一种方案——NAPI——受到这篇论文的启发。
 
-Explain Figure 6-3
-  This graph includes their system.
-  Why do the empty squares level off?
-  What happens to the excess packets?
-  Why does "Polling (no quota)" work badly?
-    Input still starves xmit-complete processing
-  Why does it immediately fall to zero, rather than gradually decreasing?
-    Livelock is made worse by doing even more processing before discard
-    I.e. each excess rx pkt consumes many tx pkts of CPU time
+解释图6-3
+  该图包括他们的系统。
+  为什么空的方块会变平？
+  多余的数据包会怎样？
+  为什么“轮询（无配额）”效果不佳？
+    输入仍然缺乏 xmit-complete 处理
+  为什么会立即降至零，而不是逐渐减少？
+    在丢弃之前进行更多处理会使活锁变得更糟
+    即每个多余的 rx pkt 都会消耗许多 tx pkt 的 CPU 时间
 
-Explain Figure 6-4
-  (this is with every packet going through a user-level program)
-  Why does "Polling, no feedback" behave badly?
-    There's a queue in front of screend
-    We can still give 100% to input thread, 0% to screend
-  Why does "Polling w/ feedback" behave well?
-    Input thread sleeps when queue to screend near-full
-    Wakes up when queue near-empty
+解释图6-4
+  （这是每个数据包都经过用户级程序的情况）
+  为什么“轮询，无反馈”表现不佳？
+    屏幕前已经排起了长队
+    我们仍然可以给输入线程 100%，给筛选 0%
+  为什么“带反馈的轮询”表现良好？
+    当要筛选的队列接近满时，输入线程会休眠
+    当队列接近空时醒来
 
-What would happen if screend hung?
+如果屏幕挂起会发生什么？
 
-Big picture: polling loop is a place to exert scheduling control
+大局观：轮询循环是发挥调度控制的地方
 
-Why are the two solutions different?
-  1. Polling thread *with quotas*
-  2. Feedback from full queue
-  Perhaps they could have used #2 for both
-    Feedback doesn't require magic numbers
-    But hard to retro-fit into existing UNIX structure
+为什么两种解决方案不同？
+  1. 轮询线程*带配额*
+  2.满队列反馈
+  也许他们可以同时使用#2
+    反馈不需要神奇的数字
+    但很难适应现有的 UNIX 结构
 
-What if processing has more complex structure?
-  Chain of processing stages with queues?
-    Does feedback work?
-    What happens when a late stage is slow?
-  Split at some point, multiple parallel paths?
-    No so great; one slow path blocks all paths
+如果处理结构更复杂怎么办？
+  具有队列的处理阶段链？
+    反馈有用吗？
+    当后期进展缓慢时会发生什么？
+  在某个点分裂，多个并行路径？
+    没有那么好；一条慢路阻塞了所有路径
 
-Can we formulate any general principles?
-  Don't spend time on new work before completing existing work
-  Design so that efficiency increases with load,
-    rather than decreasing. E.g. the paper's switch from
-    interrupts to polling under high load.
+我们能否制定一些一般原则？
+  在完成现有工作之前不要花时间在新工作上
+  设计使效率随着负载而增加，
+    而不是减少。例如。报纸的切换自
+    高负载下中断轮询。
 
-Similar phenomena arise in other areas of systems
-  Timeout + retransmission in networks, as number of connections grows
-  Spin-locks, as number of cores grows
+类似的现象也出现在系统的其他领域
+  随着连接数量的增加，网络中的超时+重传
+  自旋锁，随着核心数量的增加
 
-A general lesson: complex (multi-stage) systems may need careful
-  scheduling of resources if they are to survive loads close to
-  capacity
+一般教训：复杂（多阶段）系统可能需要小心
+  如果资源要承受接近的负载，则对其进行调度
+  容量

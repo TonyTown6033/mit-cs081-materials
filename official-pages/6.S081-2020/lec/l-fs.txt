@@ -1,304 +1,307 @@
-6.S081 2020 Lecture 14: File System
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-why are file systems useful?
-  durability across restarts
-  naming and organization
-  sharing among programs and users
+6.S081 2020第14讲：文件系统
 
-why interesting?
-  crash recovery
+为什么文件系统有用？
+  重启后的持久性
+  命名和组织
+  在程序和用户之间共享
+
+为什么有趣？
+  崩溃恢复
   performance/concurrency
-  sharing
-  security
-  abstraction is useful: pipes, devices, /proc, /afs, Plan 9
-    so FS-oriented apps work with many kinds of objects
-  topic of in two labs
+  分享
+  安全
+  抽象很有用：管道、设备、/proc、/afs、Plan 9
+    因此面向 FS 的应用程序可以处理多种对象
+  两个实验室的主题
 
-API example -- UNIX/Posix/Linux/xv6/&c:
+API 示例——UNIX/Posix/Linux/xv6/&c：
   fd = open("x/y", -);
-  write(fd, "abc", 3);
-  link("x/y", "x/z");
-  unlink("x/y");
-  write(fd, "def", 3);
-  close(fd);
+  写（fd，“abc”，3）；
+  链接（“x/y”，“x/z”）；
+  取消链接（“x/y”）；
+  写（fd，“def”，3）；
+  关闭（fd）；
   // file y/z contains abcdef
   
-high-level choices visible in the UNIX FS API
-  objects: files (vs virtual disk, DB)
-  content: byte array (vs 80-byte records, BTree)
-  naming: human-readable (vs object IDs)
-  organization: name hierarchy
-  synchronization: none (vs locking, versions)
-    link()/unlink() can change name hierarchy concurrently with an open() 
-  there are other file system APIs, sometimes quite different!
+UNIX FS API 中可见的高级选择
+  对象：文件（相对于虚拟磁盘、数据库）
+  内容：字节数组（与 80 字节记录、BTree 相比）
+  命名：人类可读（相对于对象 ID）
+  组织：名称层次结构
+  同步：无（与锁定、版本相比）
+    link()/unlink() 可以与 open() 同时更改名称层次结构
+  还有其他文件系统 API，有时差异很大！
 
-a few implications of the API:
-  fd refers to something
-    that is preserved even if file name changes
-    or if file is deleted while open!
-  a file can have multiple links
-    i.e. occur in multiple directories
-    no one of those occurences is special
-    so file must have info stored somewhere other than directory
+API 的一些含义：
+  fd 指的是某物
+    即使文件名更改也会保留
+    或者如果文件在打开时被删除！
+  一个文件可以有多个链接
+    即出现在多个目录中
+    这些事件没有一件是特别的
+    so 文件必须将信息存储在目录以外的位置
   thus:
-    FS records file info in an "inode" on disk
-    FS refers to inode with i-number (internal version of FD)
-    inode must have link count (tells us when to free)
-    inode must have count of open FDs
-    inode deallocation deferred until last link and FD are gone
+    FS 将文件信息记录在磁盘上的“inode”中
+    FS 指带有 i-number 的 inode（FD 的内部版本）
+    inode 必须有链接计数（告诉我们何时释放）
+    inode 必须有打开 FD 的计数
+    inode 释放推迟到最后一个链接和 FD 消失为止
 
-let's talk about xv6
+我们来谈谈xv6
 
-FS software layers
-  system calls
-  name ops | FD ops
-  inodes
-  inode cache
-  log
-  buffer cache
-  virtio_disk driver
+FS软件层
+  系统调用
+  名称操作 | FD操作
+  索引节点
+  索引节点缓存
+  日志
+  缓冲区高速缓存
+  virtio_disk 驱动程序
 
-data stored on a persistent medium
-  data stays on disk without power
-  common storage medium:
-    hard disk drives (big but slow, inexpensive)
-    solid state drives (smaller, but fast, and more expensive)
-  historically, disks were read/write usually in 512-byte units, called sectors
+存储在持久介质上的数据
+  数据在没有电源的情况下保留在磁盘上
+  常用存储介质：
+    硬盘驱动器（大但慢，便宜）
+    固态硬盘（更小，但速度更快，而且更昂贵）
+  历史上，磁盘通常以 512 字节为单位进行读/写，称为扇区
 
-hard disk drives (HDD)
-  concentric tracks
-  each track is a sequence of sectors
-  head must seek, disk must rotate
-    random access is slow (5 or 10ms per access)
-    sequential access is much faster (100 MB/second)
-  ECC on each sector
-  can only read/write whole sectors
-  thus: sub-sector writes are expensive (read-modify-write)
+硬盘驱动器 (HDD)
+  同心轨道
+  每个磁道都是一系列扇区
+  磁头必须寻道，磁盘必须旋转
+    随机访问速度慢（每次访问 5 或 10 毫秒）
+    顺序访问速度更快（100 MB/秒）
+  每个扇区的 ECC
+  只能读/写整个扇区
+  因此：子扇区写入成本高昂（读取-修改-写入）
 
-solid state drives (SSD)
-  non-volatile "flash" memory
-  random access: 100 microseconds
-  sequential: 500 MB/second
-  internally complex -- hidden except sometimes performance
-    flash must be erased before it's re-written
-    limit to the number of times a flash block can be written
-    SSD copes with a level of indirection -- remapped blocks
+固态硬盘 (SSD)
+  非易失性“闪存”存储器
+  随机访问：100微秒
+  顺序：500 MB/秒
+  内部复杂——除了有时表现之外是隐藏的
+    闪存在重写之前必须被擦除
+    限制闪存块可写入的次数
+    SSD 应对一定程度的间接性——重新映射的块
 
-for both HDD and SSD:
-  sequential access is much faster than random
-  big reads/writes are faster than small ones
-  both of these influence FS design and performance
+对于 HDD 和 SSD：
+  顺序访问比随机访问快得多
+  大读/写比小读/写快
+  这些都会影响 FS 的设计和性能
   
-disk blocks
-  most o/s use blocks of multiple sectors, e.g. 4 KB blocks = 8 sectors
-  to reduce book-keeping and seek overheads
-  xv6 uses 2-sector blocks
+磁盘块
+  大多数操作系统使用多个扇区的块，例如4 KB 块 = 8 个扇区
+  减少簿记并寻求间接费用
+  xv6 使用 2 扇区块
 
-on-disk layout
-  xv6 treats disk as an array of sectors (ignoring physical properties of disk)
-  0: unused
-  1: super block (size, ninodes)
-  2: log for transactions
-  32: array of inodes, packed into blocks
-  45: block in-use bitmap (0=free, 1=used)
-  46: file/dir content blocks
-  end of disk
+磁盘布局
+  xv6 将磁盘视为扇区数组（忽略磁盘的物理属性）
+  0：未使用
+  1：超级块（大小，ninodes）
+  2：交易日志
+  32：inode 数组，打包成块
+  45：块正在使用的位图（0=空闲，1=已使用）
+  46：文件/目录内容块
+  磁盘末尾
 
-xv6's mkfs program generates this layout for an empty file system
-  the layout is static for the file system's lifetime
-  see output of mkfs
+xv6 的 mkfs 程序为空文件系统生成此布局
+  布局在文件系统的生命周期内是静态的
+  查看 mkfs 的输出
 
-"meta-data"
-  everything on disk other than file content
-  super block, i-nodes, bitmap, directory content
+“元数据”
+  磁盘上除文件内容之外的所有内容
+  超级块、索引节点、位图、目录内容
 
-on-disk inode
-  type (free, file, directory, device)
-  nlink
-  size
-  addrs[12+1]
+磁盘上的索引节点
+  类型（自由、文件、目录、设备）
+  链接
+  尺寸
+  地址[12+1]
 
-direct and indirect blocks
+直接和间接块
 
 example:
-  how to find file's byte 8000?
-  logical block 7 = 8000 / BSIZE (=1024)
-  7th entry in addrs
+  如何找到文件的字节8000？
+  逻辑块 7 = 8000 / BSIZE (=1024)
+  地址中的第 7 项
 
-each i-node has an i-number
-  easy to turn i-number into inode
-  inode is 64 bytes long
-  byte address on disk: 32*BSIZE + 64*inum
+每个 i 节点都有一个 i 编号
+  轻松将 i-number 转换为 inode
+  inode 长度为 64 字节
+  磁盘上的字节地址：32*BSIZE + 64*inum
 
-directory contents
-  directory much like a file
-    but user can't directly write
-  content is array of dirents
+目录内容
+  目录很像文件
+    但用户不能直接写入
+  内容是 dients 数组
   dirent:
-    inum
-    14-byte file name
-  dirent is free if inum is zero
+    伊努姆
+    14字节文件名
+  如果 inum 为零，则 dirent 是免费的
 
-you should view FS as an on-disk data structure
-  [tree: dirs, inodes, blocks]
-  with two allocation pools: inodes and blocks
+您应该将 FS 视为磁盘上的数据结构
+  [树：目录、索引节点、块]
+  有两个分配池：inode 和 block
 
-let's look at xv6 in action
-  focus on disk writes
-  illustrate on-disk data structures via how updated
+让我们看看 xv6 的实际应用
+  专注于磁盘写入
+  通过更新方式说明磁盘上的数据结构
 
-Q: how does xv6 create a file?
+问：xv6如何创建文件？
 
-rm fs.img & make qemu
+rm fs.img 并制作 qemu
 
 $ echo hi > x
   // create
-  bwrite: block 33 by ialloc   // allocate inode in inode block 33
-  bwrite: block 33 by iupdate  // update inode (e.g., set nlink)
-  bwrite: block 46 by writei   // write directory entry, adding "x" by dirlink()
-  bwrite: block 32 by iupdate  // update directory inode, because inode may have changed
-  bwrite: block 33 by iupdate  // itrunc new inode (even though nothing changed)
+  bwrite: block 33 by alloc // 在 inode 块 33 中分配 inode
+  bwrite: block 33 by iupdate // 更新 inode（例如，设置 nlink）
+  bwrite: block 46 by writei // 写入目录项，通过 dirlink() 添加“x”
+  bwrite: block 32 by iupdate // 更新目录 inode，因为 inode 可能已更改
+  bwrite: block 33 by iupdate // itrunc new inode (即使没有任何改变)
   // write
-  bwrite: block 45 by balloc   // allocate a block in bitmap block 45
-  bwrite: block 595 by bzero   // zero the allocated block (block 524)
-  bwrite: block 595 by writei  // write to it (hi)
-  bwrite: block 33 by iupdate  // update inode
+  bwrite: block 45 by balloc // 在位图块 45 中分配一个块
+  bwrite: block 595 by bzero // 将分配的块归零（块 524）
+  bwrite: block 595 by writei // 写入（嗨）
+  bwrite: block 33 by iupdate // 更新 inode
   // write
-  bwrite: block 595 by writei  // write to it (\n)
-  bwrite: block 33 by iupdate  // update inode
+  bwrite: block 595 by writei // 写入 (\n)
+  bwrite: block 33 by iupdate // 更新 inode
 
-call graph:
-  sys_open        sysfile.c
-    create        sysfile.c
-      ialloc      fs.c
-      iupdate     fs.c
-      dirlink     fs.c
-        writei    fs.c
+调用图：
+  sys_open sysfile.c
+    创建系统文件.c
+      alloc fs.c
+      iupdate fs.c
+      dirlink fs.c
+        写文件系统
 	  iupdate fs.c
-    itrunc        sysfile.c
-      iupdate     fs.c
+    itrunc sysfile.c
+      iupdate fs.c
 	  
-Q: what's in block 33?
-   look at create() in sysfile.c
+问：33号区块里有什么？
+   查看 sysfile.c 中的 create()
 
-Q: why *two* writes to block 33?
+问：为什么 *two* 写入块 33？
 
-Q: what is in block 32?
+问：32号区块里有什么？
 
-Q: how does xv6 write data to a file?  (see write part above)
+问：xv6如何将数据写入文件？ （见上面的书写部分）
 
-call graph:
-  sys_write       sysfile.c
-    filewrite     file.c
-      writei      fs.c
-        bmap
-          balloc
-            bzero
-        iupdate
+调用图：
+  sys_write sysfile.c
+    文件写入文件.c
+      写文件系统
+        图像映射
+          巴洛克
+            零度
+        更新
 
-Q: what's in block 45?
-   look at writei call to bmap
-   look at bmap call to balloc
+问：45区有什么？
+   看看 writei 调用 bmap
+   查看 bmap 对 balloc 的调用
 
-Q: what's in block 524?
+问：524区块里有什么？
 
-Q: why the iupdate?
-   file length and addrs[]
+问：为什么要iupdate？
+   文件长度和地址[]
 
-Q: how does xv6 delete a file?
+问：xv6如何删除文件？
 
 $ rm x
-bwrite: block 46 by writei    // from sys_unlink; directory content
-bwrite: block 32 by iupdate   // from writei of directory content
-bwrite: block 33 by iupdate   // from sys_unlink; link count of file
-bwrite: block 45 by bfree     // from itrunc, from iput
-bwrite: block 33 by iupdate   // from itrunc; zeroed length
-bwrite: block 33 by iupdate   // from iput; marked free
+bwrite：块 46 by writei // 来自 sys_unlink；目录内容
+bwrite: block 32 by iupdate // 来自目录内容的 writei
+bwrite：块 33 by iupdate // 来自 sys_unlink；文件的链接计数
+bwrite：块 45 by bfree // 来自 itrunc，来自 iput
+bwrite：块 33 by iupdate // 来自 itrunc；归零长度
+bwrite：块 33 by iupdate // 来自 iput；标记为免费
 
-call graph:
+调用图：
   sys_unlink
-    writei
-    iupdate
-    iunlockput
-      iput
-        itrunc
-          bfree
-          iupdate
-        iupdate
+    写
+    更新
+    解锁
+      输入
+        伊特朗克
+          自由
+          更新
+        更新
 
-Q: what's in block 46?
-   sys_unlink in sysfile.c
+问：46号区块里有什么？
+   sysfile.c 中的 sys_unlink
 
-Q: what's in block 33?
+问：33号区块里有什么？
 
-Q: what's in block 45?
-   look at iput
+问：45区有什么？
+   看输入
 
-Q: why four iupdates?
+问：为什么要进行四个 iupdate？
 
-Concurrency in file system
-  xv6 has modest goals
-    parallel read/write of different files
-    parallel pathname lookup
-  But, even those poses interesting correctness challenges
+文件系统中的并发
+  xv6有适度的目标
+    不同文件的并行读/写
+    并行路径名查找
+  但是，即使这些也带来了有趣的正确性挑战
 
-E.g., what if there are concurrent calls to ialloc?
-   will they get the same inode?
-   note bread / write / brelse in ialloc
-   bread locks the block, perhaps waiting, and reads from disk
-   brelse unlocks the block
+例如，如果并发调用 alloc 怎么办？
+   他们会得到相同的索引节点吗？
+   在 ialloc 中注意 bread / write / brelse
+   bread 锁定块，也许等待，然后从磁盘读取
+   brelse解锁区块
 
-Let's look at the block cache in bio.c
-   block cache holds just a few recently-used blocks
-   bcache at start of bio.c
+我们看一下bio.c中的块缓存
+   块缓存仅保存一些最近使用的块
+   bcache 位于 bio.c 的开头
 
-FS calls bread, which calls bget
-   bget looks to see if block already cached
-   if present, lock (may wait) and return the block
-     may wait in sleeplock until current using processes releases
-     sleep lock puts caller to sleep, if already locked
-   if not present, re-use an existing buffer
+FS 调用 bread，bread 调用 bget
+   bget 查看块是否已缓存
+   如果存在，锁定（可能等待）并返回块
+     可能会在睡眠锁中等待，直到当前使用的进程释放
+     睡眠锁定使呼叫者进入睡眠状态（如果已锁定）
+   如果不存在，则重新使用现有的缓冲区
    b->refcnt++ prevents buf from being recycled while we're waiting
-   invariant: one copy of a disk block in memory
+   不变式：内存中磁盘块的一份副本
 
-Two levels of locking here
-  bcache.lock protects the description of what's in the cache
+这里有两个级别的锁定
+  bcache.lock 保护缓存中内容的描述
   b->lock protects just the one buffer
 
-Q: what is the block cache replacement policy?
-   prev ... head ... next
-   bget re-uses bcache.head.prev -- the "tail"
-   brelse moves block to bcache.head.next
+问：块缓存替换策略是什么？
+   上一页 ... 头 ... 下一页
+   bget 重新使用 bcache.head.prev ——“尾部”
+   brelse 将块移动到 bcache.head.next
 
-Q: is that the best replacement policy?
+问：这是最好的替代政策吗？
 
-Q: why does it make sense to have a double copy of I/O?
-   disk to buffer cache
-   buffer cache to user space
-   can we fix it to get better performance?
+问：为什么拥有 I/O 的双副本有意义？
+   磁盘到缓冲区高速缓存
+   缓冲区缓存到用户空间
+   我们可以修复它以获得更好的性能吗？
 
-Q: how much RAM should we dedicate to disk buffers?
+问：我们应该为磁盘缓冲区分配多少 RAM？
 
-Pathname lookup
-  Traverse a pathname element at the time
-  Potentially many blocks involved:
-    inode of top directory
-    data of top directory
-    inode of next-level down
-    .. and so on ..
-  Each one of them might result in a cache miss
-    disk access are expensive
+路径名查找
+  遍历当时的一个路径名元素
+  可能涉及许多块：
+    顶级目录的索引节点
+    顶层目录的数据
+    下一级的inode
+    ..等等..
+  其中每一个都可能导致缓存未命中
+    磁盘访问是昂贵的
   => Allow parallel pathname lookup
-    If one process blocks on disk, another process may proceed with lookup
-    Challenging: unlink may happen concurrent with lookup
+    如果一个进程在磁盘上阻塞，另一进程可能会继续查找
+    具有挑战性：取消链接可能与查找同时发生
 
-Let's look at namex() (kernel/fs.c)
-  ilock(): locks current directory
-  find next directory inode
-  then unlock current directory
-  another process may unlink the next inode
-    but inode won't be deleted, because inode's refcnt > 0
-  risk: next points to same inode as current (lookup of ".")
-    unlock current before getting lock on next
-    key idea: getting a reference separately from locking
+让我们看看 namex() (kernel/fs.c)
+  ilock()：锁定当前目录
+  查找下一个目录 inode
+  然后解锁当前目录
+  另一个进程可能会取消链接下一个 inode
+    但 inode 不会被删除，因为 inode 的 refcnt > 0
+  风险：下一个指向与当前相同的索引节点（查找“.”）
+    在锁定下一个之前解锁当前
+    关键思想：与锁定分开获取引用
 

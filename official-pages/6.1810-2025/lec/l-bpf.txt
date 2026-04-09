@@ -1,58 +1,61 @@
-6.1810 2025 Lecture 22: Kernel extensibility via BPF
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Note: demos from this lecture are available at
+6.1810 2025 第 22 讲：通过 BPF 实现内核扩展
+
+注意：本讲座的演示可在
   https://pdos.csail.mit.edu/6.1810/2025/lec/bpf/
 
-Paper: "The BSD Packet Filter" by McCanne, Jacobson
+论文：“BSD 数据包过滤器”，作者：McCanne、Jacobson
 
-Motivation: monitoring raw network packets
-  Userspace processes needs to check incoming network packets
-    Not a specific TCP connection / UDP ports
-    Multiple apps: tcpdump, arpwatch, rarpd, ..
-  Each process wants different types of packets
-    Kernel developer doesn't know upfront what packets to pass along
+动机：监控原始网络数据包
+  用户空间进程需要检查传入的网络数据包
+    不是特定的 TCP 连接/UDP 端口
+    多个应用程序：tcpdump、arpwatch、rarpd、..
+  每个进程需要不同类型的数据包
+    内核开发人员不知道要传递哪些数据包
 
-[ demo: tcpdump ]
+[演示：tcpdump]
   # tcpdump -n -i wlan0 udp
   # tcpdump -n -i wlan0 udp and port 123
 
-Challenge: performance
-  Expensive to send each packet to userspace
-    Need to make a copy of packet in kernel
-    Need to send packet to userspace app
-  App will discard packets it doesn't care about
-    Wasted work copying those packets
+挑战：性能
+  将每个数据包发送到用户空间的成本很高
+    需要在内核中复制数据包
+    需要将数据包发送到用户空间应用程序
+  应用程序将丢弃它不关心的数据包
+    复制这些数据包浪费了工作
 
-Goal: specify what packets kernel should copy or discard
-  Check in-kernel, based on specified rules
+目标：指定内核应复制或丢弃哪些数据包
+  根据指定的规则签入内核
   Avoid cost of copying if app doesn't want packet
-  Paper: efficient and general way of specifying such filters
+  论文：指定此类过滤器的有效且通用的方法
 
-Paper's idea: specify filter as a program in a simple bytecode language ("BPF")
-  Application can translate its requirements into filter program
-  Bytecode language flexible to specify many different kinds of packets
-  Kernel can efficiently execute filter program
-  Could run filter in the interrupt handler when receiving packet
+论文的想法：将过滤器指定为简单字节码语言（“BPF”）中的程序
+  应用程序可以将其需求转化为过滤程序
+  字节码语言可以灵活地指定多种不同类型的数据包
+  内核可以高效执行过滤程序
+  接收数据包时可以在中断处理程序中运行过滤器
 
-[ demo: tcpdump bpf ]
+[演示：tcpdump bpf]
   # tcpdump -n -i wlan0 -d udp
 
-[ Diagram: tcpdump translates expr into bpf, sends to kernel, kernel runs bpf ]
+[图：tcpdump将expr翻译成bpf，发送到内核，内核运行bpf]
 
-Turns out to be a powerful approach for extending the kernel
-  Flexible, safe, low-overhead way for kernel to run user-supplied code
-  Different isolation model from the usual process-level isolation
-    Sometimes called "software fault isolation"
-    Common techniques with systems like WebAssembly, even Javascript
-  Some restrictions compared to processes
-    Code must be in BPF language
-    Code must return right away (no sleeping, no threads, ..)
-    No virtual memory
-    No standard system calls
-  Big win from the restrictions: performance, enables new use cases
+事实证明这是扩展内核的强大方法
+  内核运行用户提供的代码的灵活、安全、低开销的方式
+  与通常的进程级隔离不同的隔离模型
+    有时称为“软件故障隔离”
+    WebAssembly 甚至 Javascript 等系统的常见技术
+  与流程相比的一些限制
+    代码必须是 BPF 语言
+    代码必须立即返回（没有休眠，没有线程，..）
+    无虚拟内存
+    没有标准系统调用
+  限制带来的巨大胜利：性能，支持新的用例
 
-[ demo: seccomp ]
-  (install https://aur.archlinux.org/packages/seccomp-tools)
+[演示：seccomp]
+  （安装https://aur.archlinux.org/packages/seccomp-tools）
   $ cd bpf
   $ make seccomp.bpf
   $ seccomp-tools disasm seccomp.bpf
@@ -60,148 +63,148 @@ Turns out to be a powerful approach for extending the kernel
   $$ ls
   $$ mkdir d
 
-Interesting technical challenges to get this working
-  How to make sure the filter program doesn't crash (corrupt memory)?
-  How to make sure the filter program doesn't leak (read other data)?
-  How to make sure the filter program doesn't run forever?
-  How to execute the filter program with high performance?
+要实现这一目标，需要面临一些有趣的技术挑战
+  如何确保过滤器程序不会崩溃（损坏内存）？
+  如何保证过滤程序不泄露（读取其他数据）？
+  如何确保过滤程序不会永远运行？
+  如何高性能地执行过滤程序？
 
-So, how can the kernel run BPF safely and efficiently?
+那么，内核如何安全高效地运行BPF呢？
 
-Plan 1: write an interpreter.
-  Similar to what the paper is talking about.
-  Loop over instructions, switch statement for each instruction.
-  Let's look at a toy version of BPF with just a few instructions.
+计划一：编写一个解释器。
+  与论文中所说的类似。
+  循环指令，每条指令的 switch 语句。
+  让我们看一下只有一些指令的 BPF 玩具版本。
 
-[ demo: bpf interp ]
+[演示：bpf interp]
   $ cd bpf/engine
   $ cat bpf.h
   $ cat interp.c
 
-What safety checks does the interpreter need?
-  Cannot access memory beyond the packet buffer size.
-  Cannot run BPF opcodes beyond the valid instructions.
-  Cannot run unknown opcodes.
-  Must initialize state (a=0), otherwise could read leftover kernel data.
+口译员需要进行哪些安全检查？
+  无法访问超出数据包缓冲区大小的内存。
+  无法运行超出有效指令的 BPF 操作码。
+  无法运行未知的操作码。
+  必须初始化状态（a=0），否则可以读取剩余的内核数据。
 
-How do we know the BPF interpreter will always finish?
-  Jumps are unsigned 8-bit offsets, so always jumping forward by 0 or more.
-  Each instruction advances PC by 1 (and maybe more for jumps)
-  If PC advances past the end of the BPF program, interpreter catches error.
-  Interpreter runs bounded number of BPF opcodes (at most nins).
-  Each opcode does a simple bounded step.
-  So, execution of whole BPF program by interpreter will finish "quickly".
+我们如何知道 BPF 解释器总会完成？
+  跳转是无符号的 8 位偏移量，因此始终向前跳转 0 或更多。
+  每条指令使 PC 前进 1（对于跳转可能会增加更多）
+  如果 PC 前进到 BPF 程序末尾，解释器就会捕获错误。
+  解释器运行有限数量的 BPF 操作码（最多 nin）。
+  每个操作码执行一个简单的有界步骤。
+  因此，解释器执行整个 BPF 程序将“快速”完成。
 
-[ demo: bpf interp perf ]
+[演示：bpf interp perf]
   $ cat main.c
   $ time ./run_interp ../seccomp.bpf
-  bpf_run: 0x7fff0000
+  bpf_运行：0x7fff0000
 
-  real	0m2.392s
-  user	0m2.384s
-  sys	0m0.002s
+  真实0m2.392s
+  用户0m2.384s
+  系统0m0.002s
 
-Already pretty good: ~24 nsec per invocation.
-  For comparison, switching to userspace (e.g., getpid) would be ~100 nsec.
-  This is why BPF was a big win for the paper's authors.
-  Also pretty good for seccomp use case: cheaper than syscall overhead!
+已经相当不错了：每次调用约 24 纳秒。
+  作为比较，切换到用户空间（例如 getpid）大约需要 100 纳秒。
+  这就是为什么 BPF 对该论文的作者来说是一个巨大的胜利。
+  对于 seccomp 用例来说也相当不错：比系统调用开销便宜！
 
-Plan 2: faster interpreter by avoiding checks in critical path.
-  Part of the reason why interpreter is slow is that it's performing checks.
-  But those checks are independent of the packet we're filtering!
+计划 2：通过避免关键路径中的检查来加快解释器的速度。
+  解释器速度慢的部分原因是它正在执行检查。
+  但这些检查与我们正在过滤的数据包无关！
 
-[ demo: bpf fast interp ]
+[演示：bpf快速插值]
   $ cat fast_interp.c
 
-Why is it safe for bpf_run to skip checking memory load, PC, etc?
-  Validate BPF program upfront: bpf_prepare().
+为什么 bpf_run 跳过检查内存负载、PC 等是安全的？
+  预先验证 BPF 程序：bpf_prepare()。
 
-Validation rules:
-  Must be at least 1 instruction (so we can start running).
-  Last instruction must be a return (so we don't run off the end).
-  Loads must be within packet bounds.
-    Kernel knows how big the packet buffer will be, even before it has a packet.
-  Jumps must not go past the end of instructions.
+验证规则：
+  必须至少有 1 条指令（这样我们就可以开始运行）。
+  最后一条指令必须是返回（这样我们就不会跑到最后）。
+  负载必须在数据包范围内。
+    内核甚至在有数据包之前就知道数据包缓冲区有多大。
+  跳转不得超过指令末尾。
 
-[ demo: bpf fast interp perf ]
+[演示：bpf快速插值性能]
   $ time ./run_fast_interp ../seccomp.bpf
-  bpf_run: 0x7fff0000
+  bpf_运行：0x7fff0000
 
-  real	0m1.650s
-  user	0m1.645s
-  sys	0m0.002s
+  真实0m1.650s
+  用户0m1.645s
+  系统0m0.002s
 
-Significant win: 16 nsec instead of 24 nsec!
-  Worth validating the program upfront, if it will run many times.
+重大胜利：16 纳秒而不是 24 纳秒！
+  如果程序会运行多次，则值得预先验证该程序。
 
-Plan 3: translate BPF bytecode into hardware instructions ("JIT").
-  BPF bytecode already looks similar to real CPU instructions.
-  Can we translate BPF instructions to CPU instructions, and run those?
-  This is similar to what qemu does in order to run RISC-V on x86 or ARM.
+计划 3：将 BPF 字节码翻译为硬件指令（“JIT”）。
+  BPF 字节码看起来已经与真实的 CPU 指令相似。
+  我们可以将 BPF 指令转换为 CPU 指令并运行它们吗？
+  这与 qemu 在 x86 或 ARM 上运行 RISC-V 的做法类似。
 
-[ demo: bpf jit ]
+[演示：bpf jit]
   $ cat jit.c
   $ seccomp-tools disasm ../seccomp.bpf   (in another terminal on the right)
   $ gdb --args ./run_jit ../seccomp.bpf
-  (gdb) b bpf_run
-  (gdb) r
+  （gdb）b bpf_run
+  （gdb）r
   (gdb) p runner->f
   (gdb) x/20i runner->f
 
-Need to have a plan for what registers will contain what state.
-  On x86-64, first function call arg goes into %rdi.
-  Let's use that to store pointer to packet.
-  On x86-64, return value from function goes into %eax.
-  Will put the value from return opcode there.
-  On x86-64, the %eax register is callee-saved (i.e., function can modify it).
-  So, let's use that to store BPF's "A" register.
+需要计划哪些寄存器将包含哪些状态。
+  在 x86-64 上，第一个函数调用 arg 进入 %rdi。
+  让我们用它来存储指向数据包的指针。
+  在 x86-64 上，函数的返回值进入 %eax。
+  将把返回操作码的值放在那里。
+  在 x86-64 上，%eax 寄存器是被调用者保存的（即函数可以修改它）。
+  那么，让我们用它来存储 BPF 的“A”寄存器。
 
-How do we figure out the instruction encodings?
+我们如何找出指令编码？
 
-[ demo: assembly snippets, in another terminal on the side ]
+[演示：组装片段，在侧面的另一个终端中]
   $ vi snippets.S
   $ objdump -d snippets.o | less
 
-What does the JIT need to do?
-  Still need the same safety checks as our fast interpreter.
-  For each instruction, need to fill in the corresponding x86 code.
-    Need to encode specific constants and offsets into the instruction.
-  Need to know where to jump.
+JIT 需要做什么？
+  仍然需要与我们的快速口译员相同的安全检查。
+  对于每条指令，需要填写对应的x86代码。
+    需要将特定常量和偏移量编码到指令中。
+  需要知道跳到哪里。
     BPF code specifies the BPF instruction number.
-    Generated x86 code needs x86 code offset.
-    Two passes to fill in the right jump offsets.
-    First, generate the x86 code, perhaps with wrong jumps, but right size.
-    Remember the x86 instruction offset for each BPF instruction.
-    Second, generate the x86 code again, this time with correct jumps.
-  Need to fill in initial x86 code to zero out the %eax register.
-    Otherwise, BPF code (and generated x86 code) could read uninitialized %eax.
-  After JIT setup, running filter is just jumping to the generated code.
+    生成的 x86 代码需要 x86 代码偏移量。
+    两次通过来填充右跳跃偏移。
+    首先，生成 x86 代码，可能跳转错误，但大小正确。
+    记住每个 BPF 指令的 x86 指令偏移量。
+    其次，再次生成 x86 代码，这次具有正确的跳转。
+  需要填写初始 x86 代码以将 %eax 寄存器清零。
+    否则，BPF 代码（以及生成的 x86 代码）可能会读取未初始化的 %eax。
+  JIT 设置后，运行过滤器只是跳转到生成的代码。
     bpf_run.
 
-[ demo: bpf jit perf ]
+[演示：bpf jit perf]
   $ time ./run_jit ../seccomp.bpf
-  bpf_run: 0x7fff0000
+  bpf_运行：0x7fff0000
 
-  real	0m0.380s
-  user	0m0.377s
-  sys	0m0.002s
+  真实0米0.380秒
+  用户0m0.377s
+  系统0m0.002s
 
-Big win over interpreter: 3.8 nsec instead of 16 nsec!
+战胜解释器：3.8 纳秒而不是 16 纳秒！
 
-Is there more room for optimizations?
-  Could use more efficient instruction encodings (short jumps).
-  Could eliminate the clearing of %eax.
-    Need to check that BPF program loads before use, on every execution path.
-    Different kind of analysis pass: depends on branch choices.
+还有更大的优化空间吗？
+  可以使用更有效的指令编码（短跳转）。
+  可以消除 %eax 的清除。
+    使用前需要检查 BPF 程序是否在每个执行路径上加载。
+    不同类型的分析过程：取决于分支选择。
 
-Linux supports a more sophisticated version of BPF called eBPF.
-  Richer opcodes for performance (multiple registers).
-  Allows some loops (requires a more sophisticated validator).
-  Allows access to some shared state (like a hash table).
-  Allows calls into some kernel code (again, sophisticated validator).
-  Translated into native code with a JIT for performance.
+Linux 支持更复杂的 BPF 版本，称为 eBPF。
+  更丰富的操作码以提高性能（多个寄存器）。
+  允许一些循环（需要更复杂的验证器）。
+  允许访问某些共享状态（例如哈希表）。
+  允许调用一些内核代码（同样是复杂的验证器）。
+  使用 JIT 转换为本机代码以提高性能。
 
-[ demo: bpftrace ]
+[演示：bpftrace]
   # pacman -S bpftrace
   # bpftrace -l
   # bpftrace -vl tracepoint:syscalls:sys_enter_mkdir
@@ -212,9 +215,9 @@ Linux supports a more sophisticated version of BPF called eBPF.
   # bpftrace -e 'tracepoint:irq:irq_handler_entry { if (args.irq == 1) { printf("intr %d: %s\n", args.irq, str(args.name)); } }'
   # bpftrace -d dis -e 'tracepoint:irq:irq_handler_entry { if (args.irq == 1) { printf("intr %d: %s\n", args.irq, str(args.name)); } }'
 
-  More examples: https://bpftrace.org/tutorial-one-liners
+  更多示例：https://bpftrace.org/tutorial-one-liners
 
-[ demo: xdp ]
+[演示：xdp]
   # pacman -S bpf
 
   $ cd bpf
@@ -231,12 +234,12 @@ Linux supports a more sophisticated version of BPF called eBPF.
   # ip link set wlan0 xdp object set_ttl.o
   # ip link set wlan0 xdp off
 
-  (comment out data_end check from set_ttl.c)
+  （注释掉 set_ttl.c 中的 data_end 检查）
   $ make
   # ip link set wlan0 xdp object set_ttl.o
 
-eBPF validator is highly sophisticated, active area of research + kernel development.
-  [ demo: kernel/bpf/verifier.c ]
+eBPF 验证器是一个高度复杂、活跃的研究+内核开发领域。
+  [演示：kernel/bpf/verifier.c]
 
-Other references:
+其他参考：
   https://github.com/zoidyzoidzoid/awesome-ebpf

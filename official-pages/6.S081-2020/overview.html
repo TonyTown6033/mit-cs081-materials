@@ -1,146 +1,102 @@
 
-<HTML>
-<HEAD>
-<TITLE>
-6.S081 / Fall 2020
-</TITLE>
-<META HTTP-EQUIV="pragma" CONTENT="no-cache">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-<link rel="stylesheet" type="text/css" href="css/style.css">
-<link rel="stylesheet" href="labs/labs.css" type="text/css" />
-
-</HEAD>
-
-<BODY BGCOLOR=#ffffff TEXT=#000000>
-
-    <!-- Fixed navbar -->
-    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="index.html">6.S081: Operating System Engineering</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-	    <li><a href="schedule.html">Schedule</a></li>
-	    <li class="dropdown">
-              <a href="overview.html#" class="dropdown-toggle" data-toggle="dropdown">Class<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-                <li><a href="overview.html">Overview</a></li>
-                <li><a href="general.html">Administrivia</a></li>
-		<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">Handin website</a>
-		<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
-	      </ul>
-	    </li>
-            <li class="dropdown">
-              <a href="overview.html#" class="dropdown-toggle" data-toggle="dropdown">Labs<span class="caret"></span></a>
-              <ul class="dropdown-menu" role="menu">
-		<li><a href="tools.html">Tools</a></li>
-		<li><a href="labs/guidance.html">Guidance</a></li>
-                <li><a href="labs/util.html">Lab Utilities</a></li>
-		<li><a href="labs/syscall.html">Lab System calls</a></li>
-		<li><a href="labs/pgtbl.html">Lab Page tables</a></li>
-		<li><a href="labs/traps.html">Lab Traps</a></li>
-                <li><a href="labs/lazy.html">Lab Lazy allocation</a></li>
-		<li><a href="labs/cow.html">Lab Copy on-write</a></li>
-		<li><a href="labs/thread.html">Lab Multithreading</a></li>
-		<li><a href="labs/lock.html">Lab Lock</a></li>
-		<li><a href="labs/fs.html">Lab File system</a></li>
-		<li><a href="labs/mmap.html">Lab mmap</a></li>
-		<li><a href="labs/net.html">Lab network driver</a></li>
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="overview.html#" class="dropdown-toggle" data-toggle="dropdown">xv6<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-		<li><a href="xv6.html">xv6</a></li>
-		<li><a href="xv6/book-riscv-rev1.pdf">xv6 book</a></li>
-	      </ul>
-	    </li>
-	    <li><a href="reference.html">References</a></li>  
-	    <li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
-          </ul>
-	  <ul class="nav navbar-nav navbar-right">
-	    <p class="navbar-text">2020</p>
-	  </ul>
-        </div>
-      </div>
-    </div>
-
-
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>
+6.S081 / 2020 年秋季
+</title>
+<meta content="no-cache" http-equiv="pragma"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="css/bootstrap.min.css" media="screen" rel="stylesheet"/>
+<link href="css/style.css" rel="stylesheet" type="text/css"/>
+<link href="labs/labs.css" rel="stylesheet" type="text/css">
+</link></head>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<!-- Fixed navbar -->
+<div class="navbar navbar-default navbar-fixed-top" role="navigation">
+<div class="container-fluid">
+<div class="navbar-header">
+<button class="navbar-toggle" data-target=".navbar-collapse" data-toggle="collapse" type="button">
+<span class="sr-only">切换导航</span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+</button>
+<a class="navbar-brand" href="index.html">6.S081：操作系统工程</a>
+</div>
+<div class="navbar-collapse collapse">
+<ul class="nav navbar-nav">
+<li><a href="schedule.html">日程</a></li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="overview.html#">课程<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="overview.html">概览</a></li>
+<li><a href="general.html">课程说明</a></li>
+<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>
+<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
+</li></ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="overview.html#">实验<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="tools.html">工具</a></li>
+<li><a href="labs/guidance.html">指南</a></li>
+<li><a href="labs/util.html">实验：Unix 工具</a></li>
+<li><a href="labs/syscall.html">实验：系统调用</a></li>
+<li><a href="labs/pgtbl.html">实验：页表</a></li>
+<li><a href="labs/traps.html">实验：陷阱</a></li>
+<li><a href="labs/lazy.html">实验：惰性分配</a></li>
+<li><a href="labs/cow.html">实验：写时复制</a></li>
+<li><a href="labs/thread.html">实验：多线程</a></li>
+<li><a href="labs/lock.html">实验：锁</a></li>
+<li><a href="labs/fs.html">实验：文件系统</a></li>
+<li><a href="labs/mmap.html">实验：mmap</a></li>
+<li><a href="labs/net.html">实验：网络驱动</a></li>
+</ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="overview.html#">xv6<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="xv6.html">xv6</a></li>
+<li><a href="xv6/book-riscv-rev1.pdf">xv6 书</a></li>
+</ul>
+</li>
+<li><a href="reference.html">参考资料</a></li>
+<li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<p class="navbar-text">2020</p>
+</ul>
+</div>
+</div>
+</div>
 <div class="container">
-
-
-
-
-
-<CENTER>
-<H2>
-6.S081: Learning by doing
-</H2>
-</CENTER>
-
-<p>Catalog description: Design and implementation of operating
-  systems, and their use as a foundation for systems
-  programming. Topics include virtual memory; file systems; threads;
-  context switches; kernels; interrupts; system calls; interprocess
-  communication; coordination, and interaction between software and
-  hardware. A multi-processor operating system for RISC-V, xv6, is
-  used to illustrate these topics. Individual laboratory assignments
-  involve extending the xv6 operating system, for example to support
-  sophisticated virtual memory features and networking.
+<center>
+<h2>
+6.S081：边做边学
+</h2>
+</center>
+<p>目录描述：操作系统的设计和实现，以及它们作为系统编程基础的使用。主题包括虚拟内存；文件系统；线程；上下文切换；内核；中断；系统调用；进程间通信；软件和硬件之间的协调和交互。 RISC-V xv6 多处理器操作系统用于说明这些主题。个别实验室任务涉及扩展 xv6 操作系统，例如支持复杂的虚拟内存功能和网络。
   
-<p>You may wonder why we are studying xv6, an operating system that
-resembles Unix v6, instead of the latest and greatest version of
-Linux, Windows, or BSD Unix.  xv6 is big enough to illustrate the
-basic design and implementation ideas in operating systems.  On the
-other hand, xv6 is far smaller than any modern production O/S, and
-correspondingly easier to understand.  xv6 has a structure similar to
-many modern operating systems; once you've explored xv6 you will find
-that much is familiar inside kernels such as Linux.
+<p>你可能想知道为什么我们要研究 xv6，一个类似于 Unix v6 的操作系统，而不是最新最好版本的 Linux、Windows 或 BSD Unix。 xv6足够大，足以说明操作系统中的基本设计和实现思想。另一方面，xv6 比任何现代生产操作系统都要小得多，因此也更容易理解。 xv6 具有与许多现代操作系统类似的结构；一旦您探索了 xv6，您就会发现 Linux 等内核内部有很多熟悉的内容。
 
-<h2>Acknowledgements</h2>
+<h2>致谢</h2>
+<p>6.如果没有过去的一群出色的助教（Josh Cates、Austin Clements、Russ Cox、Cody Cutler、Bryan Ford、Max Krohn、Emil Sit、Jonathan Behrens 和 Anish Athalye），S081 就不会存在于今天。他们使这堂课成为现实。我们共同将 6.S081 献给 Josh Cates；我们希望许多学生能够被 Josh 对操作系统的热情所启发。
 
-<p>6.S081 would not exist today had it not been for a wonderful set of
-past TAs (Josh Cates, Austin Clements, Russ Cox, Cody Cutler, Bryan
-Ford, Max Krohn, Emil Sit, Jonathan Behrens, and Anish Athalye). They
-made this class a reality. Collectively we dedicate 6.S081 to the
-memory of Josh Cates; we hope that many students will be inspired by
-Josh's enthusiasm for operating systems.
-
-<p>We are also grateful to the students and teaching staff at MIT
-(including SIPB) and other schools for their many
-contributions.
+<p>我们也感谢麻省理工学院（包括SIPB）和其他学校的学生和教职人员做出的许多贡献。
 
 <!-- End Page Content -->
-
-<hr>
-
+<hr/>
 <font style="font-size: 12px;">
-<p>Questions or comments regarding S6.081?  Send e-mail to the course staff at
-<A
-HREF="mailto:6s081@lists.csail.mit.edu"><I>6S081@lists.csail.mit.edu</I></A>.
+<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a rel="license" href="https://creativecommons.org/licenses/by/3.0/us/"><img
-alt="Creative Commons License" style="border-width:0"
-src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" ></a> <B><A HREF="overview.html#top">Top</A></B> //
-<B><A HREF="index.html">S6.081 home</A></B> // 
-<i>Last updated Thursday, 04-Sep-2025 23:15:04 EDT</i>
-</font>
-
-</div>
-
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="overview.html#top">顶部</a></b> //
+<b><a href="index.html">S6.081 首页</a></b> // 
+<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:04 EDT</i>
+</p></p></font>
+</p></p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>
 <script src="js/bootstrap.min.js"></script>
-
-</BODY>
-</HTML>
-
+</body>
+</html>

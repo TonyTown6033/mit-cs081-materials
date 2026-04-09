@@ -1,147 +1,150 @@
-6.1810 2025 Lecture 7: System call interposition
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Different styles of research papers.
-  First paper ("A Secure Environment"): researchers articulating an
-    important problem, proposing an approach for solving it.
-  Second paper ("Traps and Pitfalls"): reflections on why the approach
-    turned out to be quite challenging; lessons learned.
-      Not hard performance numbers but instead unexpected issues.
-  Somewhat different from the L4 paper we read last week.
-    L4 researchers trying to demonstrate they have good ideas.
-    Empirical results.
+6.1810 2025 第7讲：系统调用插入
 
-Problem: application code not fully trusted.
+不同风格的研究论文。
+  第一篇论文（“安全环境”）：研究人员阐述了
+    重要问题，提出解决方法。
+  第二篇论文（“陷阱和陷阱”）：反思为什么采用这种方法
+    事实证明这是相当具有挑战性的；吸取的教训。
+      不是硬性的性能数据，而是意想不到的问题。
+  与我们上周读到的 L4 论文有些不同。
+    L4 研究人员试图证明他们有好的想法。
+    实证结果。
+
+问题：应用程序代码不完全受信任。
   Buggy.
   Malicious.
 
-Example motivation: web browser (Netscape) running ghostscript to view ps file.
-  Analogous to running Acrobat Viewer to view a PDF file.
-  ghostscript allowed ps files to read/write other files, spawn processes, etc.
-  Similar issues exist with PDF files, which can contain Javascript code.
-  Adversary could trick user into viewing a maliciously constructed ps file.
+示例动机：网络浏览器（Netscape）运行 Ghostscript 来查看 ps 文件。
+  类似于运行 Acrobat Viewer 来查看 PDF 文件。
+  Ghostscript 允许 ps 文件读/写其他文件、生成进程等。
+  PDF 文件也存在类似问题，其中可能包含 Javascript 代码。
+  攻击者可能会诱骗用户查看恶意构建的 ps 文件。
 
-Goal: minimize damage from possibly adversarial process.
+目标：最大限度地减少可能的对抗过程造成的损害。
 
-Approach: limit what system calls can be issued.
-  Process can corrupt files it should access, but not other files.
-  Should not be able to kill / corrupt other processes.
+方法：限制可以发出的系统调用。
+  进程可以损坏它应该访问的文件，但不能损坏其他文件。
+  不应该能够杀死/损坏其他进程。
 
-Why syscalls?
-  Convenient, existing security boundary.
-  Protects important resources: other processes, files, network.
-  Doesn't require worrying about state of the process itself.
-    OK for untrusted process to corrupt its own memory.
-  Doesn't require fixing the application.
-    Hard to rewrite every application to be secure.
+为什么是系统调用？
+  方便，现有安全边界。
+  保护重要资源：其他进程、文件、网络。
+  不需要担心进程本身的状态。
+    不受信任的进程可以破坏自己的内存。
+  不需要修复应用程序。
+    很难重写每个应用程序以确保安全。
 
-Could we have the kernel support sandboxing directly?
-  Kernel typically provides some security checks (not xv6, but Unix and others).
-  Unix checks designed to isolate users in a time-sharing system.
-    Untrusted process can't corrupt other users' data, but can corrupt this user.
-    One example of how design choices influence what applications can/cannot do.
-    Various research projects explored flexible OS security mechanisms.
-  Putting Janus in the kernel seemed not so great to these authors.
-    Hard to deploy, requires administrator to install, could be buggy, ..
-  Retrospectively, many OSes now support sandboxing mechanisms in the kernel.
-    Linux, Windows, MacOS, ...
-    Partly to avoid the kinds of traps/pitfalls the paper talks about.
-    Sufficiently important use case for kernel to support it.
+我们可以让内核直接支持沙箱吗？
+  内核通常提供一些安全检查（不是 xv6，而是 Unix 和其他）。
+  Unix 检查旨在隔离分时系统中的用户。
+    不受信任的进程无法损坏其他用户的数据，但可以损坏该用户。
+    设计选择如何影响应用程序可以做什么/不能做什么的一个例子。
+    各种研究项目探索了灵活的操作系统安全机制。
+  对于这些作者来说，将 Janus 放入内核似乎不太好。
+    难以部署，需要管理员安装，可能有错误，..
+  回顾过去，现在许多操作系统都支持内核中的沙箱机制。
+    Linux、Windows、MacOS、...
+    部分原因是为了避免本文提到的各种陷阱/陷阱。
+    内核足够重要的用例来支持它。
 
-Could we sandbox at a library level -- e.g., calls to ulib?
-  E.g., allow printf, deny write?
-  No isolation between ulib/printf and rest of application.
-  Application could corrupt stack, global variables, malloc, ...
-  Important that syscall interface is already designed for isolation.
+我们可以在库级别进行沙箱——例如调用 ulib 吗？
+  例如，允许 printf，拒绝 write？
+  ulib/printf 和应用程序的其余部分之间没有隔离。
+  应用程序可能会损坏堆栈、全局变量、malloc...
+  重要的是，系统调用接口已经设计用于隔离。
 
-How might you go about sandboxing syscalls?
-  sandbox from syscall lab is a good starting point to keep in mind.
-  Unix baseline: ptrace.
-    Suffers from many limitations, better alternatives exist.
-  Linux: Seccomp/BPF (better performance).
-  Linux: AppArmor (tighter integration with kernel state).
-  Linux: Firejail (user-configurable security configuration).
-  MacOS: Seatbelt.
-  many others.
+您会如何进行沙箱系统调用？
+  系统调用实验室的沙箱是一个值得记住的良好起点。
+  Unix 基线：ptrace。
+    受到许多限制，存在更好的替代方案。
+  Linux：Seccomp/BPF（更好的性能）。
+  Linux：AppArmor（与内核态更紧密的集成）。
+  Linux：Firejail（用户可配置的安全配置）。
+  MacOS：安全带。
+  还有很多其他的。
 
-Demo: Firejail on Linux.
-  echo foo > ~/foo.txt
-  echo bar > ~/bar.txt
-  echo qux > ~/qux.txt
-  cat example.profile
+演示：Linux 上的 Firejail。
+  回声 foo > ~/foo.txt
+  回声栏 > ~/bar.txt
+  回声 qux > ~/qux.txt
+  猫示例.profile
   firejail --profile=example.profile sh
   ls
-  cat foo.txt
-  cat bar.txt
-  echo hello > foo.txt
-  echo hello > bar.txt
+  猫 foo.txt
+  猫吧.txt
+  回声你好> foo.txt
+  回声你好> bar.txt
 
-Janus design: kernel module + userspace policy.
-  Intercept syscalls, some flagged as sensitive (probably not read/write).
-    Performance optimization for performance-critical non-sensitive syscalls.
-  Send sensitive syscalls to special Janus process: policy engine.
-  Decides whether to allow/deny.
-  Common design pattern: in-kernel stub with user-space helper process.
-  User-space process: easier development, mitigates bugs, user configurable.
-  Kernel part: direct access to kernel state that's not otherwise possible.
-  Requires designing special syscall interface between these two parts.
+Janus设计：内核模块+用户空间策略。
+  拦截系统调用，其中一些被标记为敏感（可能不是读/写）。
+    对性能关键的非敏感系统调用进行性能优化。
+  将敏感系统调用发送到特殊的 Janus 进程：策略引擎。
+  决定是否允许/拒绝。
+  常见设计模式：带有用户空间帮助进程的内核存根。
+  用户空间进程：更容易开发，减少错误，用户可配置。
+  内核部分：直接访问内核状态，否则这是不可能的。
+  需要在这两部分之间设计特殊的系统调用接口。
 
-Why is it hard to do sandboxing at the syscall level?
+为什么在系统调用级别很难进行沙箱？
 
-Overarching challenge: syscall doesn't have all of the information to decide.
-  Is pointer 0x1234 good or bad?  Depends on what's in the caller's address space.
-  Is file "x" good or bad?  Depends on current working directory.
-  Is path "a/b/c" good or bad?  Depends on what "a" and "a/b" and "a/b/c" are.
-  Is file descriptor 5 good or bad?  Depends on what's in that FD table entry.
+首要挑战：系统调用没有所有需要决定的信息。
+  指针0x1234是好是坏？取决于调用者的地址空间中的内容。
+  文件“x”是好是坏？取决于当前工作目录。
+  路径“a/b/c”是好是坏？取决于“a”和“a/b”和“a/b/c”是什么。
+  文件描述符5是好是坏？取决于 FD 表条目中的内容。
 
-Unix syscalls have some nice aspects.
-  More information than, say, L4 syscalls (mostly send/recv).
-  Pathname operations separate from accessing an open file descriptor.
-    Interpose on file open, then allow any open FD read/write.
-    Block calls to create network sockets, still allow FD read/write.
+Unix 系统调用有一些好的方面。
+  比 L4 系统调用（主要是发送/接收）更多的信息。
+  路径名操作与访问打开的文件描述符是分开的。
+    在文件打开时进行干预，然后允许任何打开的 FD 读/写。
+    阻止创建网络套接字的调用，仍然允许 FD 读/写。
 
-Challenge: duplicating kernel code / state.
-  Can try to maintain a copy of kernel state to make decisions.
-  E.g., track file descriptors.
-  E.g., track current working directory.
-  E.g., implement path traversal logic.
-  But subtle corner cases can cause state divergence.
+挑战：复制内核代码/状态。
+  可以尝试维护内核状态的副本来做出决定。
+  例如，跟踪文件描述符。
+  例如，跟踪当前工作目录。
+  例如，实现路径遍历逻辑。
+  但微妙的极端情况可能会导致状态分歧。
 
-Challenge: wide interface, unexpected interactions.
-  Crashing causes kernel to write core dump to "core" file.  No open syscall.
-  File descriptor passing.  Bypasses checks on open syscalls.
-  Helper processes (outside just the kernel) that might bypass policy.
+挑战：广泛的界面、意想不到的交互。
+  崩溃导致内核将核心转储写入“核心”文件。没有打开的系统调用。
+  文件描述符传递。绕过对开放系统调用的检查。
+  可能绕过策略的辅助进程（仅在内核之外）。
 
-Challenge: TOCTTOU.
-  State changes while making the decision.
+挑战：TOCTTOU。
+  做出决定时状态会发生变化。
   Symlinks.
-  Directory traversal while directory renamss are happening.
-  Current working directory.
-  Memory arguments.
-  File descriptors.
+  目录重命名时进行目录遍历。
+  当前工作目录。
+  内存参数。
+  文件描述符。
 
-Challenge: enforcing a subset of syscall API.
-  Deny creating symlinks.
-  Deny renaming symlinks.
-  Deny access through symlinks (O_NOFOLLOW).
-  Problem: symlinks during path traversal before final component.
-  Recent API: openat2 RESOLVE_NO_SYMLINKS.
+挑战：强制执行系统调用 API 的子集。
+  拒绝创建符号链接。
+  拒绝重命名符号链接。
+  拒绝通过符号链接访问 (O_NOFOLLOW)。
+  问题：最终组件之前的路径遍历期间的符号链接。
+  最近的 API：openat2 RESOLVE_NO_SYMLINKS。
 
-Challenge: blocking important syscalls.
-  Blocking syscalls can change program behavior.
-  Can cause a well-behaved program to do the wrong thing.
-  E.g., could prevent it from dropping its own privileges, closing fd, etc.
+挑战：阻止重要的系统调用。
+  阻止系统调用可以改变程序行为。
+  可能导致行为良好的程序做错误的事情。
+  例如，可以阻止它放弃自己的权限、关闭 fd 等。
 
-Which of these could be problems in xv6?
+xv6 中哪些可能会出现问题？
 
-Syscall interposition is often used in practice.
-  Big win: does not require modifying applications.
-  Big win: monitoring / enforcement even if app is malicious.
-  Isolation, auditing, intrusion detection, ...
+实践中经常使用系统调用插入。
+  大胜利：不需要修改应用程序。
+  大胜利：即使应用程序是恶意的，也可以进行监控/执行。
+  隔离、审计、入侵检测……
 
-How to avoid these pitfalls?
-  In-kernel interposition instead of userspace ptrace.
-  Copy user memory before using it as syscall argument.
-  Integrate with kernel code paths instead of checking before operation.
-  Enforce "good behavior" by modifying sandboxed application.
-    Unfold path traversal into steps that are easy to check/sandbox.
-    Doesn't work for every syscall, but can work for some applications.
+如何避免这些陷阱？
+  内核插入而不是用户空间 ptrace。
+  在将用户内存用作系统调用参数之前复制用户内存。
+  与内核代码路径集成，而不是在运行前进行检查。
+  通过修改沙盒应用程序来强制执行“良好行为”。
+    将路径遍历展开为易于检查/沙箱的步骤。
+    并不适用于每个系统调用，但可以适用于某些应用程序。

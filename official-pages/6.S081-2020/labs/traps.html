@@ -1,133 +1,89 @@
-<html>
-<head>
-<title>Lab: Traps</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
-<script src="https://pdos.csail.mit.edu/6.S081/2020/labs/js/jquery-1.10.2.min.js"></script> 
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：陷阱</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
+<script src="https://pdos.csail.mit.edu/6.S081/2020/labs/js/jquery-1.10.2.min.js"></script>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: traps</h1>
-
-<p>This lab explores how system calls are implemented using traps.
-  You will first do a warm-up exercises with stacks and then you will
-  implement an example of user-level trap handling.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：陷阱</h1>
+<p>本实验探讨如何使用陷阱实现系统调用。您将首先使用堆栈进行热身练习，然后将实现用户级陷阱处理的示例。
 
 <div class="prereq">
-<p>Before you start coding, read Chapter 4 of the <a href="../xv6/book-riscv-rev1.pdf">xv6 book</a>, and
-    related source files:
+<p>在开始编码之前，请阅读第 4 章 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a>，以及相关源文件：
   
   <ul>
-
-    <li> <tt>kernel/trampoline.S</tt>: the assembly involved in
-      changing from user space to kernel space and back
+<li> <tt>kernel/trampoline.S</tt>：涉及从用户空间到内核空间以及返回的程序集
       
-    <li> <tt>kernel/trap.c</tt>: code handling all interrupts
+    <li> <tt>kernel/trap.c</tt>：处理所有中断的代码
   
-  </ul>
-</div>
-
-<p>To start the lab, switch to the trap branch:
+  </li></li></ul>
+</p></div>
+<p>要开始实验，请切换到 trap 分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout traps</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-
-<h2>RISC-V assembly <script>g("easy")</script></h2>
-
-<p>It will be important to understand a bit of
-  RISC-V assembly, which you were exposed to in 6.004. There is a file
-  <tt>user/call.c</tt> in your xv6 repo.  <kbd>make fs.img</kbd> compiles it
-  and also produces a readable assembly version of the program in
+<h2>RISC-V 组装 <script>g("easy")</script></h2>
+<p>了解一些您在 6.004 中接触过的 RISC-V 汇编非常重要。有一个文件
+  <tt>user/call.c</tt> 在你的 xv6 仓库中。  <kbd>make fs.img</kbd> 编译它并生成该程序的可读汇编版本
   <tt>user/call.asm</tt>.
 
-<p>Read the code in call.asm for the functions <tt>g</tt>, <tt>f</tt>, and <tt>main</tt>.
-  The instruction
-  manual for RISC-V is on the <a href="../reference.html">reference page</a>.
-  Here are some questions that you should answer (store the answers in
-  a file answers-traps.txt):
+<p>阅读call.asm中的函数代码 <tt>g</tt>, <tt>f</tt>, 和 <tt>main</tt>。 RISC-V 的说明手册位于 <a href="../reference.html">参考页</a>。以下是您应该回答的一些问题（将答案存储在文件answers-traps.txt 中）：
 
   <div class="question">
-    Which registers contain arguments to functions?  For example, which
-    register holds 13 in main's call to <tt>printf</tt>?
+    哪些寄存器包含函数的参数？例如，哪个寄存器在 main 调用中保存 13 <tt>printf</tt>?
   </div>
-  
-  <div class="question">
-    Where is the call to function <tt>f</tt>
-    in the assembly code for main? Where is the call to <tt>g</tt>?  (Hint: the
-    compiler may inline functions.)
+<div class="question">
+    函数调用在哪里 <tt>f</tt>
+    在 main 的汇编代码中？电话在哪里 <tt>g</tt>？ （提示：编译器可能内联函数。）
   </div>
-  
-  <div class="question">
-    At what address is the
-    function <tt>printf</tt> located?
+<div class="question">
+    At what address is the function <tt>printf</tt> located?
   </div>
-
-  <div class="question">
-    What value is in the register <tt>ra</tt>
-    just after the <tt>jalr</tt> to <tt>printf</tt> in <tt>main</tt>?
+<div class="question">
+    寄存器中的值是什么 <tt>ra</tt>
+    就在之后 <tt>jalr</tt> 到 <tt>printf</tt> 在 <tt>main</tt>?
   </div>
-
-  <div class="question">
-    <p>Run the following code.
+<div class="question">
+<p>运行以下代码。
       <pre>
 	unsigned int i = 0x00646c72;
 	printf("H%x Wo%s", 57616, &amp;i);
       </pre>
-      What is the output?
-      <a href="http://web.cs.mun.ca/~michael/c/ascii-table.html">Here's an ASCII
-	table</a> that maps bytes to characters.
+      输出是什么？
+      <a href="http://web.cs.mun.ca/~michael/c/ascii-table.html">这是一个 ASCII 表</a> 将字节映射到字符。
 
-    <p>The output depends on that fact that the RISC-V is
-      little-endian.  If the RISC-V were instead big-endian what would
-      you set <code>i</code> to in order to yield the same output?
-      Would you need to change
-      <code>57616</code> to a different value?</p>
-
-    <p>
-      <a href="http://www.webopedia.com/TERM/b/big_endian.html">Here's
-	a description of little- and big-endian</a>
-      and
-      <a href="http://www.networksorcery.com/enp/ien/ien137.txt">a more
-	whimsical description</a>.
+    <p>输出取决于 RISC-V 是小尾数这一事实。如果 RISC-V 是大尾数，你会设置什么 <code>i</code> 为了产生相同的输出？你需要改变吗
+      <code>57616</code> 到不同的值？</p>
+<p>
+<a href="http://www.webopedia.com/TERM/b/big_endian.html">这是小端和大端的描述</a>
+      和
+      <a href="http://www.networksorcery.com/enp/ien/ien137.txt">更异想天开的描述</a>.
     </p>
-
-  </div>
-
-  <div class="question">
-    <p>In the following code, what is going to be printed after
-      <code>'y='</code>?  (note: the answer is not a specific value.)  Why
-      does this happen?
+</p></div>
+<div class="question">
+<p>在下面的代码中，之后将打印什么
+      <code>'y='</code>？ （注：答案不是具体值。）为什么会出现这种情况？
 
       <pre>
 	printf("x=%d y=%d", 3);
       </pre>
-  </div>
-
-
-  <h2>Backtrace <script>g("moderate")</script></h2>
-
- <p>For debugging it is often useful to have a backtrace: a list
-    of the function calls on the stack above the point
-    at which the error occurred.
+</p></div>
+<h2>回溯 <script>g("moderate")</script></h2>
+<p>对于调试来说，回溯通常很有用：堆栈上错误发生点上方的函数调用列表。
 
 <div class="required">
 <p>
-  Implement a <tt>backtrace()</tt> function
-  in <tt>kernel/printf.c</tt>.  Insert a call to this function
-  in <tt>sys_sleep</tt>, and then run <kbd>bttest</kbd>, which
-  calls <tt>sys_sleep</tt>.
-  Your output should be as follows:
+  实施一个 <tt>backtrace()</tt> 函数于 <tt>kernel/printf.c</tt>。插入对此函数的调用 <tt>sys_sleep</tt>，然后运行 <kbd>bttest</kbd>，这称为 <tt>sys_sleep</tt>。您的输出应如下所示：
   <pre>
 backtrace:
 0x0000000080002cda
 0x0000000080002bb6
 0x0000000080002898
   </pre>
-  After <tt>bttest</tt> exit qemu. In your terminal: the addresses may be slightly different but if you
-  run <tt>addr2line -e kernel/kernel</tt> (or <tt>riscv64-unknown-elf-addr2line -e kernel/kernel</tt>) and cut-and-paste the above addresses as
-  follows:
+  之后 <tt>bttest</tt> 退出 qemu。在您的终端中：地址可能略有不同，但如果您运行 <tt>addr2line -e kernel/kernel</tt> （或 <tt>riscv64-unknown-elf-addr2line -e kernel/kernel</tt>）并剪切并粘贴上述地址，如下所示：
   <pre>
     $ <kbd>addr2line -e kernel/kernel</kbd>
     0x0000000080002de2
@@ -135,27 +91,20 @@ backtrace:
     0x0000000080002bfc
     Ctrl-D
   </pre>
-  You should see something like this:
+  你应该看到这样的东西：
   <pre>
     kernel/sysproc.c:74
     kernel/syscall.c:224
     kernel/trap.c:85
   </pre>
-</div>
+</p></div>
+<p>编译器在每个堆栈帧中放入一个帧指针，该指针保存调用者的帧指针的地址。你的 <tt>backtrace</tt>
+  应该使用这些帧指针来遍历堆栈并打印每个堆栈帧中保存的返回地址。
 
-<p>The compiler puts in each stack frame a frame pointer that holds
-  the address of the caller's frame pointer.  Your <tt>backtrace</tt>
-  should use these frame pointers to walk up the stack and print the
-  saved return address in each stack frame.
-
-<p>Some hints:
+<p>一些提示：
  <ul>
- <li>Add the prototype for backtrace to <tt>kernel/defs.h</tt> so that
-  you can invoke <tt>backtrace</tt> in <tt>sys_sleep</tt>.
- <li>The GCC compiler stores the frame pointer of the currently
- executing function in the
- register <tt>s0</tt>. Add the following function
- to <tt>kernel/riscv.h</tt>:
+<li>添加回溯原型 <tt>kernel/defs.h</tt> 这样你就可以调用 <tt>backtrace</tt> 在 <tt>sys_sleep</tt>.
+ <li>GCC编译器将当前执行函数的帧指针存储在寄存器中 <tt>s0</tt>。添加以下函数 <tt>kernel/riscv.h</tt>:
  <pre>
 static inline uint64
 r_fp()
@@ -165,65 +114,33 @@ r_fp()
   return x;
 }
 </pre>
- and call this function in <tt>backtrace</tt> to read the current frame pointer.  This function uses <a href="https://gcc.gnu.org/onlinedocs/gcc/Using-Assembly-Language-with-C.html">in-line
- assembly</a> to read <tt>s0</tt>.
- <li>These
- <a href="https://pdos.csail.mit.edu/6.828/2020/lec/l-riscv-slides.pdf">lecture
- notes</a> have a picture of the layout of stack frames. Note that the
- return address lives at a fixed offset (-8) from the frame pointer of a
- stackframe, and that the saved frame pointer lives at fixed offset (-16) from the frame pointer.
- <li>Xv6 allocates one page for each stack in the xv6 kernel at
- PAGE-aligned address. You can compute
- the top and bottom address of the stack page by
- using <tt>PGROUNDDOWN(fp)</tt> and <tt>PGROUNDUP(fp)</tt>
- (see <tt>kernel/riscv.h</tt>. These number are helpful
- for <tt>backtrace</tt> to terminate its loop.
- </ul>
+ 并在中调用这个函数 <tt>backtrace</tt> 读取当前帧指针。该函数使用 <a href="https://gcc.gnu.org/onlinedocs/gcc/Using-Assembly-Language-with-C.html">在线组装</a> 阅读 <tt>s0</tt>.
+ <li>这些
+ <a href="https://pdos.csail.mit.edu/6.828/2020/lec/l-riscv-slides.pdf">讲义</a> 有堆栈帧布局的图片。请注意，返回地址位于距堆栈帧的帧指针的固定偏移量 (-8) 处，并且保存的帧指针位于距帧指针的固定偏移量 (-16) 处。
+ <li>xv6 为 xv6 内核中页对齐地址的每个堆栈分配一页。您可以使用以下方法计算堆栈页的顶部和底部地址 <tt>PGROUNDDOWN(fp)</tt> 和 <tt>PGROUNDUP(fp)</tt>
+ （见 <tt>kernel/riscv.h</tt>。这些数字有帮助 <tt>backtrace</tt> 终止其循环。
+ </li></li></li></li></ul>
+<p>一旦你的回溯开始工作，就可以从 <tt>panic</tt>
+  在 <tt>kernel/printf.c</tt> 这样你就可以在内核崩溃时看到它的回溯。
 
-<p>Once your backtrace is working, call it from <tt>panic</tt>
-  in <tt>kernel/printf.c</tt> so that you see the kernel's backtrace
-  when it panics.
-
-<h2>Alarm <script>g("hard")</script></h2>
-
+<h2>报警 <script>g("hard")</script></h2>
 <div class="required">
 <p>
-In this exercise you'll add a feature to xv6 that periodically alerts
-a process as it uses CPU time. This might be useful for compute-bound
-processes that want to limit how much CPU time they chew up, or for
-processes that want to compute but also want to take some periodic
-action. More generally, you'll be implementing a primitive form of
-user-level interrupt/fault handlers; you could use something similar
-to handle page faults in the application, for example.  Your solution
-is correct if it passes alarmtest and usertests.
-</div>
+在本练习中，您将向 xv6 添加一项功能，该功能会在进程使用 CPU 时间时定期发出警报。这对于想要限制其消耗的 CPU 时间的计算密集型进程，或者想要计算但也想要执行一些定期操作的进程可能很有用。更一般地说，您将实现用户级中断/故障处理程序的原始形式；例如，您可以使用类似的方法来处理应用程序中的页面错误。如果您的解决方案通过了警报测试和用户测试，则它是正确的。
+</p></div>
+<p>
+你应该添加一个新的 <tt>sigalarm(interval, handler)</tt> 系统调用。如果应用程序调用 <tt>sigalarm(n, fn)</tt>，然后每次之后
+<tt>n</tt> 程序消耗的CPU时间的“滴答声”，内核应该引起应用程序功能
+<tt>fn</tt> 被召唤。当 <tt>fn</tt> 返回时，应用程序应从中断处恢复。时钟周期是 xv6 中相当任意的时间单位，由硬件计时器生成中断的频率决定。如果应用程序调用 <tt>sigalarm(0, 0)</tt>，内核应该停止生成周期性警报调用。
 
 <p>
-You should add a new <tt>sigalarm(interval, handler)</tt> system call.
-If an application calls <tt>sigalarm(n, fn)</tt>, then after every
-<tt>n</tt> "ticks" of CPU time that the program consumes, the kernel
-should cause application function
-<tt>fn</tt> to be called. When <tt>fn</tt> returns, the application
-should resume where it left off. A tick is a fairly arbitrary unit of
-time in xv6, determined by how often a hardware timer generates
-interrupts.
-If an application calls <tt>sigalarm(0, 0)</tt>, the kernel should
-stop generating periodic alarm calls.
+你会发现一个文件 <tt>user/alarmtest.c</tt> 在您的 xv6 存储库中。将其添加到 Makefile 中。在添加之前它不会正确编译 <tt>sigalarm</tt> 和 <tt>sigreturn</tt>
+系统调用（见下文）。
 
 <p>
-You'll find a file <tt>user/alarmtest.c</tt> in your xv6
-repository. Add it to the Makefile. It won't compile correctly
-until you've added <tt>sigalarm</tt> and <tt>sigreturn</tt>
-system calls (see below).
-
-<p>
-<tt>alarmtest</tt> calls <tt>sigalarm(2, periodic)</tt>
-in <tt>test0</tt> to ask the kernel to force a call
-to <tt>periodic()</tt> every 2 ticks, and then spins for a while.  You
-can see the assembly code for alarmtest in user/alarmtest.asm, which
-may be handy for debugging.  Your solution is correct when
-<tt>alarmtest</tt> produces output like this and usertests also runs
-correctly:
+<tt>alarmtest</tt> 来电 <tt>sigalarm(2, periodic)</tt>
+在 <tt>test0</tt> 要求内核强制调用 <tt>periodic()</tt> 每 2 个刻度，然后旋转一段时间。你可以在user/alarmtest.asm中看到alarmtest的汇编代码，这可能会方便调试。当以下情况时，您的解决方案是正确的：
+<tt>alarmtest</tt> 产生这样的输出，并且 usertests 也可以正确运行：
 
 <pre>
 $ <kbd>alarmtest</kbd>
@@ -250,152 +167,86 @@ $ <kbd>usertests</kbd>
 ALL TESTS PASSED
 $
 </pre>
+<p>完成后，您的解决方案将只有几行代码，但要正确执行可能会很困难。我们将使用原始存储库中的alarmtest.c 版本来测试您的代码。您可以修改alarmtest.c来帮助您调试，但要确保原始alarmtest表明所有测试都通过。
 
-<p>When you're done, your solution will be only a few lines of code,
-  but it may be tricky to get it right. We'll test your code with the
-  version of alarmtest.c in the original repository. You can modify
-  alarmtest.c to help you debug, but make sure the original alarmtest
-  says that all the tests pass.
-
-<h3>test0: invoke handler</h3>
-
-<p>Get started by modifying the kernel to jump to the alarm handler in
-user space, which will cause test0 to print "alarm!". Don't worry yet
-what happens after the "alarm!" output; it's OK for now if your
-program crashes after printing "alarm!". Here are some hints:
+<h3>test0：调用处理程序</h3>
+<p>首先修改内核以跳转到用户空间中的警报处理程序，这将导致 test0 打印“alarm!”。不用担心“警报”之后会发生什么！输出;如果您的程序在打印“alarm!”后崩溃，现在没关系。以下是一些提示：
 
 <ul>
+<li>您需要修改 Makefile 才能导致 <tt>alarmtest.c</tt>
+编译为 xv6 用户程序。
 
-<li>You'll need to modify the Makefile to cause <tt>alarmtest.c</tt>
-to be compiled as an xv6 user program.
-
-<li>The right declarations to put in <tt>user/user.h</tt> are:
+<li>放置正确的声明 <tt>user/user.h</tt> are:
 <pre>
     int sigalarm(int ticks, void (*handler)());
     int sigreturn(void);
 </pre>
+<li>更新 user/usys.pl （生成 user/usys.S）、kernel/syscall.h 和 kernel/syscall.c 以允许 <tt>alarmtest</tt> 调用 sigalarm 和 sigreturn 系统调用。
 
-<li>Update user/usys.pl (which generates user/usys.S),
-    kernel/syscall.h, and kernel/syscall.c 
-   to allow <tt>alarmtest</tt> to invoke the sigalarm and
-   sigreturn system calls.
+<li>现在，您的 <tt>sys_sigreturn</tt> 应该只返回零。
 
-<li>For now, your <tt>sys_sigreturn</tt> should just return zero.
+<li>你的 <tt>sys_sigalarm()</tt> 应将警报间隔和指向处理函数的指针存储在新字段中 <tt>proc</tt>
+结构（在 <tt>kernel/proc.h</tt>).
 
-<li>Your <tt>sys_sigalarm()</tt> should store the alarm interval and
-the pointer to the handler function in new fields in the <tt>proc</tt>
-structure (in <tt>kernel/proc.h</tt>).
+<li>您需要跟踪自上次调用进程的警报处理程序以来已经经过了多少个滴答声（或直到下一次调用为止）；你需要一个新领域 <tt>struct proc</tt> 也为此。你可以初始化 <tt>proc</tt> 领域在 <tt>allocproc()</tt>
+在 <tt>proc.c</tt>.
 
-<li>You'll need to keep track of how many ticks have passed since the
-last call (or are left until the next call) to a process's alarm
-handler; you'll need a new field in <tt>struct&nbsp;proc</tt> for this
-too.  You can initialize <tt>proc</tt> fields in <tt>allocproc()</tt>
-in <tt>proc.c</tt>.
-
-<li>Every tick, the hardware clock forces an interrupt, which is handled
-in <tt>usertrap()</tt> in <tt>kernel/trap.c</tt>.
+<li>每个滴答声，硬件时钟都会强制产生一个中断，该中断在 <tt>usertrap()</tt> 在 <tt>kernel/trap.c</tt>.
 
 
-<li>You only want to manipulate a process's alarm ticks if there's a 
-  timer interrupt; you want something like
+<li>如果存在计时器中断，您只想操纵进程的警报滴答声；你想要类似的东西
 <pre>
     if(which_dev == 2) ...
 </pre>
+<li>仅当进程有未完成的计时器时才调用警报函数。请注意，用户警报函数的地址可能为 0（例如，在 user/alarmtest.asm 中， <tt>periodic</tt> 位于地址 0)。
 
-<li>Only invoke the alarm function if the process has a
-  timer outstanding.  Note that the address of the user's alarm
-  function might be 0 (e.g., in user/alarmtest.asm, <tt>periodic</tt> is at
-  address 0).
+ <li>你需要修改
+  <tt>usertrap()</tt> 这样当进程的警报间隔到期时，用户进程就会执行处理函数。当 RISC-V 上的陷阱返回到用户空间时，什么决定了用户空间代码恢复执行的指令地址？
 
- <li>You'll need to modify
-  <tt>usertrap()</tt> so that when a
-  process's alarm interval expires, the user process executes
-  the handler function.
-  When a trap on the RISC-V returns to user space, what determines
-  the instruction address at which user-space code resumes execution?
-
-<li>It will be easier to look at traps with gdb if you tell qemu to
-use only one CPU, which you can do by running
+<li>如果您告诉 qemu 仅使用一个 CPU，那么使用 gdb 查看陷阱会更容易，您可以通过运行
 <pre>
     make CPUS=1 qemu-gdb
 </pre>
+<li>如果alarmtest打印出“alarm!”，那么你就成功了。
 
-<li>You've succeeded if alarmtest prints "alarm!".
+</li></li></li></li></li></li></li></li></li></li></li></li></ul>
+<h3>test1/test2()：恢复中断的代码</h3>
+<p>有可能alarmtest 在打印“alarm!”后在test0 或test1 中崩溃，或者alarmtest（最终）打印“test1 失败”，或者alarmtest 退出而不打印“test1 通过”。要解决此问题，必须确保当警报处理程序完成时，控制返回到用户程序最初被定时器中断中断的指令。您必须确保寄存器内容恢复到中断时所保存的值，以便用户程序在报警后可以不受干扰地继续运行。最后，您应该在每次警报计数器响起后“重新启动”警报计数器，以便定期调用处理程序。
 
-</ul>
-
-<h3>test1/test2(): resume interrupted code</h3>
-
-<p>Chances are that alarmtest crashes in test0 or test1 after it prints
-"alarm!", or that alarmtest (eventually) prints "test1 failed",
-or that alarmtest exits without printing "test1 passed".
-To fix this, you must
-ensure that, when the alarm handler is done,
-control returns to
-the instruction at which the user program was originally
-interrupted by the timer interrupt. You must ensure that
-the register contents are restored to the values they held
-at the time of the interrupt, so that the user program
-can continue undisturbed after the alarm.
-Finally,
-you should "re-arm" the alarm counter after each time it goes
-off, so that the handler is called periodically.
-
-<p>As a starting point, we've made a design decision for you:
-user alarm handlers are required to call the <tt>sigreturn</tt>
-system call when they have finished. Have a look at
-<tt>periodic</tt> in <tt>alarmtest.c</tt> for an example.
-This means that you can add code to <tt>usertrap</tt> and
-<tt>sys_sigreturn</tt> that cooperate to cause the user
-process to resume properly after it has handled the alarm.
+<p>作为起点，我们为您做出了一个设计决策：用户警报处理程序需要调用 <tt>sigreturn</tt>
+当他们完成时系统调用。看看
+<tt>periodic</tt> 在 <tt>alarmtest.c</tt> 举个例子。这意味着您可以将代码添加到 <tt>usertrap</tt> 和
+<tt>sys_sigreturn</tt> 它们相互配合，使用户进程在处理警报后正确恢复。
 
 
 <p>
-  Some hints:
+  一些提示：
   <ul>
-    <li>Your solution will require you to save and restore
-      registers---what registers do you need to save and restore to resume
-      the interrupted code correctly? (Hint: it will be many).
-    <li>Have <tt>usertrap</tt> save enough state in
-      <tt>struct proc</tt> when the timer goes off
-      that <tt>sigreturn</tt> can correctly return to the
-      interrupted user code.
+<li>您的解决方案将要求您保存和恢复寄存器——您需要保存和恢复哪些寄存器才能正确恢复中断的代码？ （提示：会很多）。
+    <li>有 <tt>usertrap</tt> 保存足够的状态
+      <tt>struct proc</tt> 当计时器响起时 <tt>sigreturn</tt> 可以正确返回被中断的用户代码。
 
-    <li>Prevent re-entrant calls to the handler----if a handler hasn't
-      returned yet, the kernel shouldn't call it again. <tt>test2</tt>
-      tests this.
-  </ul>
-
-<p>Once you pass <tt>test0</tt>, <tt>test1</tt>, and <tt>test2</tt>
-  run <tt>usertests</tt> to make sure you didn't break any other parts
-  of the kernel.
+    <li>防止对处理程序的重入调用——如果处理程序尚未返回，内核不应再次调用它。 <tt>test2</tt>
+      测试这个。
+  </li></li></li></ul>
+<p>一旦你通过了 <tt>test0</tt>, <tt>test1</tt>, 和 <tt>test2</tt>
+  跑 <tt>usertests</tt> 确保您没有破坏内核的任何其他部分。
 
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<h3>Time spent</h3>
+<h3>提交</h3>
 
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -410,56 +261,35 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-
-
-
-
-<h2>Optional challenge exercises</h2>
-
+<h2>可选的挑战练习</h2>
 <ul>
-
-  <li>Print the names of the functions and line numbers
-  in <tt>backtrace()</tt> instead of numerical
-  addresses <script>g("hard")</script>.</li>
-
+<li>打印函数名称和行号 <tt>backtrace()</tt> 而不是数字地址 <script>g("hard")</script>.</li>
 </ul>
-
-</body>
+</p></p></a></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></p></body>
 </html>

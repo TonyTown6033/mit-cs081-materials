@@ -1,203 +1,206 @@
-6.1810 2025 Lecture 16: High-performance networking and scheduling
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Reading: "Shenango: achieving high CPU efficiency for
-         latency-sensitive datacenter workloads (NSDI 2019)
+6.1810 2025第16讲：高性能网络与调度
 
-this lecture
-  O/S network performance
-  Tail latency
+阅读：“Shenango：实现高 CPU 效率
+         对延迟敏感的数据中心工作负载 (NSDI 2019)
+
+本次讲座
+  操作系统网络性能
+  尾部延迟
   Kernel-by-pass
-  Shenango
-    research paper, not a production system
-    state-of-the-art paper, not easy to understand every detail
-    scheduling is interesting in the context of high-performance networking
+  谢南戈
+    研究论文，而不是生产系统
+    最先进的论文，不容易理解每个细节
+    调度在高性能网络环境中很有趣
 
-Linux network software structure
-  [diagram]
-  NIC DMAs received packet into rx ring
-  NIC interrupts kernel
-  kernel processes packet (TCP, UDP, etc.)
-    copies from ring to destination socket queue
-    wakes up application's read
-  application sends packet
-    inserts packet into tx ring
-    NIC sends packet
+Linux网络软件结构
+  [图]
+  NIC DMA 将数据包接收到 rx 环
+  网卡中断内核
+  内核处理数据包（TCP、UDP等）
+    从环复制到目标套接字队列
+    唤醒应用程序的读取
+  应用程序发送数据包
+    将数据包插入 tx 环
+    网卡发送数据包
 
-how does network software structure affect performance?
+网络软件结构如何影响性能？
 
-let's focus on high-performance network servers
-  e.g., memcached, an in-memory key/value storage server
-  high request rate
-  short requests / responses
-    set/get take ~1usec
-    (the application isn't the bottleneck)
-  lots of clients, lots of potential parallelism
+让我们专注于高性能网络服务器
+  例如，memcached，内存中键/值存储服务器
+  高请求率
+  简短的请求/响应
+    设置/获取大约需要 1 微秒
+    （应用程序不是瓶颈）
+  很多客户端，很多潜在的并行性
 
-performance metrics
-  low latency (under low load and high load)
-    avg latency
-    tail latency
+绩效指标
+  低延迟（低负载和高负载下）
+    平均延迟
+    尾部潜伏期
 
-tail latency
+尾部潜伏期
   https://cacm.acm.org/research/the-tail-at-scale/
-    famous Google paper; changed how people measure latency
-    focus on latency at tail
-  Google has many machines under high load
-    say typical response is 10ms
-    but 1 in 100 takes 1s (99% tail is 1s)
-  sources of delay
-    machines are shared between several applications
-      contention for CPU cores, etc.
-    background processes (daemons) periodically run
-    packets are queued because burst
+    著名的谷歌论文；改变了人们测量延迟的方式
+    关注尾部延迟
+  Google 有很多机器处于高负载状态
+    假设典型响应为 10 毫秒
+    但百分之一需要 1 秒（99% 尾部是 1 秒）
+  延误的来源
+    机器在多个应用程序之间共享
+      CPU 核心的争用等。
+    后台进程（守护进程）定期运行
+    数据包因突发而排队
     etc.
-  user requests may fan out to many machines
-    if each user req fans out to 100 machines, then *many* request suffers 1s delay 
-  important that 99% tail latency is low  
+  用户请求可能会分散到许多机器
+    如果每个用户请求分散到 100 台机器，那么“许多”请求会遭受 1 秒的延迟
+  重要的是 99% 的尾部延迟较低
 
-latency ingredients:
-  low load: sum of a sequence of steps to process packet
-    network speed-of-light and switch round-trip time
-    interrupt
-    queue operations
+潜伏成分：
+  低负载：处理数据包的一系列步骤的总和
+    网络光速和交换机往返时间
+    中断
+    队列操作
     sleep/wakeup
-    system calls
-    inter-core data movement
-    RAM fetches
-  high load:
-    latency is largely determined by wait time -- queuing
-    bursty arrivals increase queuing time
-    bursty service times increase queuing time
-    structural problems can increase queuing time
-      load imbalance, or no-one serving a queue
-    latency under high load is hard to reason about
+    系统调用
+    核心间数据移动
+    RAM 读取
+  高负载：
+    延迟很大程度上取决于等待时间——排队
+    突发性到达增加了排队时间
+    突发服务时间增加了排队时间
+    结构性问题会增加排队时间
+      负载不平衡，或者无人为队列提供服务
+    高负载下的延迟很难推理
 
-what are the relevant h/w limits?
-  10 gigabit ethernet: ~10 million 100-byte packets/second
-  1 2.4 Ghz core: 240 cycles per packet
-    if we have 8 cores, 1920 cycles per packet
-  system calls: a few million per second
-  interrupts: a million per second
-  too slow!
+相关的硬件限制是什么？
+  10 吉比特以太网：每秒约 1000 万个 100 字节数据包
+  1 2.4 Ghz 核心：每包 240 个周期
+    如果我们有 8 个核心，每个数据包 1920 个周期
+  系统调用：每秒几百万次
+  中断：每秒一百万次
+  太慢了！
 
-solution approach: kernel-by-pass 
-  Linux kernel gives Shenango NIC queues and dedicated cores
-    then Linux isn't involved much
-  Shenango user-space library (fig 2)
-     accesses NIC packet rings directly
-     implements TCP/IP stack
-     schedules multiple threads on dedicated cores
-     it is a small operating system, implemented as a library
-  good for low tail latency
-    dedicated resources for an application
-    no contention for shared resources
+解决方法：内核绕过
+  Linux 内核提供 Shenango NIC 队列和专用内核
+    那么Linux并没有涉及太多
+  Shenango 用户空间库（图 2）
+     直接访问NIC数据包环
+     实现 TCP/IP 堆栈
+     在专用核心上调度多个线程
+     它是一个小型操作系统，作为库实现
+  有利于低尾延迟
+    应用程序的专用资源
+    不争用共享资源
 
-kernel-by-pass networking
-  NICs have many packet rings/queues
-  Use page tables to map rings into application's address space
-  Program NIC to steer packets to specific queues
+内核旁路网络
+  NIC 有许多数据包环/队列
+  使用页表将环映射到应用程序的地址空间
+  对 NIC 进行编程以将数据包引导至特定队列
     hash <src ip, dst ip, src pn, dst pn>  -> queue
-    "flow-consistent hashing" or "receive-side scaling" (RSS)
-    a new connection is given to the core determined by the NIC's hash
-      hopefully uniform and results in balanced load
-  Use polling
-    apps have dedicated cores
-    continuously check NIC rings for new input
-      interrupts are redundant if always likely to be input waiting
-  Each connection handled by one core
-    no lock contention
-      each core has its own packet free list
-      each core has its own TCP data structures
-    no data movement between cores
+    “流一致散列”或“接收端缩放”(RSS)
+    一个新的连接被提供给由 NIC 的哈希值确定的核心
+      希望均匀并导致平衡负载
+  使用轮询
+    应用程序有专用的核心
+    持续检查 NIC 环是否有新输入
+      如果总是可能等待输入，那么中断是多余的
+  每个连接由一个核心处理
+    没有锁争用
+      每个核心都有自己的数据包空闲列表
+      每个核心都有自己的 TCP 数据结构
+    核心之间没有数据移动
 
-evaluation
-  what should we look for?
-  low latency
-  low tail latency
+评价
+  我们应该寻找什么？
+  低延迟
+  低尾延迟
 
-fig 3
+图3
   setup:
-    16 queues
-    8 cores with 2 hyperthreads
-    6 machines to generate load
-      each one has 200 connections
-  graph
-    x-axis: offered load
-    focus on top two graphs
-    ZygOS: pure kernel-by-pass
-    Ignore Arachne 
-  Linux medium and tail latency under low load
-    ~35us and 300-400us
-    at 800K req/s, Linux cannot keep up
-  Shenango and ZygOS do better
-    tail latency good under low load and high load
-    why does line go up at right end of graph?
-    why does Shenango's line go up earlier?
+    16个队列
+    8 个核心，2 个超线程
+    6台机器产生负载
+      每个有 200 个连接
+  图
+    x 轴：提供的负载
+    重点关注前两张图
+    ZygOS：纯粹的内核旁路
+    忽略阿拉克涅
+  Linux 低负载下的中尾延迟
+    ~35us 和 300-400us
+    Linux 无法跟上 800K req/s
+  Shenango 和 ZygOS 做得更好
+    低负载和高负载下尾部延迟良好
+    为什么线在图表的右端向上？
+    为什么 Shenango 的线路提早了？
 
-utilization
-  high load
-    cores are busy processing network packets
-    high utilization
-  low load
-    cores are dedicated and cannot be used by other apps
-    low utilization
-  see left-end of bottom graph
-    there is an application to run
-    Linux runs it (time-shares cores)
-    ZygOS doesn't run it (since all cores are reserved)
-    Shenango runs it too! how come?
-  common for data centers to run at low utilization to achieve low tail latency
+利用率
+  高负载
+    核心正忙于处理网络数据包
+    高利用率
+  低负载
+    核心是专用的，不能被其他应用程序使用
+    利用率低
+  参见底部图的左端
+    有一个应用程序要运行
+    Linux 运行它（分时内核）
+    ZygOS 不运行它（因为所有核心都被保留）
+    Shenango 也运行它！怎么会？
+  数据中心通常以低利用率运行以实现低尾部延迟
 
-paper's solution: I/O kernel
-  a Linux process with root privileges
-  it allocates remaining cores to Shenango applications
-  applications reserve a minimium # of cores
-    I/O kernel allows other application to burst on "reserved cores", if unused
-    if load goes up, preempt bursting application and give core back
-    for example, the background process in fig 3
-  challenge: avoid "compute congestion"
-    work is delayed by a few microseconds because application doesn't have enough cores
-    I/O kernel must make a quick decision
+论文的解决方案：I/O 内核
+  具有 root 权限的 Linux 进程
+  它将剩余的核心分配给 Shenango 应用程序
+  应用程序保留最少的核心数
+    I/O 内核允许其他应用程序在“保留核心”上突发（如果未使用）
+    如果负载增加，抢占突发应用程序并将核心返回
+    例如图3的后台进程
+  挑战：避免“计算拥塞”
+    由于应用程序没有足够的核心，工作延迟了几微秒
+    I/O 内核必须快速做出决定
 
-I/O kernel sits between NIC and applications
-  It handles all network I/O
-    it scans input queues and puts packet on application's core queue 
-    it scans all application's output queues, and sends packets   
-  It monitors network queues and thread queues every 5us
-    if it detects compute congestion, it allocates core to application
-    it steers input packets to that core
-      I/O kernel steers because reprogramming NIC to steer is expensive (100s us)
-      also allows cores to steal packets from other cores, good for load balancing
-  I/O kernel introduces some latency
-    See Fig 6
+I/O 内核位于 NIC 和应用程序之间
+  它处理所有网络 I/O
+    它扫描输入队列并将数据包放入应用程序的核心队列
+    它扫描所有应用程序的输出队列，并发送数据包
+  每5us监控一次网络队列和线程队列
+    如果检测到计算拥塞，则会将核心分配给应用程序
+    它将输入数据包引导至该核心
+      I/O 内核引导，因为重新编程 NIC 进行引导的成本很高（100 秒 us）
+      还允许核心从其他核心窃取数据包，有利于负载平衡
+  I/O 内核引入了一些延迟
+    见图6
  
-Detecting compute congestion (Algorithms 1)
+检测计算拥塞（算法 1）
   Congestion:
-    if a packet is still in input queue on next queue scan
-    if a uthread is still in runtime's uthread queue
+    如果下一次队列扫描时数据包仍在输入队列中
+    如果 uthread 仍在运行时的 uthread 队列中
    
-Core allocation (Algorithm 2)
-   Prefer core on which application already has a hyperthread
-   Prefer core most recently-yielded by application
-   Pick any idle core (if there is one)
-   Preempt a random core from a bursting app
+核心分配（算法2）
+   优先选择应用程序已具有超线程的核心
+   优先选择应用程序最近产生的核心
+   选择任何空闲核心（如果有）
+   从突发应用程序中抢占随机核心
 
-Shenango implementation
-  Complicated because uses Linux without modifying it
-    a core is pthread thread, which Linux implements using a kernel thread
-      Shenango "pins" pthread to a core
-    shared-memory queues between I/O kernel and application processes
-    I/O kernel uses DPDK to interact efficiently with NIC
-  Runtime implements OS in user space
-    e.g., has its own TCP implementation
+Shenango 实施
+  复杂，因为使用Linux而不修改它
+    core是pthread线程，Linux使用内核线程来实现
+      Shenango 将 pthread“固定”到核心
+    I/O 内核和应用程序进程之间的共享内存队列
+    I/O内核使用DPDK与NIC高效交互
+  运行时在用户空间中实现操作系统
+    例如，有自己的 TCP 实现
 
-How well does Shenango respond to changes in load?
-  from fig 3 we know it does well
-  from fig 5 directly answers the question
+Shenango 对负载变化的反应如何？
+  从图 3 中我们知道它效果很好
+  图5直接回答了问题
 
-Summary
-  High-performance networking is hard!
-    low latency and high utilization are hard to achieve
-  Papers in essence proposes a new OS
-    cleverly implemented on top of Linux
-    Shenango libOS isn't as general-purpose as Linux
+总结
+  高性能网络很难！
+    低延迟和高利用率很难实现
+  论文实质上提出了一种新的操作系统
+    在Linux之上巧妙地实现
+    Shenango libOS 不像 Linux 那样通用

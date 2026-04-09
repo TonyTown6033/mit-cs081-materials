@@ -1,198 +1,154 @@
 
-<HTML>
-<HEAD>
-<TITLE>
-6.S081 / Fall 2020
-</TITLE>
-<META HTTP-EQUIV="pragma" CONTENT="no-cache">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-
-<link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
-<link rel="stylesheet" type="text/css" href="css/style.css">
-<link rel="stylesheet" href="labs/labs.css" type="text/css" />
-
-</HEAD>
-
-<BODY BGCOLOR=#ffffff TEXT=#000000>
-
-    <!-- Fixed navbar -->
-    <div class="navbar navbar-default navbar-fixed-top" role="navigation">
-      <div class="container-fluid">
-        <div class="navbar-header">
-          <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
-            <span class="sr-only">Toggle navigation</span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-            <span class="icon-bar"></span>
-          </button>
-          <a class="navbar-brand" href="index.html">6.S081: Operating System Engineering</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-	    <li><a href="schedule.html">Schedule</a></li>
-	    <li class="dropdown">
-              <a href="tools.html#" class="dropdown-toggle" data-toggle="dropdown">Class<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-                <li><a href="overview.html">Overview</a></li>
-                <li><a href="general.html">Administrivia</a></li>
-		<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">Handin website</a>
-		<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
-	      </ul>
-	    </li>
-            <li class="dropdown">
-              <a href="tools.html#" class="dropdown-toggle" data-toggle="dropdown">Labs<span class="caret"></span></a>
-              <ul class="dropdown-menu" role="menu">
-		<li><a href="tools.html">Tools</a></li>
-		<li><a href="labs/guidance.html">Guidance</a></li>
-                <li><a href="labs/util.html">Lab Utilities</a></li>
-		<li><a href="labs/syscall.html">Lab System calls</a></li>
-		<li><a href="labs/pgtbl.html">Lab Page tables</a></li>
-		<li><a href="labs/traps.html">Lab Traps</a></li>
-                <li><a href="labs/lazy.html">Lab Lazy allocation</a></li>
-		<li><a href="labs/cow.html">Lab Copy on-write</a></li>
-		<li><a href="labs/thread.html">Lab Multithreading</a></li>
-		<li><a href="labs/lock.html">Lab Lock</a></li>
-		<li><a href="labs/fs.html">Lab File system</a></li>
-		<li><a href="labs/mmap.html">Lab mmap</a></li>
-		<li><a href="labs/net.html">Lab network driver</a></li>
-              </ul>
-            </li>
-            <li class="dropdown">
-              <a href="tools.html#" class="dropdown-toggle" data-toggle="dropdown">xv6<span class="caret"></span></a>
-	      <ul class="dropdown-menu" role="menu">
-		<li><a href="xv6.html">xv6</a></li>
-		<li><a href="xv6/book-riscv-rev1.pdf">xv6 book</a></li>
-	      </ul>
-	    </li>
-	    <li><a href="reference.html">References</a></li>  
-	    <li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
-          </ul>
-	  <ul class="nav navbar-nav navbar-right">
-	    <p class="navbar-text">2020</p>
-	  </ul>
-        </div>
-      </div>
-    </div>
-
-
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>
+6.S081 / 2020 年秋季
+</title>
+<meta content="no-cache" http-equiv="pragma"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<link href="css/bootstrap.min.css" media="screen" rel="stylesheet"/>
+<link href="css/style.css" rel="stylesheet" type="text/css"/>
+<link href="labs/labs.css" rel="stylesheet" type="text/css">
+</link></head>
+<body bgcolor="#ffffff" text="#000000"><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<!-- Fixed navbar -->
+<div class="navbar navbar-default navbar-fixed-top" role="navigation">
+<div class="container-fluid">
+<div class="navbar-header">
+<button class="navbar-toggle" data-target=".navbar-collapse" data-toggle="collapse" type="button">
+<span class="sr-only">切换导航</span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+<span class="icon-bar"></span>
+</button>
+<a class="navbar-brand" href="index.html">6.S081：操作系统工程</a>
+</div>
+<div class="navbar-collapse collapse">
+<ul class="nav navbar-nav">
+<li><a href="schedule.html">日程</a></li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="tools.html#">课程<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="overview.html">概览</a></li>
+<li><a href="general.html">课程说明</a></li>
+<li><a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>
+<li><a href="http://pdos.csail.mit.edu/6.828/2019">6.S081 2019</a></li>
+</li></ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="tools.html#">实验<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="tools.html">工具</a></li>
+<li><a href="labs/guidance.html">指南</a></li>
+<li><a href="labs/util.html">实验：Unix 工具</a></li>
+<li><a href="labs/syscall.html">实验：系统调用</a></li>
+<li><a href="labs/pgtbl.html">实验：页表</a></li>
+<li><a href="labs/traps.html">实验：陷阱</a></li>
+<li><a href="labs/lazy.html">实验：惰性分配</a></li>
+<li><a href="labs/cow.html">实验：写时复制</a></li>
+<li><a href="labs/thread.html">实验：多线程</a></li>
+<li><a href="labs/lock.html">实验：锁</a></li>
+<li><a href="labs/fs.html">实验：文件系统</a></li>
+<li><a href="labs/mmap.html">实验：mmap</a></li>
+<li><a href="labs/net.html">实验：网络驱动</a></li>
+</ul>
+</li>
+<li class="dropdown">
+<a class="dropdown-toggle" data-toggle="dropdown" href="tools.html#">xv6<span class="caret"></span></a>
+<ul class="dropdown-menu" role="menu">
+<li><a href="xv6.html">xv6</a></li>
+<li><a href="xv6/book-riscv-rev1.pdf">xv6 书</a></li>
+</ul>
+</li>
+<li><a href="reference.html">参考资料</a></li>
+<li><a href="https://piazza.com/class/kdejeo2qbpo7g1">Piazza</a></li>
+</ul>
+<ul class="nav navbar-nav navbar-right">
+<p class="navbar-text">2020</p>
+</ul>
+</div>
+</div>
+</div>
 <div class="container">
-
-
-
-
-
-<style type='text/css'>
+<style type="text/css">
 .l {
 	margin-left: 4em;
 }
 </style>
-
-<script type='text/javascript'>
+<script type="text/javascript">
 function unfoldinstrux(unfold) {
   var e = document.getElementById("installinstrux");
   e.className = unfold ? "foldo" : "foldc";
 }
 </script>
-
-<H1>
-Tools Used in 6.S081
-</H1>
-
-<p>For this class you'll need the RISC-V versions of a couple different tools:
-QEMU 5.1, GDB 8.3, GCC, and Binutils.</p>
-
-<p>We highly recommend using a Debathena machine, such as athena.dialup.mit.edu, to
-work on the labs.  If you use the MIT Athena machines that run Linux, then all
-of these tools are located in the 6.828 locker: just type '<samp>add -f
-6.828</samp>' to get access to them. If you don't have access to a Debathena
-machine, you can install the tools directly or use virtual machine with Linux
-via the instructions below.</p>
-
-<p>If you are having trouble getting things set up, please come by to office
-hours or post on Piazza. We're happy to help!</p>
-
-<h3>Using Athena</h3>
-
-<p>ssh into one of the Athena dialup machines and add the tools:
+<h1>
+6.S081使用的工具
+</h1>
+<p>对于本课程，您将需要几个不同工具的 RISC-V 版本：QEMU 5.1、GDB 8.3、GCC 和 Binutils。</p>
+<p>我们强烈建议使用 Debathena 机器（例如 athena.dialup.mit.edu）来进行实验室工作。如果您使用运行 Linux 的 MIT Athena 机器，那么所有这些工具都位于 6.828 储物柜中：只需键入 '<samp>add -f
+6.828</samp>' 来访问它们。如果您无法访问 Debathena 计算机，您可以直接安装工具或按照以下说明使用 Linux 虚拟机。</p>
+<p>如果您在设置方面遇到困难，请在办公时间前来或在 Piazza 上发帖。我们很乐意提供帮助！</p>
+<h3>使用雅典娜</h3>
+<p>ssh 到 Athena 拨号计算机之一并添加工具：
 
 <pre>
 $ ssh {your kerberos}@athena.dialup.mit.edu
 $ add -f 6.828
 </pre>
-
-
-<h3>Installing on macOS</h3>
-
-<p>First, install developer tools:
+<h3>在 macOS 上安装</h3>
+<p>首先，安装开发者工具：
 
 <pre>
 $ xcode-select --install
 </pre>
-
-<p>Next, install <a href="https://brew.sh/">Homebrew</a>, a package manager for macOS:
+<p>接下来，安装 <a href="https://brew.sh/">自制</a>，macOS 的包管理器：
 
 <pre>
 $ /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 </pre>
-
-<p>Next, install the <a href="https://github.com/riscv/homebrew-riscv">RISC-V compiler toolchain</a>:
+<p>接下来，安装 <a href="https://github.com/riscv/homebrew-riscv">RISC-V编译器工具链</a>:
 
 <pre>
 $ brew tap riscv/riscv
 $ brew install riscv-tools
 </pre>
-
-<p>The brew formula may not link into <tt>/usr/local</tt>. You will need to
-update your shell's rc file (e.g. <a
-href="https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html">~/.bashrc</a>)
-to add the appropriate directory to <a
-href="http://www.linfo.org/path_env_var.html">$PATH</a>.
+<p>酿造配方可能无法链接到 <tt>/usr/local</tt>。您将需要更新 shell 的 rc 文件（例如 <a href="https://www.gnu.org/software/bash/manual/html_node/Bash-Startup-Files.html">～/.bashrc</a>) 添加适当的目录 <a href="http://www.linfo.org/path_env_var.html">$PATH</a>.
 
 <pre>
 PATH=$PATH:/usr/local/opt/riscv-gnu-toolchain/bin
 </pre>
-
-<p>Finally, install QEMU:
+<p>最后，安装QEMU：
 
 <pre>
 brew install qemu
 </pre>
-
-<h3>Installing via APT (Debian/Ubuntu)</h3>
-<p>Make sure you are running either "bullseye" or "sid" for your debian version (on ubuntu this can be checked by running <tt>cat /etc/debian_version</tt>), then run:</p>
+<h3>通过 APT 安装 (Debian/Ubuntu)</h3>
+<p>确保您正在为您的 debian 版本运行“bullseye”或“sid”（在 ubuntu 上，可以通过运行来检查 <tt>cat /etc/debian_version</tt>），然后运行：</p>
 <pre>sudo apt-get install git build-essential gdb-multiarch qemu-system-misc gcc-riscv64-linux-gnu binutils-riscv64-linux-gnu </pre>
-
-<p>(The version of QEMU on "buster" is too old, so you'd have to get that separately.)</p>
-
-<h4>qemu-system-misc fix</h4>
-At this moment in time, it seems that the package <tt>qemu-system-misc</tt> has received an update that breaks its compatibility with our kernel. If you run <tt>make qemu</tt> and the script appears to hang after<br><tt>qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0</tt><br> you'll need to uninstall that package and install an older version:
+<p>（“buster”上的 QEMU 版本太旧，因此您必须单独获取它。）</p>
+<h4>qemu 系统杂项修复</h4>
+此时此刻，包裹似乎 <tt>qemu-system-misc</tt> 已收到一个更新，该更新破坏了其与我们内核的兼容性。如果你跑 <tt>make qemu</tt> 并且脚本似乎在之后挂起<br/><tt>qemu-system-riscv64 -machine virt -bios none -kernel kernel/kernel -m 128M -smp 3 -nographic -drive file=fs.img,if=none,format=raw,id=x0 -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0</tt><br/> 您需要卸载该软件包并安装旧版本：
 <pre>
   $ sudo apt-get remove qemu-system-misc
   $ sudo apt-get install qemu-system-misc=1:4.2-3ubuntu6
 </pre>
-
-<h3>Installing on Arch</h3>
+<h3>在 Arch 上安装</h3>
 <pre>sudo pacman -S riscv64-linux-gnu-binutils riscv64-linux-gnu-gcc riscv64-linux-gnu-gdb qemu-arch-extra</pre>
-
-<h3>Other Linux distributions (i.e. compiling your own toolchain)</h3>
-<p>We assume that you are installing the toolchain into
-<tt>/usr/local</tt> on a modern Ubuntu installation.  You will need a fair amount of disk space to compile
-the tools (around 9GiB).  If you don't have that much space, consider using an MIT Athena machine.</p>
-
-<p>First, clone the repository for the RISC-V GNU Compiler Toolchain:
+<h3>其他 Linux 发行版（即编译您自己的工具链）</h3>
+<p>我们假设您将工具链安装到
+<tt>/usr/local</tt> 在现代 Ubuntu 安装上。您将需要相当多的磁盘空间来编译这些工具（大约 9GiB）。如果您没有那么多空间，请考虑使用 MIT Athena 机器。</p>
+<p>首先，克隆 RISC-V GNU 编译器工具链的存储库：
 
 <pre>
 $ git clone --recursive https://github.com/riscv/riscv-gnu-toolchain
 </pre>
-
-<p>Next, make sure you have the packages needed to compile the toolchain:
+<p>接下来，确保您拥有编译工具链所需的包：
 
 <pre>
 $ sudo apt-get install autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev
 </pre>
-
-<p> Configure and build the toolchain:
+<p> 配置并构建工具链：
 
 <pre>
 $ cd riscv-gnu-toolchain
@@ -200,15 +156,12 @@ $ ./configure --prefix=/usr/local
 $ sudo make
 $ cd ..
 </pre>
-
-
-<p> Next, retrieve and extract the source for QEMU 5.1.0:
+<p> 接下来，检索并提取 QEMU 5.1.0 的源代码：
 <pre>
 $ wget https://download.qemu.org/qemu-5.1.0.tar.xz
 $ tar xf qemu-5.1.0.tar.xz
 </pre>
-
-<p> Build QEMU for riscv64-softmmu:
+<p> 为 riscv64-softmmu 构建 QEMU：
 
 <pre>
 $ cd qemu-5.1.0
@@ -217,46 +170,23 @@ $ make
 $ sudo make install
 $ cd ..
 </pre>
-
-<h3>Windows (i.e. running a Linux VM)</h3>
-<p>We haven't tested it, but it might be possible to get everything you need via
-  the Windows Subsystem for Linux or otherwise compiling the tools yourself.</p>
-
-<p>However, an easier option would probably be to run a virtual machine with one
-  of the other operating systems listed above. With platform virtualization,
-  Linux can cohabitate with your normal computing environment.  Installing a
-  Linux virtual machine is a two step process.  First, you download the
-  virtualization platform.</p>
-
-  <ul><li><a href='https://www.virtualbox.org/'><strong>VirtualBox</strong></a>
-  (free for Mac, Linux, Windows) &mdash; <a
-  href='https://www.virtualbox.org/wiki/Downloads'>Download
-  page</a></li>
-  <li><a href='http://www.vmware.com/products/player/'>VMware
-  Player</a> (free for Linux and Windows, registration required)</li>
-  <li><a href='http://www.vmware.com/products/fusion/'>VMware
-  Fusion</a> (Downloadable from IS&T for free).
-  </ul>
-
-  <p>VirtualBox is a little slower and less flexible, but free!</p>
-
-  <p>Once the virtualization platform is installed, download a boot
-  disk image for the Linux distribution of your choice.</p>
-
-  <ul><li><a
-  href='http://www.ubuntu.com/download/desktop'>Ubuntu
-  Desktop</a> is one option.</li>
-  </ul>
-
-  <p>This will download a file named something like
-  <tt>ubuntu-18.04.3-desktop-amd64.iso</tt>.  Start up your
-  virtualization platform and create a new (64-bit) virtual machine.
-  Use the downloaded Ubuntu image as a boot disk; the
-  procedure differs among VMs but is pretty simple.
+<h3>Windows（即运行 Linux VM）</h3>
+<p>我们尚未对其进行测试，但也许可以通过适用于 Linux 的 Windows 子系统或自行编译工具来获得您所需的一切。</p>
+<p>但是，更简单的选择可能是使用上面列出的其他操作系统之一运行虚拟机。通过平台虚拟化，Linux 可以与您的正常计算环境共存。安装 Linux 虚拟机分为两步。首先，您下载虚拟化平台。</p>
+<ul><li><a href="https://www.virtualbox.org/"><strong>虚拟盒子</strong></a>
+  （Mac、Linux、Windows 免费）— <a href="https://www.virtualbox.org/wiki/Downloads">下载页面</a></li>
+<li><a href="http://www.vmware.com/products/player/">虚拟机播放器</a> （Linux 和 Windows 免费，需要注册）</li>
+<li><a href="http://www.vmware.com/products/fusion/">VMware融合</a> （可从 IS&amp;T 免费下载）。
+  </li></ul>
+<p>VirtualBox 有点慢并且不太灵活，但是免费！</p>
+<p>安装虚拟化平台后，下载您选择的 Linux 发行版的启动磁盘映像。</p>
+<ul><li><a href="http://www.ubuntu.com/download/desktop">Ubuntu 桌面</a> 是一种选择。</li>
+</ul>
+<p>这将下载一个名为类似的文件
+  <tt>ubuntu-18.04.3-desktop-amd64.iso</tt>。启动您的虚拟化平台并创建一个新的（64 位）虚拟机。使用下载的Ubuntu镜像作为启动盘；该过程因虚拟机而异，但非常简单。
 </p>
-
-<h2> Testing your Installation </h2>
-<p>To test your installation, you should be able to check the following:
+<h2> 测试您的安装 </h2>
+<p>要测试您的安装，您应该能够检查以下内容：
 
 <pre>
 $ riscv64-unknown-elf-gcc --version
@@ -267,7 +197,7 @@ $ qemu-system-riscv64 --version
 QEMU emulator version 5.1.0
 </pre>
 
-You should also be able to compile and run xv6:
+您还应该能够编译并运行 xv6：
 
 <pre>
 # in the xv6 directory
@@ -277,33 +207,23 @@ init: starting sh
 $
 </pre>
 
-To quit qemu type: Ctrl-a x.
+要退出 qemu，请输入：Ctrl-a x。
 
 <!-- End Page Content -->
-
-<hr>
-
+<hr/>
 <font style="font-size: 12px;">
-<p>Questions or comments regarding S6.081?  Send e-mail to the course staff at
-<A
-HREF="mailto:6s081@lists.csail.mit.edu"><I>6S081@lists.csail.mit.edu</I></A>.
+<p>对 S6.081 有疑问或意见吗？发送电子邮件给课程工作人员：
+<a href="mailto:6s081@lists.csail.mit.edu"><i>6S081@lists.csail.mit.edu</i></a>.
 
-<p><a rel="license" href="https://creativecommons.org/licenses/by/3.0/us/"><img
-alt="Creative Commons License" style="border-width:0"
-src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" ></a> <B><A HREF="tools.html#top">Top</A></B> //
-<B><A HREF="index.html">S6.081 home</A></B> // 
-<i>Last updated Thursday, 04-Sep-2025 23:15:04 EDT</i>
-</font>
-
-</div>
-
+<p><a href="https://creativecommons.org/licenses/by/3.0/us/" rel="license"><img alt="知识共享许可" src="https://i.creativecommons.org/l/by/3.0/us/88x31.png" style="border-width:0"/></a> <b><a href="tools.html#top">顶部</a></b> //
+<b><a href="index.html">S6.081 首页</a></b> // 
+<i>最后更新时间：2025 年 9 月 4 日星期四 23:15:04 EDT</i>
+</p></p></font>
+</p></p></p></p></p></p></p></p></p></p></p></p></div>
 <script src="js/jquery-1.10.2.min.js"></script>
 <script src="js/bootstrap.min.js"></script>
-
-</BODY>
-</HTML>
-
-
+</body>
+</html>
 <!--  LocalWords:  Cygwin cygwin Toolchain Linuxes BSDs toolchain gcc ld jos cd
  -->
 <!--  LocalWords:  objdump conf GCCPREFIX linux binutils libstdc GNUmakefile sh

@@ -1,340 +1,343 @@
-6.S081 2020 L18: Operating System Organization, Microkernels
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+
+6.S081 2020 L18：操作系统组织、微内核
 
 Topic:
-  What should a kernel do?
-  What should its abstractions / system calls look like?
+  内核应该做什么？
+  它的抽象/系统调用应该是什么样子？
 
-Answers depend on the application, and on programmer taste!
-  There is no single best answer
-  This topic is more about ideas and less about specific mechanisms
+答案取决于应用程序和程序员的品味！
+  没有单一的最佳答案
+  这个话题更多的是关于想法，而不是具体的机制
 
-The traditional approach
-  1) powerful abstractions, and
-  2) a "monolithic" kernel implementation
-  UNIX, Linux, xv6
+传统方法
+  1）强大的抽象，以及
+  2）“整体”内核实现
+  UNIX、Linux、xv6
 
-The philosophy behind traditional kernels is powerful abstractions:
-  portable interfaces
-    files, not disk controller registers
-    address spaces, not MMU access
-  simple interfaces that hide complexity
-    all I/O via FDs and read/write, not specialized for each device &c
-    address spaces with transparent disk paging
-  abstractions help the kernel manage and share resources
-    process abstraction lets kernel be in charge of scheduling
-    file/directory abstraction lets kernel be in charge of disk layout
-  abstractions help the kernel enforce security
-    file permissions
-    processes with private address spaces
-  lots of indirection
-    e.g. FDs, virtual addresses, file names, PIDs
-    helps kernel virtualize, hide, revoke, schedule, &c
+传统内核背后的哲学是强大的抽象：
+  便携式接口
+    文件，而不是磁盘控制器寄存器
+    地址空间，而不是 MMU 访问
+  隐藏复杂性的简单界面
+    所有 I/O 通过 FD 和读/写，并非专门针对每个设备 &c
+    具有透明磁盘分页的地址空间
+  抽象帮助内核管理和共享资源
+    进程抽象让内核负责调度
+    文件/目录抽象让内核负责磁盘布局
+  抽象帮助内核加强安全性
+    文件权限
+    具有私有地址空间的进程
+  很多间接的
+    例如FD、虚拟地址、文件名、PID
+    帮助内核虚拟化、隐藏、撤销、调度等
 
-Powerful abstractions have led to big "monolithic" kernels
-  kernel is one big program, like xv6
-  easy for kernel sub-systems to cooperate -- no irritating boundaries
-    exec() and mmap() are part of both FS and VM system
-    relatively easy to add sym links, COW fork, mmap, &c
-  all kernel code runs with high privilege -- no internal security restrictions
+强大的抽象导致了大的“整体”内核
+  内核是一个大程序，例如 xv6
+  内核子系统易于协作——没有烦人的边界
+    exec() 和 mmap() 是 FS 和 VM 系统的一部分
+    相对容易添加符号链接、COW fork、mmap 等
+  所有内核代码都以高权限运行——没有内部安全限制
 
-What's wrong with traditional kernels?
+传统内核有什么问题？
   big => complex => buggy/insecure
-  perhaps over-general and thus slow
-    how much code executes to send one byte via a UNIX pipe?
-    buffering, locks, sleep/wakeup, scheduler
-  many design decisions are baked in, can't be changed, may be awkward
-    maybe I want to wait for a process that's not my child
-    maybe I want to change another process's address space
-    maybe DB is better at laying out B-Tree files on disk than kernel FS
-  hard to create kernel "extensions" that others can use
-    new device drivers, file systems, &c
+  也许过于笼统，因此速度缓慢
+    通过 UNIX 管道发送一个字节需要执行多少代码？
+    缓冲、锁、睡眠/唤醒、调度程序
+  许多设计决策都是内置的，无法更改，可能会很尴尬
+    也许我想等待一个不是我的孩子的进程
+    也许我想更改另一个进程的地址空间
+    也许 DB 比内核 FS 更擅长在磁盘上布置 B-Tree 文件
+  很难创建其他人可以使用的内核“扩展”
+    新的设备驱动程序、文件系统等
 
-Microkernels -- a different approach
-  big idea: move most O/S functionality to user-space service processes
-  [diagram: h/w, kernel, services (FS disk VM TCP NIC display), apps]
-  kernel can be small
-    address spaces, threads, IPC (inter-process communication)
-    IPC lets threads send each other messages
-  1980s saw big burst of research on microkernel designs
-    CMU's Mach perhaps the most influential
-  used today in embedded systems, phone chips, car entertainment
-  ideas (esp user-level servers and IPC) influential e.g. Windows and MacOS
+微内核——一种不同的方法
+  大创意：将大多数操作系统功能移至用户空间服务进程
+  [图：硬件、内核、服务（FS 磁盘 VM TCP NIC 显示）、应用程序]
+  内核可以很小
+    地址空间、线程、IPC（进程间通信）
+    IPC让线程互相发送消息
+  20 世纪 80 年代微内核设计研究爆发
+    CMU 的 Mach 或许是最有影响力的
+  如今用于嵌入式系统、电话芯片、汽车娱乐
+  想法（特别是用户级服务器和 IPC）有影响力，例如Windows 和 MacOS
 
-Why the interest in microkernels?
-  focused, elegant, clean slate
+为什么对微内核感兴趣？
+  专注、优雅、干净
   small -> more security -- less code means fewer bugs to exploit
   small -> verifiable (see seL4)
   small -> easier to optimize
-    you don't have to pay for features you don't use
+    您无需为不使用的功能付费
   small -> avoid forcing design decisions on applications
   user-level -> may encourage modularity of O/S services
   user-level -> easier to extend / customize / replace user-level services
   user-level -> more robust -- restart individual user-level services
-    most bugs are in drivers, get them out of the kernel!
-  can run/emulate multiple O/Ses, like a VMM
+    大多数错误都存在于驱动程序中，请将它们从内核中删除！
+  可以运行/模拟多个操作系统，例如 VMM
 
-Microkernel challenges
-  What's a minimum kernel API?
-  Need simple primitives on which to build exec, fork, mmap, &c
-  Need to build the rest of the O/S at user level
-  How to get good performance, despite IPC and less integration?
+微内核挑战
+  最低内核 API 是什么？
+  需要简单的原语来构建 exec、fork、mmap 等
+  需要在用户级别构建其余的操作系统
+  尽管 IPC 和集成度较低，如何获得良好的性能？
 
 L4
-  has evolved over time, many versions and re-implementations
-  used commercially today, in phones and embedded controllers
-  representative of the micro-kernel approach
-  emphasis on minimality:
-    7 system calls (Linux has 300+, xv6 has 21)
-    13,000 lines of code
+  随着时间的推移，出现了许多版本和重新实现
+  如今已在商业上用于电话和嵌入式控制器
+  微内核方法的代表
+  强调简约：
+    7 个系统调用（Linux 有 300+，xv6 有 21 个）
+    13,000 行代码
 
-L4 basic abstractions
-  [diagram]
-  address space ("task")
-  thread
-  IPC
+L4 基本抽象
+  [图]
+  地址空间（“任务”）
+  线程
+  工控机
 
-L4 system calls:
-  create an address space 
-  create/destroy a thread in [another] address space
-  send/recv message via IPC (addresses are thread IDs)
-  map pages of your memory into another address space
-    it must agree
-    this happens via IPC -- one task can modify another task's page table
-    used to create new tasks, share memory
-  intercept another address space's page faults -- "pager"
-    kernel delivers via IPC
-  access device hardware (not a system call, happens directly)
-  handle device interrupts
-    kernel delivers via IPC
+L4系统调用：
+  创建地址空间
+  在[另一个]地址空间中创建/销毁线程
+  通过 IPC 发送/接收消息（地址是线程 ID）
+  将内存页面映射到另一个地址空间
+    它必须同意
+    这是通过 IPC 发生的——一个任务可以修改另一个任务的页表
+    用于创建新任务、共享内存
+  拦截另一个地址空间的页面错误——“pager”
+    内核通过IPC传递
+  访问设备硬件（不是系统调用，直接发生）
+  处理设备中断
+    内核通过IPC传递
 
-Note L4 kernel is missing almost everything that Linux or even xv6 has
-  file system, fork(), exec(), pipes, device drivers, network stack, &c
-  If you want these, they have to be user-level code
-    library or server process
+注意 L4 内核几乎缺少 Linux 甚至 xv6 拥有的所有内容
+  文件系统、fork()、exec()、管道、设备驱动程序、网络堆栈等
+  如果你想要这些，它们必须是用户级代码
+    库或服务器进程
 
-how does L4 thread switching work?
-  current user-level thread can yield for 3 reasons:
-    IPC system call waits
-    timer interrupt
-    yield() system call
-  L4 kernel saves user thread registers,
-    picks a RUNNABLE thread to run,
-    restores user registers,
-    switches page table,
-    jumps to user space
-  no surprises here
+L4线程切换是如何工作的？
+  当前用户级线程可能因以下 3 个原因而屈服：
+    IPC系统调用等待
+    定时器中断
+    yield() 系统调用
+  L4内核保存用户线程寄存器，
+    选择一个 RUNNABLE 线程来运行，
+    恢复用户寄存器，
+    切换页表，
+    跳转到用户空间
+  这里没有惊喜
 
-how do L4 external pagers work?
-  every task has a pager task
-  1. page fault
-  2. kernel suspends thread
-  3. kernel sends fault info in IPC to pager
-  4. pager picks one its own pages
-  5. pager sends virtual page address in IPC reply to faulting thread
-  6. kernel intercepts IPS, maps in target, resumes target
+L4 外部寻呼机如何工作？
+  每个任务都有一个寻呼机任务
+  1. 页面错误
+  2. 内核挂起线程
+  3. 内核将IPC中的故障信息发送给寻呼机
+  4.寻呼机选择一个自己的页面
+  5.寻呼机在IPC回复中发送虚拟页面地址给故障线程
+  6.内核拦截IPS，映射到目标，恢复目标
 
-what can you use an L4 pager for?
-  allocating memory -- "sigma0" allocates on fault for early tasks
-  copy-on-write fork
-    coupled with a system call that revokes access
-  mmap of file
+L4 寻呼机可以用来做什么？
+  分配内存——“sigma0”为早期任务分配错误
+  写时复制分叉
+    与撤销访问权限的系统调用相结合
+  文件的映射
 
-problem: IPC performance
-  Microkernel programs do lots of IPC!
-  Was expensive in early systems
-    multiple kernel crossings, TLB misses, context switches, &c
-  Cost of IPC caused many to dismiss microkernels
-  L4 designers put huge effort into IPC performance
+问题：IPC性能
+  微内核程序执行大量 IPC！
+  早期系统价格昂贵
+    多个内核交叉、TLB 未命中、上下文切换等
+  IPC 的成本导致许多人放弃微内核
+  L4设计师在IPC性能上投入了大量精力
 
-Here's a slow IPC design
-  patterned on UNIX pipes
-  [diagram, message queue in kernel]
-  send(id, msg)
-    append msg to queue in kernel, return
-  recv(&id, &data)
-    if msg waiting in queue, remove, return
-    otherwise sleep()
-  called "asynchronous" and "buffered"
-  now the usual request-response pattern (RPC) involves:
-    [diagram: 2nd message queue for replies]
+这是一个慢速 IPC 设计
+  UNIX 管道上的图案
+  [示意图，内核中的消息队列]
+  发送（ID，消息）
+    将 msg 添加到内核队列中，返回
+  接收（&id，&数据）
+    如果消息在队列中等待，则删除并返回
+    否则睡眠（）
+  称为“异步”和“缓冲”
+  现在通常的请求响应模式（RPC）涉及：
+    [图：第二个回复消息队列]
     4 system calls (user->kernel->user)
       send() -> recv()
-      recv() <- send
-      each may disturb CPU's caches (TLB, data, instruction)
-    four message copies (two for request, two for reply)
-    two context switches, two general-purpose schedulings
+      接收() <- 发送
+      每个都可能干扰 CPU 的缓存（TLB、数据、指令）
+    四份消息副本（两份用于请求，两份用于回复）
+    两个上下文切换，两个通用调度
 
-L4's fast IPC
-  "Improving IPC by Kernel Design," Jochen Liedtke, 1993
-  * synchronous
-    [diagram]
-    send() waits for target thread's recv()
-    common case: target is already waiting in recv()
-    send() jumps into target's user space, as if returning from recv()
-      no real context switch, no scheduler loop
-  * unbuffered
-    no queue in kernel
-    since synchronous, kernel can copy directly between user buffers
-  * small messages in registers
-    kernel send() path does not disturb many of the registers
-      e.g., no context switch
-    no copying required for small messages
-      since send() jumps into target's user space, along with registers
-  * huge messages as virtual memory grants
-    again, no copy required, though kernel send() code must change page table
-  * combined call() and sendrecv() system calls
-    [diagram]
-    IPC almost always used as request-response RPC
-    thus wasteful to use separate send() and recv() system calls
-    client: call(): send a message, wait for response
-    server: sendrecv(): reply to one request, wait for the next one
-    2x reduction in user/kernel crossings
-  * careful layout of kernel code to minimize cache footprint
-  result: 20x reduction in IPC cost
+L4的快速IPC
+  “通过内核设计改进 IPC”，Jochen Liedtke，1993 年
+  * 同步
+    [图]
+    send() 等待目标线程的recv()
+    常见情况：目标已经在recv()中等待
+    send() 跳转到目标的用户空间，就像从 receive() 返回一样
+      没有真正的上下文切换，没有调度程序循环
+  * 无缓冲
+    内核中没有队列
+    由于同步，内核可以直接在用户缓冲区之间复制
+  * 寄存器中的小消息
+    内核 send() 路径不会干扰许多寄存器
+      例如，没有上下文切换
+    小消息无需复制
+      因为 send() 与寄存器一起跳转到目标的用户空间
+  * 作为虚拟内存授予的巨大消息
+    同样，不需要复制，尽管内核 send() 代码必须更改页表
+  * 组合call()和sendrecv()系统调用
+    [图]
+    IPC 几乎总是用作请求-响应 RPC
+    因此使用单独的 send() 和 receive() 系统调用是浪费的
+    client: call()：发送消息，等待响应
+    服务器：sendrecv()：回复一个请求，等待下一个请求
+    用户/内核交叉减少 2 倍
+  * 仔细布局内核代码以最小化缓存占用空间
+  结果：IPC 成本降低 20 倍
 
-How to build a full operating system on a microkernel?
-  Remember the idea was to move most features into user-level servers.
-    File system, device drivers, network stack, process control, &c
-  For embedded systems this can be fairly simple.
-  What about services for general-purpose use, e.g. workstations, web servers?
-  Really need compatibility for existing applications.
-    E.g. the system needs mimic something like UNIX.
-  Re-implement UNIX kernel services as lots of user-level services?
-  Or: run existing Linux kernel as a process on top of the microkernel.
-    An "O/S server".
-    Perhaps not elegant, but pragmatic.
-    Part of a path to adoption:
-      Users might start by just running Linux apps.
-      Then gradually exploit possibilites of underlying microkernel.
+如何在微内核上构建完整的操作系统？
+  请记住，这个想法是将大多数功能转移到用户级服务器中。
+    文件系统、设备驱动程序、网络堆栈、进程控制等
+  对于嵌入式系统来说，这可能相当简单。
+  通用用途的服务怎么样，例如工作站、网络服务器？
+  确实需要与现有应用程序兼容。
+    例如系统需要模仿类似 UNIX 的东西。
+  将 UNIX 内核服务重新实现为许多用户级服务？
+  或者：将现有的 Linux 内核作为微内核之上的进程运行。
+    “操作系统服务器”。
+    也许不优雅，但是务实。
+    采用途径的一部分：
+      用户可能会从运行 Linux 应用程序开始。
+      然后逐步挖掘底层微内核的可能性。
 
-Which brings us to today's paper:
-  "The Performance of micro-Kernel-Based Systems",
-  by Hartig et al, 1997
+这让我们看到了今天的报纸：
+  “基于微内核的系统的性能”，
+  哈蒂格等人，1997
 
-basic picture
-  [diagram]
-  L4 kernel
-  Linux kernel server
-  one L4 task per Linux process
-  IPC for system calls
+基本图片
+  [图]
+  L4内核
+  Linux内核服务器
+  每个 Linux 进程一个 L4 任务
+  用于系统调用的 IPC
 
-What does it mean to run a Linux kernel at user-level?
-  The Linux kernel is just a program!
-  The authors modified Linux in a number of ways,
-    replacing hardware access with L4 system calls or IPC.
-  Process creation, configuring user page tables, memory allocation,
-    system call handling, interrupt handling.
+在用户级运行 Linux 内核意味着什么？
+  Linux内核只是一个程序！
+  作者通过多种方式修改了 Linux，
+    用 L4 系统调用或 IPC 替换硬件访问。
+  进程创建、配置用户页表、内存分配、
+    系统调用处理、中断处理。
 
-L4/Linux's use of threads 
-  Each Linux process has one or more L4 threads for its user code
-  Linux server has just one L4 thread (plus L4 threads waiting for interrupts)
+L4/Linux 对线程的使用
+  每个 Linux 进程都有一个或多个用于其用户代码的 L4 线程
+  Linux 服务器只有一个 L4 线程（加上等待中断的 L4 线程）
     At rest it is waiting for IPCs with system calls
-  Linux server switches its own L4 thread among kernel threads for its processes
-    When e.g. file system code sleep()s waiting for disk read
-    Or pipe read() sleep()s waiting for someone to write the pipe
-    Much as xv6 switches among kernel threads.
-  But an L4/Linux kernel thread switch has
-    no relation to user process switching
-  Instead, L4 separately switches among runnable L4 threads that
-    implement the Linux processes
-  So Linux kernel server can be running a kernel thread for process P1,
-    while L4 is running process P2 on another core
+  Linux 服务器在其进程的内核线程之间切换自己的 L4 线程
+    当例如文件系统代码 sleep() 等待磁盘读取
+    或者管道 read() sleep() 等待有人写入管道
+    就像 xv6 在内核线程之间切换一样。
+  但是 L4/Linux 内核线程切换有
+    与用户进程切换无关
+  相反，L4 在可运行的 L4 线程之间单独切换，
+    实施Linux进程
+  所以Linux内核服务器可以为进程P1运行一个内核线程，
+    当 L4 正在另一个核心上运行进程 P2 时
 
-Why not use L4 threads to implement Linux server's kernel threads?
-  Because that would cause pain without any benefit.
-  Would introduce parallelism inside Linux.
-    But Linux 2.0 did not have SMP support -- e.g. no spinlocks.
-  And their hardware had only one core, so could be no parallel speedup anyway.
+为什么不使用L4线程来实现Linux服务器的内核线程呢？
+  因为那会带来痛苦，却没有任何好处。
+  将在 Linux 内部引入并行性。
+    但 Linux 2.0 没有 SMP 支持——例如没有自旋锁。
+  而且他们的硬件只有一个核心，因此无论如何都无法实现并行加速。
 
-Drawback: L4 is in charge of scheduling user threads
-  So L4/Linux couldn't enforce Linux's notions of priority &c
+缺点：L4负责调度用户线程
+  所以 L4/Linux 无法强制执行 Linux 的优先级概念
 
-L4/Linux server maps all user memory into its address space
-  (really, it allocates lots of memory, then gives its own memory to user processes)
-  uses this for copyin()/copyout(), to dereference user pointers from sys calls
-  this keeps system call IPCs small -- data address, not the data itself
-  Linux server also uses its memory access for fork() and exec()
+L4/Linux 服务器将所有用户内存映射到其地址空间
+  （实际上，它分配大量内存，然后将自己的内存提供给用户进程）
+  将其用于 copyin()/copyout()，以从系统调用中取消引用用户指针
+  这使得系统调用 IPC 较小——数据地址，而不是数据本身
+  Linux 服务器也将其内存访问用于 fork() 和 exec()
 
-Example: how does fork() work?
-  process P1 calls fork() (P1 is really an L4 task)
-  P1's libc library turns fork() into an IPC to L4/Linux server
-  L4/Linux asks L4 to create a new task and thread -- P2
-  L4/Linux allocates memory pages (as many as P1 has)
-  L4/Linux uses IPC to tell L4 to map pages into P2
-  L4/Linux copies data from P1's pages to P2's pages
-  L4/Linux sends special IPC to P2 with SP and PC to cause it to run
-  L4/Linux sends reply to P1 via IPC
+示例：fork() 是如何工作的？
+  进程P1调用fork()（P1实际上是一个L4任务）
+  P1的libc库将fork()变成IPC到L4/Linux服务器
+  L4/Linux 要求 L4 创建新任务和线程——P2
+  L4/Linux分配内存页（与P1一样多）
+  L4/Linux 使用 IPC 告诉 L4 将页面映射到 P2
+  L4/Linux 将数据从 P1 的页面复制到 P2 的页面
+  L4/Linux 通过 SP 和 PC 向 P2 发送特殊的 IPC 使其运行
+  L4/Linux 通过 IPC 向 P1 发送回复
 
-L4/Linux server acts as the pager for user processes
-  so L4 turns process page faults into IPC to Linux server
-  for e.g. copy-on-write fork, lazy allocation, memory mapped files
+L4/Linux 服务器充当用户进程的分页器
+  所以L4将进程页面错误变成IPC到Linux服务器
+  例如写时复制分叉、惰性分配、内存映射文件
 
-Drawback: L4 doesn't allow direct control over page tables
-  so Linux server could not switch its page table to include user virt addresses
-  until recently Linux used this trick to gain performance (no page table switch),
-    and for convenience in dereferencing syscall arguments
+缺点：L4 不允许直接控制页表
+  因此 Linux 服务器无法切换其页表以包含用户 virt 地址
+  直到最近 Linux 使用这个技巧来提高性能（没有页表切换），
+    以及为了方便取消引用系统调用参数
 
-L4/Linux server uses Linux device drivers unchanged!
-  since L4 allows it direct access to device registers
-  except interrupts arrive via L4 IPC
+L4/Linux服务器使用Linux设备驱动程序不变！
+  因为 L4 允许直接访问设备寄存器
+  除了通过 L4 IPC 到达的中断
 
-How to evaluate?
-  What are some questions that the paper might answer?
-  It's not really about whether microkernels are a good idea.
-  It's main goal is to show they have good performance.
+如何评价？
+  这篇论文可能会回答哪些问题？
+  这并不是微内核是否是一个好主意的问题。
+  其主要目标是展示他们有良好的表现。
 
-What kind of performance do we care about?
-  Is IPC fast?
+我们关心什么样的表现？
+  IPC速度快吗？
     -> microbenchmark
-  Is there some other performance obstacle?
+  还有其他性能障碍吗？
     -> whole-system benchmarks
 
-IPC microbenchmarks
-  Table 2
-  getpid() is one system call on native Linux
-    and two L4 system calls (IPC send, IPC recv) on L4/Linux
-  nice result: takes only somewhat more than 2x as long on L4/Linux
-    and FAR faster than Mach+LinuxServer
+IPC 微基准测试
+  表2
+  getpid() 是本机 Linux 上的一种系统调用
+    以及 L4/Linux 上的两个 L4 系统调用（IPC send、IPC receive）
+  不错的结果：在 L4/Linux 上只需要 2 倍多的时间
+    比 Mach+LinuxServer 快得多
 
-What do we think the impact of syscalls taking 2x as long might be?
+我们认为系统调用花费 2 倍的时间可能会产生什么影响？
   Disaster?
-  Hardly noticeable?
+  很难注意到？
 
-Whole-system benchmark: AIM
-  AIM forks a bunch of processes
-  Each randomly uses the disk, allocates memory, uses pipe, computes, &c
-    To do a fixed amount of total work
-  Figure 8 x-axis shows [some function of] number of concurrent AIM processes
-    y-axis shows time for all processes to complete
-  Only the slope really matters
-    slope is time per unit of work, so lower is better
-    Native Linux is best, but L4Linux is only a little slower
-    Mach+Linux is noticeably less efficient
+全系统基准测试：AIM
+  AIM 分叉了一堆进程
+  每个随机使用磁盘、分配内存、使用管道、计算等
+    完成固定的总工作量
+  图 8 x 轴显示并发 AIM 进程数的[某些函数]
+    y 轴显示完成所有进程的时间
+  只有坡度才是真正重要的
+    斜率是每单位工作的时间，因此越低越好
+    Native Linux 最好，但 L4Linux 只是慢一点
+    Mach+Linux 效率明显较低
   Conclusions:
-    2x IPC time doesn't seem to make much overall difference
-    L4+Linux is only somewhat slower than Linux
-    L4+Linux is significantly faster than Mach+Linux
+    2x IPC 时间似乎并没有产生太大的总体差异
+    L4+Linux 仅比 Linux 慢一些
+    L4+Linux 明显快于 Mach+Linux
 
-These results are not by themselves an argument for using L4
-  But they are an argument against rejecting L4 due to performance worries
+这些结果本身并不能成为使用 L4 的论据
+  但他们反对因性能担忧而拒绝 L4
 
-What's the current situation?
-  Microkernels are sometimes used for embedded computing
-    Microcontrollers, Apple "enclave" processor
-    Running custom software
-  Microkernels, as such, never caught on for general computing
-    No compelling story for why one should switch from Linux &c
-  Many ideas from microkernel research have been adopted into modern UNIXes
-    Mach spurred adoption of sophisticated virtual memory support
-    Virtual machines are partially a response to the O/S server idea
-    Loadable kernel modules are a response to need to extensibility
-    Client/server e.g. DNS server, window server
-    MacOS has microkernel-style IPC
+目前情况如何？
+  微内核有时用于嵌入式计算
+    微控制器、Apple“飞地”处理器
+    运行自定义软件
+  微内核本身从未在通用计算中流行起来
+    没有令人信服的故事来说明为什么人们应该从 Linux 转向 Linux
+  微内核研究的许多想法已被采用到现代 UNIX 中
+    Mach 促进了复杂虚拟内存支持的采用
+    虚拟机部分是对操作系统服务器思想的响应
+    可加载内核模块是对可扩展性需求的响应
+    客户端/服务器例如DNS服务器、窗口服务器
+    MacOS 具有微内核式 IPC
 
 References:
-The Fiasco.OC Microkernel -- a current L4 descendent
+Fiasco.OC 微内核——当前的 L4 后代
   https://l4re.org/doc/
-fast IPC in L4
+L4 中的快速 IPC
   https://cs.nyu.edu/~mwalfish/classes/15fa/ref/liedtke93improving.pdf
-later evolution of L4
+L4后来的演变
   https://ts.data61.csiro.au/publications/nicta_full_text/8988.pdf

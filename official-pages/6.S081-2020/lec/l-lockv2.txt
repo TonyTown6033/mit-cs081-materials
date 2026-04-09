@@ -1,223 +1,226 @@
-6.S081 2020 Lecture 10: Locking
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Why talk about locking?
-  apps want to use multi-core processors for parallel speed-up
-  so kernel must deal with parallel system calls
-  and thus parallel access to kernel data (buffer cache, processes, &c)
-  locks help with correct sharing of data
-  locks can limit parallel speedup
+6.S081 2020第十讲：锁定
 
-What goes wrong if we don't have locks
-  Case study: delete acquire/release in kalloc.c
-  Boot
-    kernel works!
-  Run usertests
-    all tests pass!
-    except we lose some pages
-  Why do we lose pages?
-    picture of shared-memory multiprocessor
-    race between two cores calling kfree()
+为什么要谈论锁定？
+  应用程序希望使用多核处理器进行并行加速
+  所以内核必须处理并行系统调用
+  从而并行访问内核数据（缓冲区高速缓存、进程等）
+  锁有助于正确共享数据
+  锁会限制并行加速
+
+如果我们没有锁会出现什么问题
+  案例研究：删除 kalloc.c 中的 acquire/release
+  开机
+    内核工作了！
+  运行用户测试
+    所有测试均通过！
+    除了我们丢失了一些页面
+  为什么我们会丢失页面？
+    共享内存多处理器的图片
+    调用 kfree() 的两个内核之间的竞争
   BUMMER:
-    we need locks for correctness
-    but loose performance (kfree is serialized)
+    我们需要锁来保证正确性
+    但性能较差（kfree 是序列化的）
     
-The lock abstraction:
-  lock l
-  acquire(l)
-    x = x + 1 -- "critical section"
-  release(l)
-  a lock is itself an object
-  if multiple threads call acquire(l)
-    only one will return right away
-    the others will wait for release() -- "block"
-  a program typically has lots of data, lots of locks
-    if different threads use different data,
-    then they likely hold different locks,
-    so they can execute in parallel -- get more work done.
-  note that lock l is not specifically tied to data x
-    the programmer has a plan for the correspondence
+锁抽象：
+  锁l
+  获取(l)
+    x = x + 1 --“临界区”
+  释放(l)
+  锁本身就是一个对象
+  如果多个线程调用 acquire(l)
+    只有一个人会立即返回
+    其他人将等待release()——“阻塞”
+  一个程序通常有大量数据、大量锁
+    如果不同的线程使用不同的数据，
+    那么他们可能持有不同的锁，
+    这样他们就可以并行执行——完成更多工作。
+  请注意，锁 l 并未专门与数据 x 相关联
+    程序员有一个通信计划
 
-A conservative rule to decide when you need to lock:
-  any time two threads use a memory location, and at least one is a write
-  don't touch shared data unless you hold the right lock!
-  (too strict: program logic may sometimes rule out sharing; lock-free)
-  (too loose: printf(); not always simple lock/data correspondence)
+决定何时需要锁定的保守规则：
+  任何时候两个线程使用一个内存位置，并且至少有一个是写操作
+  除非您持有正确的锁，否则不要触摸共享数据！
+  （太严格：程序逻辑有时可能会排除共享；无锁）
+  （太松散：printf()；并不总是简单的锁/数据对应）
 
-Could locking be automatic?
-  perhaps the language could associate a lock with every data object
-    compiler adds acquire/release around every use
-    less room for programmer to forget!
-  that idea is often too rigid:
-    rename("d1/x", "d2/y"):
-      lock d1, erase x, unlock d1
-      lock d2, add y, unlock d2
-    problem: the file didn't exist for a while!
-      rename() should be atomic
-        other system calls should see before, or after, not in between
-      otherwise too hard to write programs
-    we need:
-      lock d1 ; lock d2
-      erase x, add y
-      unlock d2; unlock d1
-  that is, programmer often needs explicit control over
-    the region of code during which a lock is held
-    in order to hide awkward intermediate states
+可以自动上锁吗？
+  也许该语言可以将锁与每个数据对象关联起来
+    编译器在每次使用时添加获取/释放
+    程序员遗忘的空间更小！
+  这个想法往往过于僵化：
+    重命名（“d1/x”，“d2/y”）：
+      锁定 d1，擦除 x，解锁 d1
+      锁定 d2，添加 y，解锁 d2
+    问题：该文件有一段时间不存在了！
+      rename() 应该是原子的
+        其他系统调用应该在之前或之后看到，而不是在两者之间
+      不然写程序太难了
+    我们需要：
+      锁定d1；锁d2
+      删除x，添加y
+      解锁d2；解锁d1
+  也就是说，程序员通常需要显式控制
+    持有锁的代码区域
+    为了隐藏尴尬的中间状态
 
-Ways to think about what locks achieve
-  locks help avoid lost updates
-  locks help you create atomic multi-step operations -- hide intermediate states
-  locks help operations maintain invariants on a data structure
-    assume the invariants are true at start of operation
-    operation uses locks to hide temporary violation of invariants
-    operation restores invariants before releasing locks
+思考锁的用途的方法
+  锁有助于避免丢失更新
+  锁帮助您创建原子多步操作——隐藏中间状态
+  锁帮助操作保持数据结构的不变性
+    假设不变量在操作开始时为真
+    操作使用锁来隐藏临时违反不变量的情况
+    操作在释放锁之前恢复不变量
 
-Problem: deadlock
-  notice rename() held two locks
-  what if:
-    core A              core B
-    rename(d1/x, d2/y)  rename(d2/a, d1/b)
-      lock d1             lock d2
-      lock d2 ...         lock d1 ...
+问题：死锁
+  注意 rename() 持有两个锁
+  如果：
+    核心A 核心B
+    重命名（d1/x，d2/y） 重命名（d2/a，d1/b）
+      锁 d1 锁 d2
+      锁定 d2 ... 锁定 d1 ...
   solution:
-    programmer works out an order for all locks
-    all code must acquire locks in that order
-    i.e. predict locks, sort, acquire -- complex!
+    程序员为所有锁制定一个顺序
+    所有代码必须按该顺序获取锁
+    即预测锁、排序、获取——复杂！
 
-Locks versus modularity
-  locks make it hard to hide details inside modules
-  to avoid deadlock, I need to know locks acquired by functions I call
-  and I may need to acquire them before calling, even if I don't use them
-  i.e. locks are often not the private business of individual modules
+锁与模块化
+  锁使得隐藏模块内的细节变得困难
+  为了避免死锁，我需要知道我调用的函数获取的锁
+  即使我不使用它们，我也可能需要在打电话之前获取它们
+  即锁往往不是各个模块的私有业务
 
-Locks and parallelism
-  locks *prevent* parallel execution
-  to get parallelism, you often need to split up data and locks
-    in a way that lets each core use different data and different locks
-    "fine grained locks"
-  choosing best split of data/locks is a design challenge
-    whole FS; directory/file; disk block
-    whole kernel; each subsystem; each object
-  you may need to re-design code to make it work well in parallel
-    example: break single free memory list into per-core free lists
-      helps if threads were waiting a lot on lock for single free list
-    such re-writes can require a lot of work!
+锁和并行性
+  锁*防止*并行执行
+  为了获得并行性，您通常需要拆分数据和锁
+    让每个核心使用不同的数据和不同的锁
+    “细粒度锁”
+  选择数据/锁的最佳分割是一个设计挑战
+    整个FS；目录/文件；磁盘块
+    整个内核；每个子系统；每个对象
+  您可能需要重新设计代码以使其并行运行良好
+    示例：将单个空闲内存列表分解为每个核心的空闲列表
+      如果线程在锁上长时间等待单个空闲列表，则有帮助
+    这样的重写可能需要大量的工作！
 
-Lock granularity advice
-  start with big locks, e.g. one lock protecting entire module
-    less deadlock since less opportunity to hold two locks
-    less reasoning about invariants/atomicity required
-  measure to see if there's a problem
-    big locks are often enough -- maybe little time spent in that module
-  re-design for fine-grained locking only if you have to
+锁定粒度建议
+  从大锁开始，例如一锁保护整个模块
+    由于持有两个锁的机会较少，因此死锁较少
+    需要更少的关于不变量/原子性的推理
+  测量一下是否有问题
+    大锁通常就足够了——也许在该模块上花费很少的时间
+  仅在必要时才重新设计细粒度锁定
 
-Let's look at locking in xv6.
+让我们看看 xv6 中的锁定。
 
-A typical use of locks: uart.c
-  typical of many O/S's device driver arrangements
+锁的典型使用：uart.c
+  许多操作系统的设备驱动程序安排的典型
   diagram:
-    user processes, kernel, UART, uartputc, remove from uart_tx_buf,
-    uartintr()
-  sources of concurrency: processes, interrupt
-  only one lock in uart.c: uart_tx_lock -- fairly coarse-grained
-  uartputc() -- what does uart_tx_lock protect?
-    1. no races in uart_tx_buf operations
-    2. if queue not empty, UART h/w is executing head of queue
-    3. no concurrent access to UART write registers
-  uartintr() -- interrupt handler
-    acquires lock -- might have to wait at interrupt level!
-    removes character from uart_tx_buf
-    hands next queued char to UART h/w (2)
-    touches UART h/w registers (3)
+    用户进程，内核，UART，uartputc，从uart_tx_buf中删除，
+    UARTINTR()
+  并发源：进程、中断
+  uart.c 中只有一个锁：uart_tx_lock——相当粗粒度
+  uartputc()——uart_tx_lock 保护什么？
+    1. uart_tx_buf 操作中没有竞争
+    2. 如果队列不为空，则 UART h/w 正在执行队列头
+    3. 不能并发访问UART写寄存器
+  uartintr() -- 中断处理程序
+    获取锁——可能必须在中断级别等待！
+    从 uart_tx_buf 中删除字符
+    将下一个排队字符交给 UART h/w (2)
+    触摸 UART 硬件寄存器 (3)
 
-How to implement locks?
-  why not:
-    struct lock { int locked; }
-    acquire(l) {
-      while(1){
+如何实现锁？
+  为什么不：
+    结构锁 { int 锁定; }
+    获取(l) {
+      而（1）{
         if(l->locked == 0){ // A
           l->locked = 1;    // B
-          return;
+          返回；
         }
       }
     }
-  oops: race between lines A and B
-  how can we do A and B atomically?
+  哎呀：A 线和 B 线之间的比赛
+  我们怎样才能原子地完成 A 和 B 呢？
 
-Atomic swap instruction:
+原子交换指令：
 
   a5 = 1
   s1 = &lk->locked
   amoswap.w.aq a5, a5, (s1)
 
-  does this in hardware:
-    lock addr globally (other cores cannot use it)
-    temp = *s5
-    *addr = a5
-    a5 = temp
-    unlock addr
-  RISC-V h/w provides a notion of locking a memory location
-    different CPUs have had different implementations
-    diagram: cores, bus, RAM, lock thing
-    so we are really pushing the problem down to the hardware
-    h/w implements at granularity of cache-line or entire bus
-  memory lock forces concurrent swamp to run one at a time, not interleaved
+  在硬件中执行此操作：
+    全局锁定addr（其他核心无法使用它）
+    温度 = *s5
+    *地址=a5
+    a5 = 温度
+    解锁地址
+  RISC-V h/w 提供了锁定内存位置的概念
+    不同的CPU有不同的实现
+    图：核心、总线、RAM、锁
+    所以我们确实将问题归咎于硬件
+    硬件以缓存行或整个总线的粒度实现
+  内存锁强制并发沼泽一次运行一个，而不是交错
 
-Look at xv6 spinlock implementation
-  acquire(l){
+看一下xv6自旋锁的实现
+  获取(l){
     while(__sync_lock_test_and_set(&lk->locked, 1) != 0)
   }
   if l->locked was already 1, sync_lock_test_and_set sets to 1 (again), returns 1,
-    and the loop continues to spin
+    循环继续旋转
   if l->locked was 0, at most one lock_test_and_set will see the 0; it will set
-    it to 1 and return 0; other test_an_set will return 1
-  this is a "spin lock", since waiting cores "spin" in acquire loop
+    变为 1 并返回 0；其他 test_an_set 将返回 1
+  这是一个“自旋锁”，因为等待核心在获取循环中“自旋”
 
-  what is the push_off() about?
-      why disable interrupts?
-  release():
+  Push_off() 是关于什么的？
+      为什么要禁用中断？
+  释放（）：
     sets lk->locked = 0
-    and re-enables interrupts
+    并重新启用中断
 
-Detail: memory read/write ordering
-  suppose two cores use a lock to guard a counter, x
-  and we have a naive lock implementation
-  Core A:          Core B:
-    locked = 1
+详细信息：内存读/写顺序
+  假设两个核心使用锁来保护计数器，x
+  我们有一个简单的锁实现
+  核心A： 核心B：
+    锁定 = 1
     x = x + 1      while(locked == 1)
-    locked = 0       ...
-                   locked = 1
+    锁定 = 0 ...
+                   锁定 = 1
                    x = x + 1
-                   locked = 0
-  the compiler AND the CPU re-order memory accesses
-    i.e. they do not obey the source program's order of memory references
-    e.g. the compiler might generate this code for core A:
-      locked = 1
-      locked = 0
+                   锁定 = 0
+  编译器和CPU重新排序内存访问
+    即它们不遵守源程序的内存引用顺序
+    例如编译器可能会为核心 A 生成以下代码：
+      锁定 = 1
+      锁定 = 0
       x = x + 1
-      i.e. move the increment outside the critical section!
-    the legal behaviors are called the "memory model"
-  release()'s call to __sync_synchronize() prevents re-order
-    compiler won't move a memory reference past a __sync_synchronize()
-    and (may) issue "memory barrier" instruction to tell the CPU
-  acquire()'s call to __sync_synchronize() has a similar effect:
-  if you use locks, you don't need to understand the memory ordering rules
-    you need them if you want to write exotic "lock-free" code
+      即，将增量移到临界区之外！
+    法律行为被称为“记忆模型”
+  release() 对 __sync_synchronize() 的调用可防止重新排序
+    编译器不会将内存引用移过 __sync_synchronize()
+    并且（可能）发出“内存屏障”指令来告诉CPU
+  acquire() 对 __sync_synchronize() 的调用具有类似的效果：
+  如果使用锁，则无需了解内存排序规则
+    如果你想编写异国情调的“无锁”代码，你需要它们
 
-Why spin locks?
-  don't they waste CPU while waiting?
-  why not give up the CPU and switch to another process, let it run?
-  what if holding thread needs to run; shouldn't waiting thread yield CPU?
-  spin lock guidelines:
-    hold spin locks for very short times
-    don't yield CPU while holding a spin lock
-  systems provide "blocking" locks for longer critical sections
-    waiting threads yield the CPU
-    but overheads are typically higher
-    you'll see some xv6 blocking schemes later
+为什么要使用自旋锁？
+  他们在等待的时候不会浪费CPU吗？
+  为什么不放弃CPU并切换到另一个进程，让它运行呢？
+  如果持有线程需要运行怎么办？等待线程不应该让出CPU吗？
+  自旋锁指南：
+    保持自旋锁很短的时间
+    持有自旋锁时不要让出 CPU
+  系统为较长的关键部分提供“阻塞”锁
+    等待线程让出 CPU
+    但管理费用通常较高
+    稍后你会看到一些 xv6 阻止方案
 
 Advice:
-  don't share if you don't have to
-  start with a few coarse-grained locks
-  instrument your code -- which locks are preventing parallelism?
-  use fine-grained locks only as needed for parallel performance
-  use an automated race detector
+  如非必要，请勿分享
+  从一些粗粒度的锁开始
+  检测你的代码——哪些锁阻碍了并行性？
+  仅在并行性能需要时使用细粒度锁
+  使用自动竞赛检测器

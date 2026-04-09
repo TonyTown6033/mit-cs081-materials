@@ -1,362 +1,365 @@
-6.1810 2025 L20: Multi-Core scalability and RCU
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Today's topic: 
-  Multi-core kernel performance for read-heavy shared data.
-  RCU (Read-Copy Update): very successful in Linux.
+6.1810 2025 L20：多核可扩展性和 RCU
+
+今天的主题：
+  读取大量共享数据的多核内核性能。
+  RCU（读-复制更新）：在 Linux 中非常成功。
 
 Background:
-  Moore's law ended in ~2000: single core performance stopped improving
-    see rcu/moore.pdf
-  CPUs moved form single-core designs to multi-core designs
-  Kernel must exploit parallelism to achieve good performance
+  摩尔定律于 2000 年左右结束：单核性能停止提高
+    参见 rcu/moore.pdf
+  CPU 从单核设计转向多核设计
+  内核必须利用并行性才能获得良好的性能
 
 Puzzle:
-  Kernels have lots of natural parallelism.
-    Different process's system calls are often independent at a high level.
-    Fork, read/write different files in cache, pipes, sockets, &c.
-  But kernel's shared resources often obstruct parallelism.
-    E.g. memory allocator, scheduler, disk cache, i-node cache, &c.
-    The usual symptom is CPU time wasted spinning in acquire().
-  Huge effort in production kernels to eliminate parallel bottlenecks.
-  Many design patterns, tailored to different kinds of situations.
+  内核有很多天然的并行性。
+    不同进程的系统调用在高层上通常是独立的。
+    分叉，读/写缓存、管道、套接字等中的不同文件。
+  但内核的共享资源常常阻碍并行性。
+    例如内存分配器、调度程序、磁盘缓存、i 节点缓存等。
+    通常的症状是 CPU 时间浪费在 acquire() 中旋转。
+  在生产内核中付出巨大努力来消除并行瓶颈。
+  许多设计模式，适合不同的情况。
 
-Today's focus: read-heavy kernel data structures.
+今天的焦点：读取密集型内核数据结构。
 
-Example: singly-linked list.
-  E.g. list of processes; of cached blocks; &c.
-  Global variable with pointer to first element.
-  Each element has data, e.g. number for block, refcnt, and a next pointer
-  Assume most uses are reads that scan the list
-  Occasional writers add element; delete element; change number and refcnt in elem
-    see rcu/clist.c
+示例：单链表。
+  例如进程列表；缓存块的数量；等。
+  带有指向第一个元素的指针的全局变量。
+  每个元素都有数据，例如块编号、refcnt 和下一个指针
+  假设大多数用途是扫描列表的读取
+  偶尔作家会添加一些元素；删除元素；更改 elem 中的数字和 refcnt
+    参见 rcu/clist.c
 
-xv6 would require list readers and writers to acquire a spin-lock.
-  Safe, but no parallelism even when all threads are read-only.
-  Can we have a lock that allows parallel reads?
-  How about lock lab's read/write locks?
+xv6 需要列表读取器和写入器获取自旋锁。
+  安全，但即使所有线程都是只读的，也没有并行性。
+  我们可以有一个允许并行读取的锁吗？
+  锁实验室的读/写锁怎么样？
 
-Read/write lock API.
-    see rcu/rwlock.h
-  readers call rwlock_r_acquire(l) / rwlock_r_release(l)
-  writers call rwlock_w_lock(l) / rwlock_w_unlock(l)
-  Semantics: either
-    One writer, but no readers or other writers; or
-    Lots of readers, but no writers.
+读/写锁API。
+    参见 rcu/rwlock.h
+  读者调用 rwlock_r_acquire(l) / rwlock_r_release(l)
+  作者调用 rwlock_w_lock(l) / rwlock_w_unlock(l)
+  语义：要么
+    一位作家，但没有读者或其他作家；或
+    读者很多，但作者却很少。
 
-Implementation of rwlock
-    see rcu/rwlock.h
+rwlock的实现
+    参见 rcu/rwlock.h
   rwlk->n counts number of readers
   CAS to update rwlk->n atomically to n+1, if rwlk->n = n
   if 0x80000000 is set, then rwlk->n counts the one writer
 
-Surprise: r_acquire()/r_release is very slow if called a lot on many cores:
-  [on Intel(R) Core(TM) i7-8550U, processor family 6 ]
+惊喜：如果在许多内核上多次调用，r_acquire()/r_release 会非常慢：
+  [在 Intel(R) Core(TM) i7-8550U、处理器系列 6 上]
   ncore 4 ltype rwlock
-    10000000 list_search took 2.86s
-    10000000 list_search took 2.89s
-    10000000 list_search took 3.35s
-    10000000 list_search took 3.36s
-  ncore 4 ltype spinlock
-    10000000 list_search took 1.02s
-    10000000 list_search took 3.22s
-    10000000 list_search took 3.27s
-    10000000 list_search took 3.29s
-  Even when no writer!
-  where is the time spent?
+    10000000 list_search 花费了 2.86s
+    10000000 list_search 花费了 2.89s
+    10000000 list_search 花费了 3.35s
+    10000000 list_search 花费了 3.36s
+  ncore 4 ltype 自旋锁
+    10000000 list_search 花费了 1.02s
+    10000000 list_search 花费了 3.22s
+    10000000 list_search 花费了 3.27s
+    10000000 list_search 花费了 3.29s
+  即使没有作家！
+  时间都花在哪里了？
     $ perf record -g ./clist 4 1
     $ perf report
-       59.26%    59.14%  clist    clist                 [.] rwlock_r_acquire
-       33.48%    33.35%  clist    clist                 [.] rwlock_r_release
-        5.40%     4.58%  clist    clist                 [.] run_core
-        3.01%     2.91%  clist    clist                 [.] list_search
-    [read-lock section is short]
+       59.26% 59.14% clist clist [.] rwlock_r_acquire
+       33.48% 33.35% clist clist [.] rwlock_r_release
+        5.40% 4.58% clist clist [.] run_core
+        3.01% 2.91% clist clist [.] list_search
+    [读锁部分很短]
 
-Background: Each core has its own cache 
+Background: Each core has its own cache
   $ lscpu
-  [diagram: bus, RAM, cores, caches]
+  [图表：总线、RAM、核心、缓存]
 
-Two effects:
+两个效果：
   1. accessing contented rwlk->n is expensive
-    cores misses in l2 cache
-    core must fetch cache line
-    tens of cycles to miss and fetch
+    L2 缓存中的核心未命中
+    核心必须获取缓存行
+    错过和获取数十个周期
     $ perf record -e l2_rqsts.miss ./clist 4 1
     $ perf report
-    54.93%  clist    clist          [.] rwlock_r_acquire
-    28.40%  clist    clist          [.] rwlock_r_release
-    13.20%  clist    clist          [.] run_core
-     3.47%  clist    clist          [.] list_search
-  2. bad scalability
+    54.93% clist clist [.] rwlock_r_acquire
+    28.40% clist clist [.] rwlock_r_release
+    13.20% clist clist [.] run_core
+     3.47% clist clist [.] list_search
+  2.扩展性差
     $ clist 2 1
-    10000000 list_search took 1.05s
-    10000000 list_search took 1.06s
-    4 cores take longer per core!
-      Threads on N cores call r_acquire(l); no writers.
+    10000000 list_search 花费了 1.05s
+    10000000 list_search 花费了 1.06s
+    4 个核心每个核心需要更长的时间！
+      N个核上的线程调用r_acquire(l)；没有作家。
       All N cores fetch rwlk->n, see rwlk->n == 0, execute atomic_compare_exchange
-      Only one compare_exchange succeeds.
-      The rest fail, and must be re-executed.
-      But atomic compare_exchange execute one at a time -- not in parallel.
-      Thus O(N) time for one CPU to acquire read-lock.
-      Other N-1 cores all retry read and CAS; again, only one wins.
-      Thus O(N^2) total time for all N cores to acquire shared read lock.
+      只有一次compare_exchange成功。
+      其余的都失败了，必须重新执行。
+      但是原子的compare_exchange一次执行一个——不是并行的。
+      因此，一个 CPU 获取读锁的时间为 O(N)。
+      其他N-1个核心全部重试读取和CAS；再次，只有一个人获胜。
+      因此，所有 N 个核心获取共享读锁的总时间为 O(N^2)。
 
 Disappointing:
-  The list read by itself is probably a few dozen cycles, if cached.
-    Even if lots of cores are reading.
-  But r_acquire() can take 100s or 1000s of cycles, if it's popular.
+  如果缓存的话，列表本身读取可能需要几十个周期。
+    即使有很多核心正在读取。
+  但 r_acquire() 可能需要 100 或 1000 个周期（如果它很流行的话）。
   More cores -> *less* performance.
 
-The underlying problem with r_acquire()/r_release: it does expensive *writes*.
+r_acquire()/r_release 的根本问题是：它的*写入*成本很高。
 
-Can we have pure read-only reads of shared read-write data?
-  I.e. avoid even the writes that would be required to lock?
-  (Though we'll assume that writers still lock.)
+我们可以对共享读写数据进行纯只读读取吗？
+  即甚至避免需要锁定的写入？
+  （尽管我们假设作家仍然锁定。）
 
-What goes wrong if readers read the list without locking?
-  [list diagram, with n and refcnt in each entry]
-  Nothing goes wrong if there's no writer.
-  If there is a concurrent writer?
-    1. Modifying the n and refcnt in a list element?
-      reader may sneak in between updating n and refcnt
-    2. Inserting a new list element?
-      insert first and then initialize n and refcnt
-    3. Deleting an element?
-      reader may see a deleted element
-      what if deleted element has been freed?
+如果读者在没有锁定的情况下阅读列表会出现什么问题？
+  [列表图，每个条目中有 n 和 refcnt]
+  如果没有作家，就不会出问题。
+  是否有并发作家？
+    1.修改列表元素中的n和refcnt？
+      读者可能会在更新 n 和 refcnt 之间偷偷溜进去
+    2. 插入一个新的列表元素？
+      先插入然后初始化n和refcnt
+    3. 删除元素？
+      读者可能会看到已删除的元素
+      如果删除的元素已被释放怎么办？
 
-So it doesn't work for readers to simply not lock.
-  But the specific problems can be fixed!
-  That's what RCU does.
+所以读者单纯不加锁是行不通的。
+  但具体问题是可以解决的！
+  这就是 RCU 所做的。
 
-Read-Copy Update (RCU).
-  Fast reads: readers do not lock (and thus do not write).
-  Slower writes: writers must lock, and do extra work to help reads.
-  Helps many situations with read-heavy shared data (but not all).
-  Used extensively in the Linux kernel.
-  Sneak preview: how does it perform?
-    ncore 4 ltype rcu
-    10000000 list_search took 0.09s
-    10000000 list_search took 0.09s
-    10000000 list_search took 0.09s
-    10000000 list_search took 0.10s
+读取-复制更新 (RCU)。
+  快速读取：读取器不锁定（因此不写入）。
+  写入速度较慢：写入者必须锁定，并做额外的工作来帮助读取。
+  在许多情况下有助于读取大量共享数据（但不是全部）。
+  在 Linux 内核中广泛使用。
+  先睹为快：它的表现如何？
+    ncore 4 l型rcu
+    10000000 list_search 花费了 0.09s
+    10000000 list_search 花费了 0.09s
+    10000000 list_search 花费了 0.09s
+    10000000 list_search 花费了 0.10s
 
-RCU is a set of rules and patterns for readers and writers.
-  Plus some mechanisms.
+RCU 是一组供读者和作者使用的规则和模式。
+  再加上一些机制。
 
-RCU idea 1: writers don't modify data in place; instead prepare a new copy.
+RCU 理念 1：编写者不要就地修改数据；相反，准备一份新副本。
   Head  ->  E1  ->  E2  ->  E3  ->  nil
-  Suppose writer wants to change n and refcnt
-  1. Lock
-  2. e = alloc()
+  假设 writer 想要改变 n 和 refcnt
+  1. 锁
+  2. e = 分配()
   3. e->next = E2->next
   4. e->n = 10
   5. e->refcnt = 1;
   6. E1->next = e
-  7. Unlock
-  What about a reader on another core traversing the list?
+  7. 解锁
+  如果另一个核心上的读者遍历该列表呢？
     At some point reader will read E1->next.
-    Either before or after step 6 (this is a simplification, see below).
-    If before, reader sees old E2 and old n and refcnt
-    If after, reader sees new n and refcnt
+    在步骤 6 之前或之后（这是一个简化，请参见下文）。
+    如果之前，读者看到旧的 E2 和旧的 n 和 refcnt
+    如果之后，读者看到 new n 和 refcnt
     Either way, reader will see ...->next pointing to E3.
-  The point: the reader won't see a partially e (e.g., n updated but not refcnt)
-    Even though the reader didn't lock.
+  要点：读者不会看到部分 e（例如，n 已更新但未 refcnt）
+    即使读者没有锁定。
 
-A good way to think about this idea:
+思考这个想法的一个好方法是：
   Update of E1->next is a "committing write".
-  Before, no change visible to readers.
-  After, *all* changes are made visible.
-  Developer must do 4+5 before 6!
-  This avoids the problem of readers seeing partially-complete updates.
-  RCU is best suited to data structures where a single pointer write commits.
-    E.g. lists and trees.
+  之前，读者看不到任何变化。
+  之后，*所有*更改都变得可见。
+  开发者必须先做4+5再做6！
+  这避免了读者看到部分完整更新的问题。
+  RCU 最适合单指针写入提交的数据结构。
+    例如列表和树。
 
-Requires that 64-bit writes and reads are atomic.
+要求 64 位写入和读取是原子的。
   I.e. reader won't see mix of old and new bits in the E1->next pointer.
-  This is true on all the 64-bit CPUs I know of.
-    For aligned loads/stores.
+  我所知道的所有 64 位 CPU 都是如此。
+    用于对齐负载/存储。
 
-RCU idea 2: readers and writers must use memory barriers to enforce order.
-  We don't want compiler or machine to move step 3 or 4 or 5 after step 6.
-  Writer must have a barrier just before step 6.
+RCU 想法 2：读取器和写入器必须使用内存屏障来强制执行顺序。
+  我们不希望编译器或机器将步骤 3、4 或 5 移到步骤 6 之后。
+  作家必须在第 6 步之前设置障碍。
   Reader may need a barrier between Rx = E1->next,
-    and dereference of Rx to read element contents.
-  rcu_dereference() ensures this
+    并取消引用 Rx 以读取元素内容。
+  rcu_dereference() 确保了这一点
 
-Next problem: what happens when a writer free()s a deleted list element?
-  Removing the visible reference prevents *new* readers, but
-  A concurrent reader might still be looking at the deleted element!
-    e.g., the old E2 above
-  Use-after-free is a potential disaster:
-    may be reallocated+overwritten for some other use.
-  Writer needs to give readers time to finish -- a "grace period".
-    After it removes the visible reference to the element.
-    How long should the writer wait?
-  Could use GC or reference counts, but they are expensive.
+下一个问题：当编写者 free() 删除一个已删除的列表元素时会发生什么？
+  删除可见引用会阻止*新*读者，但是
+  并发读者可能仍在查看已删除的元素！
+    例如，上面的旧 E2
+  释放后使用是一场潜在的灾难：
+    可能会被重新分配+覆盖以供其他用途。
+  作者需要给读者时间来完成——一个“宽限期”。
+    之后它删除了对该元素的可见引用。
+    作者要等多久？
+  可以使用 GC 或引用计数，但它们很昂贵。
 
-RCU idea 3 (grace period):
-  1. Rule: reader can't hold pointer to RCU data across context switch.
-     The programmer is in charge of following this rule.
-  2. Writer delays free until all CPUs have context-switched.
-  Writer has to wait,
-    but the assumption is that writes are rare.
-  How to implement this delay?
-    Each core counts context switches, writer watches counts.
-    synchronize_rcu()
-    (There are lots of ways to implement the grace period.)
+RCU 想法 3（宽限期）：
+  1. 规则：读取器不能跨上下文切换保存指向 RCU 数据的指针。
+     程序员负责遵守这条规则。
+  2. Writer 延迟释放，直到所有 CPU 都完成上下文切换。
+  编剧还得等
+    但假设写入很少。
+  如何实现这个延迟呢？
+    每个核心都对上下文切换进行计数，写入器监视也进行计数。
+    同步rcu()
+    （有很多方法可以实现宽限期。）
 
-Linux RCU interface for readers:
+供读者使用的Linux RCU接口：
   rcu_read_lock()
   rcu_read_unlock()
-  rcu_dereference(p)
-For writers:
-  synchronize_rcu()
+  rcu_取消引用(p)
+对于作家：
+  同步rcu()
   call_rcu(fn,x)
-  rcu_assign_pointer(pa, p)
+  rcu_分配_指针（pa，p）
 
-List reader using Linux's RCU interface:
+使用 Linux 的 RCU 接口的列表阅读器：
   rcu_read_lock()
-  e = rcu_dereference(head)
-  while(e){
+  e = rcu_dereference(头)
+  而（e）{
     look at e->n, e->refcnt, ...
     e = rcu_dereference(e->next)
   }
   rcu_read_unlock()
   [rcu/clist.c]
 
-rcu_read_lock/unlock do almost nothing.
-  Despite their names, they don't lock.
-  Disable timer interrupts to prevent pre-emption.
-    Since context switch implies done with RCU objects.
-  Act as documentation.
+rcu_read_lock/unlock 几乎不执行任何操作。
+  尽管有名字，但它们不会上锁。
+  禁用定时器中断以防止抢占。
+    因为上下文切换意味着用 RCU 对象完成。
+  作为文档。
 
-Note: code is only allowed to use e inside rcu_read_lock/unlock!
-  It cannot e.g. return(e)
-  And is not allowed to context-switch while holding onto e.
+注意：代码只允许在rcu_read_lock/unlock中使用e！
+  它不能例如返回(e)
+  并且不允许在按住 e 的同时进行上下文切换。
 
-What does rcu_dereference(e) do?
-  Tells the compiler to compute the pointer exactly once.
-    Rather than e.g. replacing e with head for first iteration.
-  Then a barrier to ensure reading CPU sees writes.
+rcu_dereference(e) 有什么作用？
+  告诉编译器只计算一次指针。
+    而不是例如将 e 替换为 head 进行第一次迭代。
+  然后是一个屏障，以确保读取 CPU 看到写入。
 
-Writer's code to replace the first list element:
+编写者的代码替换第一个列表元素：
 
-  acquire(lock)
-  e = alloc()
+  获取（锁定）
+  e = 分配()
   e->n = ...
   e->next = head->next
-  old = head
+  老=头
   rcu_assign_pointer(&head, e)
-  release(lock)
+  释放（锁定）
 
-  synchronize_rcu()
-  free(old)
+  同步rcu()
+  免费（旧）
 
-What does synchronize_rcu() do?
-  implements the grace period: delays until all CPUs have context-switched
-  can take a long time, and can yield the CPU.
-  alternative: call_rcu(free,old) 
-    adds <free,old> to a list.
-    returns immediately
+Synchronize_rcu() 的作用是什么？
+  实现宽限期：延迟直到所有 CPU 都完成上下文切换
+  可能需要很长时间，并且可能会占用 CPU。
+  替代方案：call_rcu（免费，旧）
+    将 <free,old> 添加到列表中。
+    立即返回
 
-What does rcu_assign_pointer(p, val) do?
-  memory fence
-  *p = val
+rcu_assign_pointer(p, val) 的作用是什么？
+  记忆栅栏
+  *p = 值
    
-RCU performance versus r/w locks?
-  For readers:
-    RCU imposes nearly zero cost on reads.
-    r/w locks might take 100s or 1000s of cycles (Figure 8, upper line).
-    Also, RCU can read while a write is in progress!
-    Also, RCU reads not prone to deadlock!
-  For writers:
-    RCU can take much longer due to synchronize_rcu().
-    So RCU makes sense when writes are rare or non-time-sensitive.
+RCU 性能与读/写锁的比较？
+  致读者：
+    RCU 的读取成本几乎为零。
+    r/w 锁可能需要 100 秒或 1000 秒的周期（图 8，上面的线）。
+    此外，RCU 可以在写入过程中进行读取！
+    而且，RCU 读取不容易出现死锁！
+  对于作家：
+    由于synchronize_rcu()，RCU 可能需要更长的时间。
+    因此，当写入很少或对时间不敏感时，RCU 就有意义。
 
-Example: removing NMI handler; paper's Section 4.1; Figure 4.
-  NMIs are interrupts that cannot be disabled.
-    Used for CPU profiling, critical hardware errors, watchdog timer.
-  Kernel code can register handlers to be called during NMI.
-  Can also un-register handler, and free memory containing handler code.
-  NMIs are frequent; register/unregister is rare; thus reads >> writes.
-  What if some core is in NMI code when un-register is called?
-  Figure 4's solution, in unregister_nmi_handler():
-    1. Delete NMI handler list entry (so future interrupts won't see it).
-    2. synchronize_rcu() to wait for all current interrupts to complete.
-       Since a core won't context-switch until it has left interrupt.
-    3. (not shown) free the memory holding NMI handler code.
-  This example uses RCU to defer free until all uses have finished.
-  An interesting wrinkle:
-    NMI cannot be disabled.
-    So spinlocks can't prevent NMIs.
-    So NMIs cannot generally be allowed to acquire locks (deadlock...).
-    So here RCU is not just faster than locking for reader,
-      but actually works where locking would not.
+示例：删除 NMI 处理程序；论文第 4.1 节；图 4.
+  NMI 是无法禁用的中断。
+    用于 CPU 分析、严重硬件错误、看门狗定时器。
+  内核代码可以注册在 NMI 期间调用的处理程序。
+  还可以取消注册处理程序，并释放包含处理程序代码的内存。
+  NMI 很频繁；注册/注销很少见；因此读取 >> 写入。
+  如果调用取消注册时某些核心位于 NMI 代码中怎么办？
+  图4的解决方案，在unregister_nmi_handler()中：
+    1. 删除 NMI 处理程序列表条目（这样以后的中断将看不到它）。
+    2.synchronize_rcu()等待当前所有中断完成。
+       因为核心在离开中断之前不会进行上下文切换。
+    3.（未显示）释放保存 NMI 处理程序代码的内存。
+  此示例使用 RCU 推迟释放，直到所有使用都完成。
+  一个有趣的皱纹：
+    NMI 无法禁用。
+    所以自旋锁无法阻止 NMI。
+    所以一般不能允许 NMI 获取锁（死锁...）。
+    所以这里 RCU 不仅比读卡器锁定更快，
+      但实际上在锁定不起作用的地方有效。
 
-Example: IP options; Section 4.2; Figure 6.
-  IP packet header can contain options (e.g. record route).
-  Kernel socket has (optional) options, copied into every outgoing packet.
-  Send code (udp_sendmsg()) copies socket options w/o lock.
+示例：IP 选项；第 4.2 节；图 6.
+  IP 数据包标头可以包含选项（例如记录路由）。
+  内核套接字具有（可选）选项，复制到每个传出数据包中。
+  发送代码（udp_sendmsg()）复制套接字选项而不加锁。
   Options are read much more often than written -> good RCU candidate.
-  setsockopt() defers free of superseded options with call_rcu(kfree,old).
-  Why is the reading code safe?
-    1. Writer entirely prepares new option before publishing pointer.
-    2. Writer and reader use memory barriers.
-    3. Writer defers free until any reader of old must have finished.
-  The paper calls this "reference counting" but there's no reference count.
-    "Delayed free" or "garbage collection" might be a better term.
+  setsockopt() 推迟使用 call_rcu(kfree,old) 释放被取代的选项。
+  为什么读码安全？
+    1. Writer 在发布指针之前完全准备好新选项。
+    2. 写入器和读取器使用内存屏障。
+    3. 作者将免费推迟到任何旧读者必须完成为止。
+  该论文将其称为“引用计数”，但没有引用计数。
+    “延迟免费”或“垃圾收集”可能是一个更好的术语。
   
-RCU is not universally applicable.
-  Doesn't help writes.
-  Only improves performance when reads >> writes.
-  Not for code that must hold references across yield/sleep (but can be fixed).
-  Hard to apply if data structure is not amenable to single committing write.
-    E.g. if readers scan both directions of doubly-linked list.
-    Or if in-place updates are required.
-  Readers can see stale data.
-    E.g. udp_sendmsg() in Figure 6 might send with old IP options.
-    Not a problem here; may be in a few cases (e.g. database transactions).
-  RCU adds complexity to writers.
-    Search the web for "review checklist for RCU patches"
-  RCU needs context switches to be frequent, and it needs to know about them.
-    Easy in the kernel, but user-space doesn't know about *core* switches.
+RCU 并不普遍适用。
+  对写作没有帮助。
+  仅在读取>>写入时提高性能。
+  不适用于必须在yield/sleep 中保存引用的代码（但可以修复）。
+  如果数据结构不适合单次提交写入，则很难应用。
+    例如如果读者扫描双向链表的两个方向。
+    或者如果需要就地更新。
+  读者可以看到陈旧的数据。
+    例如图 6 中的 udp_sendmsg() 可能会使用旧的 IP 选项进行发送。
+    这里不是问题；可能在少数情况下（例如数据库事务）。
+  RCU 增加了编写者的复杂性。
+    在网络上搜索“RCU 补丁审查清单”
+  RCU 需要频繁进行上下文切换，并且需要了解它们。
+    在内核中很容易，但用户空间不知道*核心*开关。
 
-How to implement synchronize_rcu() efficiently?
-  Here's a design from a paper by McKenney and Slingwine
+如何高效地实现synchronize_rcu()？
+  这是 McKenney 和 Slingwine 论文中的设计
     http://www2.rdrop.com/users/paulmck/RCU/rclockpdcsproof.pdf
-    Section 3.5.4
-  Per-core data:
-    Count of this core's context switches.
-    List of waiting synchronize_rcu() and call_rcu().
-  Periodically, each core processes a whole batch (list) of RCU writers:
-    Save the list, empty it.
-    Record all other cores' counts.
-    Every context switch, look again at other cores' counts.
-    If all have changed, wakeup / run everything on saved list.
+    第3.5.4节
+  每核心数据：
+    该核心的上下文切换计数。
+    等待的synchronize_rcu()和call_rcu()列表。
+  每个核心会定期处理整批（列表）的 RCU 编写器：
+    保存列表，清空它。
+    记录所有其他核心的计数。
+    每次上下文切换，都会再次查看其他核心的计数。
+    如果所有内容都已更改，则唤醒/运行已保存列表上的所有内容。
 
-What if you have shared write-heavy data?
-  Best: re-design for no sharing.
-  Second best: partition data in some way, and lock per partition.
-    Example: kalloc in locking lab -- partition by core.
-    Example: statistics counters.
-      Each core keeps its own count, under a separate spin lock.
-      To write, acquire local lock, increment local count.
-        A spin lock is cheap if it's only used from one core.
-      To read, acquire *all* locks, read and sum all counts.
-        Expensive but we're assuming write-heavy.
+如果您共享写入量大的数据怎么办？
+  最好：重新设计，不共享。
+  其次：以某种方式对数据进行分区，并锁定每个分区。
+    示例：锁定实验室中的 kalloc -- 按核心分区。
+    示例：统计计数器。
+      每个核心在单独的自旋锁下保留自己的计数。
+      要写入，获取本地锁，增加本地计数。
+        如果仅从一个核心使用自旋锁，那么它很便宜。
+      要读取，请获取“所有”锁，读取所有计数并对其求和。
+        昂贵，但我们假设写入量很大。
   
-RCU summary
-  Very successful at speeding up read access to shared kernel data.
-    Used all over modern Linux.
-  Totally eliminates locking cost for readers.
-  Allows readers to execute in parallel with a writer.
-  Key idea is a GC-like grace period to defer freeing objects.
+RCU总结
+  在加速对共享内核数据的读取访问方面非常成功。
+    在现代 Linux 中广泛使用。
+  完全消除了读者的锁定成本。
+  允许读取器与写入器并行执行。
+  关键思想是类似 GC 的宽限期来推迟释放对象。
 
 ---
 
-RCU rules: https://www.kernel.org/doc/Documentation/RCU/checklist.txt
-RCU implementation: http://www2.rdrop.com/users/paulmck/RCU/rclockpdcsproof.pdf
-Lockless patterns: https://lwn.net/Articles/850202/
-Detecting missing memory barriers with KCSAN: https://lwn.net/Articles/877200/
-RCU user-level implementation: https://www.efficios.com/pub/rcu/urcu-supp.pdf
+RCU 规则：https://www.kernel.org/doc/Documentation/RCU/checklist.txt
+RCU 实现：http://www2.rdrop.com/users/paulmck/RCU/rclockpdcsproof.pdf
+无锁模式：https://lwn.net/Articles/850202/
+使用 KCSAN 检测丢失的内存屏障：https://lwn.net/Articles/877200/
+RCU用户级实现：https://www.efficios.com/pub/rcu/urcu-supp.pdf
   https://liburcu.org/

@@ -1,64 +1,41 @@
-<html>
-<head>
-<title>Lab: page tables</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：页表</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: page tables</h1>
-
-<p> In this lab you will explore page tables and modify them to
-  simplify the functions that copy data from user space to kernel space.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：页表</h1>
+<p> 在本实验中，您将探索页表并修改它们以简化将数据从用户空间复制到内核空间的功能。
 
 <div class="prereq">
-<p>Before you start coding, read Chapter 3 of
-  the <a href="../xv6/book-riscv-rev1.pdf">xv6 book</a>, and related files:
+<p>在开始编码之前，请阅读第 3 章 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a>，以及相关文件：
 
   <ul>
-   <li> <tt>kern/memlayout.h</tt>, which captures the layout of memory.
+<li> <tt>kern/memlayout.h</tt>，它捕获内存的布局。
 	  
-    <li> <tt>kern/vm.c</tt>, which contains most virtual memory (VM) code.
+    <li> <tt>kern/vm.c</tt>，其中包含大部分虚拟内存 (VM) 代码。
 
-    <li> <tt>kernel/kalloc.c</tt>, which contains code for allocating and
-    freeing physical memory.
+    <li> <tt>kernel/kalloc.c</tt>，其中包含分配和释放物理内存的代码。
   
-  </ul>
-
-</div>
-
-<p>To start the lab, switch to the pgtbl branch:
+  </li></li></li></ul>
+</p></div>
+<p>要启动实验，请切换到 pgtbl 分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout pgtbl</kbd>
   $ <kbd>make clean</kbd>
   </pre>
- 
-<h2>Print a page table <script>g("easy")</script></h2>
-
+<h2>打印页表 <script>g("easy")</script></h2>
 <p>
-To help you learn about RISC-V page tables, and perhaps
-to aid future debugging, your first task is to write a function
-that prints
-  the contents of a page table.
+为了帮助您了解 RISC-V 页表，或许也为了帮助将来的调试，您的第一个任务是编写一个打印页表内容的函数。
 
 <div class="required">
-Define a function called <tt>vmprint()</tt>.
-It should take
-a <tt>pagetable_t</tt> argument, and print that pagetable
-in the format described below.
-Insert <tt>if(p->pid==1) vmprint(p->pagetable)</tt> in
-  exec.c just before the <tt>return argc</tt>,
-to print the first process's page table.
-  You receive full credit for this
-  assignment if you pass the <tt>pte printout</tt> test of <tt>make grade</tt>.
+定义一个函数，名为 <tt>vmprint()</tt>。应该需要一个 <tt>pagetable_t</tt> 参数，并以下面描述的格式打印该页表。插入 <tt>if(p-&gt;pid==1) vmprint(p-&gt;pagetable)</tt> 在 exec.c 之前 <tt>return argc</tt>，打印第一个进程的页表。如果您通过了该作业，您将获得全额学分 <tt>pte printout</tt> 测试 <tt>make grade</tt>.
   
 </div>
-
 <p>
-Now when you start xv6 it should print output like this, describing
-the page table of the first process at the point when it has just
-finished <tt>exec()</tt>ing <tt>init</tt>:
+现在，当您启动 xv6 时，它应该打印如下输出，描述第一个进程刚刚完成时的页表 <tt>exec()</tt>英 <tt>init</tt>:
 
   <pre>
 page table 0x0000000087f6e000
@@ -73,233 +50,109 @@ page table 0x0000000087f6e000
 .. .. ..511: pte 0x0000000020001c0b pa 0x0000000080007000
   </pre>
 
-The first line displays the argument to <tt>vmprint</tt>.
-After that there is a line for each PTE, including PTEs that
-refer to page-table pages deeper in the tree.
-Each PTE line is indented by a number of <tt>" .."</tt> that indicates its
-depth in the tree.
-Each PTE line shows the PTE index in its page-table page, the pte bits, and the
-physical address extracted from the PTE.
-Don't print PTEs that are not valid.  In the above example, the
-top-level page-table page has mappings for entries 0 and 255.  The next
-level down for entry 0 has only index 0 mapped, and the bottom-level
-for that index 0 has entries 0, 1, and 2 mapped.
+第一行显示参数 <tt>vmprint</tt>。之后，每个 PTE 都有一行，包括引用树中更深层次的页表页面的 PTE。每行 PTE 缩进了一些 <tt>" .."</tt> 这表明它在树中的深度。每条 PTE 行显示其页表页中的 PTE 索引、pte 位以及从 PTE 中提取的物理地址。不要打印无效的 PTE。在上面的示例中，顶级页表页具有条目 0 和 255 的映射。条目 0 的下一级仅映射了索引 0，而索引 0 的底层则映射了条目 0、1 和 2。
 
 <p>
-Your code might emit different physical addresses than those shown above.
-The number of entries and the virtual addresses should be the same.
+您的代码可能会发出与上面显示的不同的物理地址。条目数和虚拟地址数应该相同。
 </p>
-
-<p>Some hints:
+<p>一些提示：
 <ul>
-  <li>You can put <tt>vmprint()</tt> in <tt>kernel/vm.c</tt>.
-  <li>Use the macros at the end of the file kernel/riscv.h.
-  <li>The function <tt>freewalk</tt> may be inspirational.
-  <li>Define the prototype for <tt>vmprint</tt> in kernel/defs.h so
-    that you can call it from exec.c.
-  <li>Use <tt>%p</tt> in your printf calls to print out full 64-bit hex PTEs and addresses as shown in the example.</li>
-</ul>
-
+<li>你可以把 <tt>vmprint()</tt> 在 <tt>kernel/vm.c</tt>.
+  <li>使用文件 kernel/riscv.h 末尾的宏。
+  <li>功能 <tt>freewalk</tt> 可能是励志的。
+  <li>定义原型 <tt>vmprint</tt> 在 kernel/defs.h 中，以便您可以从 exec.c 调用它。
+  <li>使用 <tt>%p</tt> 在 printf 调用中打印出完整的 64 位十六进制 PTE 和地址，如示例中所示。</li>
+</li></li></li></li></ul>
 <div class="question">
-Explain the output of <tt>vmprint</tt> in terms of Fig 3-4 from the
-text.  What does page 0 contain? What is in page 2?
-When running in user mode, could the process read/write the memory
-mapped by page 1?
+解释一下输出 <tt>vmprint</tt> 就正文中的图3-4而言。第 0 页包含什么内容？第 2 页有什么内容？当运行在用户模式时，进程可以读/写第1页映射的内存吗？
 </div>
-
-<h2>A kernel page table per process <script>g("hard")</script></h2>
-
+<h2>每个进程一个内核页表 <script>g("hard")</script></h2>
 <p>
-Xv6 has a single kernel page table that's used whenever it executes
-in the kernel.
-The kernel page
-table is a direct mapping to physical addresses, so that kernel
-virtual address <i>x</i> maps to physical address <i>x</i>. 
-Xv6 also has a separate page table for each process's user
-address space, containing only mappings for that
-process's user memory, starting at virtual address zero.
-Because the kernel page table doesn't contain these
-mappings, user addresses are not valid in the kernel.
-Thus, when the kernel
-needs to use a user pointer passed in a system call (e.g., the buffer
-pointer passed to <tt>write()</tt>), the kernel must first translate
-the pointer to a physical address.
-The goal of this section and the next is to allow the kernel to
-directly dereference user pointers.
+xv6 有一个内核页表，每当它在内核中执行时就会使用该页表。内核页表是直接映射到物理地址，这样内核虚拟地址 <i>x</i> 映射到物理地址 <i>x</i>。 xv6 还为每个进程的用户地址空间提供一个单独的页表，仅包含该进程的用户内存的映射，从虚拟地址零开始。由于内核页表不包含这些映射，因此用户地址在内核中无效。因此，当内核需要使用系统调用中传递的用户指针时（例如，传递给的缓冲区指针） <tt>write()</tt>），内核必须首先将指针转换为物理地址。本节和下一节的目标是允许内核直接取消引用用户指针。
 
   <div class="required">
-Your first job is to modify the kernel so that every process
-uses its own copy of the kernel page table when executing
-in the kernel.
-Modify <tt>struct proc</tt> to maintain
-a kernel page table for each process, and modify
-the scheduler to switch kernel page tables when switching
-processes. For this step, each per-process kernel page table
-should be identical to the existing global kernel page table.
-You pass this part of the lab if <tt>usertests</tt> runs correctly.
+您的第一项工作是修改内核，以便每个进程在内核中执行时都使用自己的内核页表副本。修改 <tt>struct proc</tt> 为每个进程维护一个内核页表，并修改调度器在切换进程时切换内核页表。对于此步骤，每个进程内核页表应与现有的全局内核页表相同。如果满足以下条件，您就通过了这部分实验： <tt>usertests</tt> 运行正确。
 </div>
+<p>阅读本作业开始时提到的书籍章节和代码；了解虚拟内存的工作原理后，可以更轻松地正确修改虚拟内存代码。页表设置中的错误可能会因缺少映射而导致陷阱，可能导致加载和存储影响意外的物理内存页，并可能导致从不正确的内存页执行指令。
 
- <p>Read the book chapter and code mentioned at the start of this
-   assignment; it will be easier to modify the virtual memory
-   code correctly with an understanding of how it works.
-   Bugs in page table setup can cause traps
-   due to missing mappings, can
-   cause loads and stores to affect unexpected pages
-   of physical memory, and can cause execution of instructions from
-   incorrect pages of memory.
-
-<p>Some hints:
+<p>一些提示：
   <ul>
+<li>添加一个字段到 <tt>struct proc</tt> 用于进程的内核页表。
 
-  <li>Add a field to <tt>struct proc</tt> for the process's kernel
-  page table.
+  <li>为新进程生成内核页表的合理方法是实现以下版本的修改版本 <tt>kvminit</tt> 这会创建一个新的页表而不是修改 <tt>kernel_pagetable</tt>。您需要从以下位置调用此函数 <tt>allocproc</tt>.
 
-  <li>A reasonable way to produce a kernel page table for a new process
-  is to implement a modified version of <tt>kvminit</tt> that makes
-  a new page table instead of modifying <tt>kernel_pagetable</tt>.
-  You'll want to call this function from <tt>allocproc</tt>.
+  <li>确保每个进程的内核页表都有该进程的内核堆栈的映射。在未修改的 xv6 中，所有内核堆栈都设置在 <tt>procinit</tt>。您需要将部分或全部功能移至 <tt>allocproc</tt>.
 
-  <li>Make sure that each process's kernel page table has a mapping
-  for that process's kernel stack. In unmodified xv6, all the
-  kernel stacks are set up in <tt>procinit</tt>. You will need to
-  move some or all of this functionality to <tt>allocproc</tt>.
+  <li>修改 <tt>scheduler()</tt> 将进程的内核页表加载到核心的 <tt>satp</tt> 注册（参见 <tt>kvminithart</tt> 以获得灵感）。别忘了打电话 <tt>sfence_vma()</tt>
+  打电话后 <tt>w_satp()</tt>.
 
-  <li>Modify <tt>scheduler()</tt> to load the process's kernel page table into
-  the core's <tt>satp</tt> register (see <tt>kvminithart</tt> for
-  inspiration). Don't forget to call <tt>sfence_vma()</tt>
-  after calling <tt>w_satp()</tt>.
+  <li><tt>scheduler()</tt> 应该使用 <tt>kernel_pagetable</tt> 当没有进程运行时。
 
-  <li><tt>scheduler()</tt> should use <tt>kernel_pagetable</tt> when
-  no process is running.
+  <li>释放进程的内核页表 <tt>freeproc</tt>.
 
-  <li>Free a process's kernel page table in <tt>freeproc</tt>.
+  <li>您需要一种方法来释放页表，而不释放叶物理内存页。
 
-  <li>You'll need a way to free a page table without also
-    freeing the leaf physical memory pages.
+  <li><tt>vmprint</tt> 调试页表可能会派上用场。
 
-  <li><tt>vmprint</tt> may come in handy to debug page tables.
+  <li>修改xv6功能或者添加新功能都可以；你可能至少需要这样做 <tt>kernel/vm.c</tt>
+      和 <tt>kernel/proc.c</tt>。 （但是，不要修改 <tt>kernel/vmcopyin.c</tt>, <tt>kernel/stats.c</tt>,
+    <tt>user/usertests.c</tt>, 和 <tt>user/stats.c</tt>.)
 
-  <li>It's OK to modify xv6 functions or add new functions; you'll
-      probably need to do this in at least <tt>kernel/vm.c</tt>
-      and <tt>kernel/proc.c</tt>. (But, don't
-    modify <tt>kernel/vmcopyin.c</tt>, <tt>kernel/stats.c</tt>,
-    <tt>user/usertests.c</tt>, and <tt>user/stats.c</tt>.)
+  <li>丢失页表映射可能会导致内核遇到页面错误。它将打印一个错误，其中包括 <tt>sepc=0x00000000XXXXXXXX</tt>。可以通过搜索查找故障发生的位置 <tt>XXXXXXXX</tt>
+      在 <tt>kernel/kernel.asm</tt>.
 
-  <li>A missing page table mapping will likely cause the kernel
-      to encounter a page fault. It will print
-      an error that includes <tt>sepc=0x00000000XXXXXXXX</tt>. You can find
-      out where the fault occurred by searching for <tt>XXXXXXXX</tt>
-      in <tt>kernel/kernel.asm</tt>.
+</li></li></li></li></li></li></li></li></li></li></ul>
+<h2>简化 <tt>copyin/copyinstr</tt> <script>g("hard")</script></h2>
 
-</ul>
-
-<h2>Simplify <tt>copyin/copyinstr</tt> <script>g("hard")</script></h2>
-
-The kernel's 
-<tt>copyin</tt> function reads memory pointed to by user
-pointers. It does this by translating them to physical addresses,
-which the kernel can directly dereference. It performs this
-translation by walking the process page-table in software. Your job in
-this part of the lab is to add user mappings to each process's
-kernel page table (created in the previous section) that allow
-<tt>copyin</tt> (and the related string function
-<tt>copyinstr</tt>) to directly dereference user pointers.
+内核的 
+<tt>copyin</tt> 函数读取用户指针指向的内存。它通过将它们转换为物理地址来实现这一点，内核可以直接取消引用这些物理地址。它通过在软件中遍历进程页表来执行此转换。在实验的这一部分中，您的工作是将用户映射添加到每个进程的内核页表（在上一节中创建），以允许
+<tt>copyin</tt> （以及相关的字符串函数
+<tt>copyinstr</tt>) 直接取消引用用户指针。
 
   <div class="required">
-    Replace the body of <tt>copyin</tt> in <tt>kernel/vm.c</tt>
-      with a call to <tt>copyin_new</tt> (defined in
-      <tt>kernel/vmcopyin.c</tt>); do the same
-for <tt>copyinstr</tt> and <tt>copyinstr_new</tt>.
-    Add mappings for user addresses to
-each process's kernel page table so that 
-<tt>copyin_new</tt> and <tt>copyinstr_new</tt> work.
- You pass this assignment if <tt>usertests</tt> runs correctly
-and all the <tt>make grade</tt> tests pass.
+    更换本体 <tt>copyin</tt> 在 <tt>kernel/vm.c</tt>
+      打电话给 <tt>copyin_new</tt> （定义于
+      <tt>kernel/vmcopyin.c</tt>）；做同样的事情 <tt>copyinstr</tt> 和 <tt>copyinstr_new</tt>。将用户地址的映射添加到每个进程的内核页表，以便 
+<tt>copyin_new</tt> 和 <tt>copyinstr_new</tt> 工作。如果满足以下条件，您将通过此作业 <tt>usertests</tt> 运行正确并且所有 <tt>make grade</tt> 测试通过。
 </div>
-
 <p>
-This scheme relies on the user virtual address range not overlapping
-the range of virtual addresses that the kernel uses for its own instructions
-and data. Xv6 uses virtual addresses that start at zero for
-user address spaces, and luckily the kernel's memory starts at higher
-addresses.
-However, 
-this scheme does limit the maximum size of a user process to be less than
-the kernel's lowest virtual address.  After the kernel has
-booted, that address is <tt>0xC000000</tt> in xv6, the address of
-the PLIC registers;
-see <tt>kvminit()</tt> in <tt>kernel/vm.c</tt>,
-<tt>kernel/memlayout.h</tt>, and Figure 3-4 in the text. You'll need to modify xv6 to prevent user processes from
-growing larger than the PLIC address.
+该方案依赖于用户虚拟地址范围不与内核用于其自己的指令和数据的虚拟地址范围重叠。 xv6 使用从零开始的虚拟地址作为用户地址空间，幸运的是内核的内存从更高的地址开始。但是，该方案确实将用户进程的最大大小限制为小于内核的最低虚拟地址。内核启动后，该地址是 <tt>0xC000000</tt> 在xv6中，PLIC寄存器的地址；看 <tt>kvminit()</tt> 在 <tt>kernel/vm.c</tt>,
+<tt>kernel/memlayout.h</tt>，以及文中的图3-4。您需要修改 xv6 以防止用户进程变得大于 PLIC 地址。
 
-<p>Some hints:
+<p>一些提示：
   <ul>
+<li>更换 <tt>copyin()</tt> 
+      打电话给 <tt>copyin_new</tt> 首先，让它发挥作用，然后再继续 <tt>copyinstr</tt>.
 
-    <li>Replace <tt>copyin()</tt> 
-      with a call to <tt>copyin_new</tt> first,
-      and make it work, before moving on to <tt>copyinstr</tt>.
+    <li>在内核更改进程的用户映射的每个点上，都以相同的方式更改进程的内核页表。这些点包括 <tt>fork()</tt>, <tt>exec()</tt>, 和 <tt>sbrk()</tt>.
 
-    <li>At each point where the kernel changes a process's user
-    mappings, change the process's kernel page table in the same way.
-    Such points include <tt>fork()</tt>, <tt>exec()</tt>,
-      and <tt>sbrk()</tt>.
-
-    <li>Don't forget that to include the first process's user page
-      table in its kernel page table in <tt>userinit</tt>.
+    <li>不要忘记将第一个进程的用户页表包含在其内核页表中 <tt>userinit</tt>.
       
-    <li>What permissions do the PTEs for user addresses need
-    in a process's kernel page table?  (A page
-    with <tt>PTE_U</tt> set cannot be accessed in kernel mode.)
+    <li>用户地址的 PTE 在进程的内核页表中需要什么权限？ （一个页面带有 <tt>PTE_U</tt> 无法在内核模式下访问 set。）
 
-    <li>Don't forget about the above-mentioned PLIC limit.
+    <li>不要忘记上述 PLIC 限制。
       
-</ul>
-
-
+</li></li></li></li></li></ul>
 <p>
-  Linux uses a technique similar to what you have implemented.
-  Until a few years ago many kernels used the same per-process
-  page table in both user and kernel space, with mappings for
-  both user and kernel addresses, to avoid having to switch
-  page tables when switching between user and kernel space.
-  However, that setup allowed
-  side-channel attacks such as Meltdown and Spectre.
+  Linux 使用与您所实现的类似的技术。直到几年前，许多内核在用户和内核空间中使用相同的每进程页表，并映射用户和内核地址，以避免在用户和内核空间之间切换时必须切换页表。然而，这种设置允许侧通道攻击，例如 Meltdown 和 Spectre。
 
   <div class="question">
-    
-<p>Explain why the third test <tt>srcva + len < srcva</tt> is
-necessary in <tt>copyin_new()</tt>:
-give values for <tt>srcva</tt> and <tt>len</tt> for which 
-the first two test fail (i.e., they will not cause to return -1) but for which the third
-						one is true (resulting
-						in returning -1).
-</div>
+<p>解释为什么第三次测试 <tt>srcva + len &lt; srcva</tt> 是必要的 <tt>copyin_new()</tt>：给出值 <tt>srcva</tt> 和 <tt>len</tt> 前两个测试失败（即，它们不会导致返回 -1），但第三个测试为 true（导致返回 -1）。
+</p></div>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
+<h3>提交</h3>
 
-<h3>Time spent</h3>
-
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -314,62 +167,40 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-
-
-
-
-<h2>Optional challenge exercises</h2>
-
+<h2>可选的挑战练习</h2>
 <ul>
+<li>使用超级页面来减少页表中 PTE 的数量。
 
-  <li>Use super-pages to reduce the number of PTEs in page tables.
+  <li>扩展您的解决方案以支持尽可能大的用户程序；即消除用户程序小于PLIC的限制。
 
-  <li>Extend your solution to support user programs that are as large
-  as possible; that is, eliminate the restriction that user
-  programs be smaller than PLIC.
+  <li>取消映射用户进程的第一页，以便取消引用空指针将导致错误。例如，您必须从 4096 而不是 0 开始用户文本段。
 
-  <li>Unmap the first page of a user process so that dereferencing a
-  null pointer will result in a fault.  You will have to start the
-  user text segment at, for example, 4096, instead of 0.
-
-</ul>
-
-</body>
+</li></li></li></ul>
+</p></p></a></p></p></p></p></p></p></p></p></p></p></p></p></body>
 </html>

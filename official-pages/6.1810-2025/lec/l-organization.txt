@@ -1,51 +1,54 @@
-6.1810 2025 L4: Operating System Organization, Microkernels
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+
+6.1810 2025 L4：操作系统组织，微内核
 
 Topic:
-  What should a kernel do?
-  What should its abstractions / system calls look like?
-  Is more than one approach possible?
-  This topic is more about ideas and less about specific mechanisms
+  内核应该做什么？
+  它的抽象/系统调用应该是什么样子？
+  是否可以采用多种方法？
+  这个话题更多的是关于想法，而不是具体的机制
 
-The "traditional approach" -- UNIX, Linux, xv6
-  1) big abstractions, and
-  2) a "monolithic" kernel implementation
+“传统方法”——UNIX、Linux、xv6
+  1）大抽象，以及
+  2）“整体”内核实现
 
-Big abstractions
-  example: file system with names, directories, permissions, &c
-  for programmers: convenience, portability
-    e.g. vs a raw disk
-  for kernel: help sharing and managing resources
-    e.g. kernel in charge of allocating disk space to different programs
-  for kernel: help with security
-    e.g. file permissions
+大抽象
+  示例：包含名称、目录、权限等的文件系统
+  对于程序员：方便、便携
+    例如与原始磁盘相比
+  对于内核：帮助共享和管理资源
+    例如内核负责为不同的程序分配磁盘空间
+  对于内核：帮助提高安全性
+    例如文件权限
 
-Big abstractions have led to big "monolithic" kernels
-  kernel is one big program, like xv6
-  easy for kernel sub-systems to cooperate -- no irritating boundaries
-    exec() integrated with kernel's process, memory, and file code
-  all kernel code runs with high privilege -- no internal security restrictions
+大的抽象导致了大的“整体”内核
+  内核是一个大程序，例如 xv6
+  内核子系统易于协作——没有烦人的边界
+    exec() 与内核的进程、内存和文件代码集成
+  所有内核代码都以高权限运行——没有内部安全限制
 
-What's wrong with monolithic kernels / big abstractions?
+整体内核/大抽象有什么问题？
   big => complex => perhaps buggy/insecure
   over-general => perhaps slow
-    how much code executes to send one byte via a UNIX pipe?
-      buffering, locks, sleep/wakeup, scheduler
-  big abstractions hide/enforce lots of design decisions, perhaps awkwardly
-    maybe I want to wait for a process that's not my child
-    maybe I want to change another process's address space
-    maybe DB is better at laying out B-Tree files on disk than kernel FS
+    通过 UNIX 管道发送一个字节需要执行多少代码？
+      缓冲、锁、睡眠/唤醒、调度程序
+  大抽象隐藏/强制执行大量设计决策，也许很尴尬
+    也许我想等待一个不是我的孩子的进程
+    也许我想更改另一个进程的地址空间
+    也许 DB 比内核 FS 更擅长在磁盘上布置 B-Tree 文件
 
-Microkernels -- a different approach -- e.g. L4, Mach
-  main goal: simplest possible kernel
-  main technique: move most O/S functionality to user-space service processes
-  [diagram: h/w, kernel, apps, services (FS disk VM TCP NIC display)]
-  what does the kernel provide?
-    address spaces, memory management, threads, IPC
-    IPC = Inter-Process Communication
-  1980s saw big burst of research on microkernel designs
-    CMU's Mach perhaps the most influential
+微内核——一种不同的方法——例如L4，马赫
+  主要目标：最简单的内核
+  主要技术：将大部分操作系统功能移至用户空间服务进程
+  [图：硬件、内核、应用程序、服务（FS 磁盘 VM TCP NIC 显示）]
+  内核提供了什么？
+    地址空间、内存管理、线程、IPC
+    IPC = 进程间通信
+  20 世纪 80 年代微内核设计研究爆发
+    CMU 的 Mach 或许是最有影响力的
 
-What did people hope to gain from microkernels?
+人们希望从微内核中获得什么？
   clean slate -> more elegance
   small -> fewer bugs -> more secure
   small -> verifiable (see seL4)
@@ -54,269 +57,269 @@ What did people hope to gain from microkernels?
   user-level -> force more modular O/S services
   user-level -> easier to extend / customize / replace user-level services
   user-level -> more robust -- restart individual user-level services
-    most bugs are in drivers, get them out of the kernel!
+    大多数错误都存在于驱动程序中，请将它们从内核中删除！
 
-Design challenges?
-  what's the minimum useful functionality?
-    is there more than one minimum?
-  will it know enough to enforce security?
-    e.g. w/o knowing about users?
-  will programs be able to share e.g. disk and net?
-    without a kernel that provides file/directory/socket abstractions?
-  will performance be good without monolithic kernel's integration?
-  will kernel understand enough to allocate resources well?
-    which processes should get CPU, memory, disk access, &c
+设计挑战？
+  最少有用的功能是什么？
+    最小值是否有多个？
+  它知道足够的信息来加强安全吗？
+    例如不了解用户？
+  程序是否能够共享例如磁盘和网络？
+    没有提供文件/目录/套接字抽象的内核？
+  如果不集成单片内核，性能会好吗？
+  内核是否有足够的理解能力来很好地分配资源？
+    哪些进程应该获得 CPU、内存、磁盘访问权限等
 
-Pragmatic concerns
-  What's the target? user workstations? web servers? embedded?
-  Existing apps require a full O/S e.g. UNIX, Windows, &c
-    might be a lot of work to re-implement UNIX interface on a microkernel
-  How to persuade people to switch to your new microkernel?
+务实的关注
+  目标是什么？用户工作站？网络服务器？嵌入式？
+  现有的应用程序需要完整的操作系统，例如UNIX、Windows 等
+    在微内核上重新实现 UNIX 接口可能需要大量工作
+  如何说服人们转向你的新微内核？
 
 L4
-  has evolved over time, many versions and re-implementations
-  used commercially today, in phones and embedded controllers
-  representative of the micro-kernel approach
-  emphasis on minimality:
-    a few dozen system calls (Linux has 300+)
-    13,000 lines of code
+  随着时间的推移，出现了许多版本和重新实现
+  如今已在商业上用于电话和嵌入式控制器
+  微内核方法的代表
+  强调简约：
+    几十个系统调用（Linux 有 300 多个）
+    13,000 行代码
 
-L4 basic abstractions
-  [diagram]
-  address space ("task")
-  page mappings
-  thread
-  IPC (Inter-Process Communication)
+L4 基本抽象
+  [图]
+  地址空间（“任务”）
+  页面映射
+  线程
+  IPC（进程间通信）
 
-What's not in the L4 kernel, compared to e.g. Linux?
-  Almost everything!
-  file system, fork(), exec(), pipes, device drivers, network stack, &c
-  If you want these, they have to be user-level code
-    library or server process
-    and built out of what little L4 does provide
+与例如相比，L4 内核中没有的内容Linux？
+  几乎一切！
+  文件系统、fork()、exec()、管道、设备驱动程序、网络堆栈等
+  如果你想要这些，它们必须是用户级代码
+    库或服务器进程
+    并根据 L4 所提供的功能构建而成
 
-L4 system calls:
-  create a task / address space 
-  create/destroy a thread
-  send/recv message via IPC (addresses are thread IDs)
-  intercept another address space's page faults -- "pager"
-    and change target's mappings
-  access device hardware
-  receive device interrupts via IPC
+L4系统调用：
+  创建任务/地址空间
+  创建/销毁线程
+  通过 IPC 发送/接收消息（地址是线程 ID）
+  拦截另一个地址空间的页面错误——“pager”
+    并更改目标的映射
+  访问设备硬件
+  通过IPC接收设备中断
 
-Example: exec() on L4
-  an existing task T1 wants to create a new task
-    and have it execute instructions from a file
-  assume an FS user-level service
-  1. T1 creates a new task T2 -- it will have no memory!
-  2. T1 tell L4 to start T2 executing at PC=0
-  3. T2 will immediately access invalid memory and page-fault
-  4. L4 kernel sends page fault info via IPC to T1
-  5. T1 asks FS server to read file block, via IPC
-  6. T1 now has file block in its memory
-  7. T1 tells L4 to map file block in T2's memory, and resume T2
-  (page-fault-driven file access often called "demand paging")
+示例：L4 上的 exec()
+  现有任务 T1 想要创建一个新任务
+    并让它执行文件中的指令
+  假设 FS 用户级服务
+  1. T1 创建一个新任务 T2 ——它将没有内存！
+  2. T1告诉L4在PC=0时启动T2执行
+  3. T2将立即访问无效内存和页面错误
+  4. L4内核通过IPC发送缺页信息给T1
+  5. T1通过IPC请求FS服务器读取文件块
+  6. T1现在内存中有文件块
+  7. T1告诉L4将文件块映射到T2的内存中，并恢复T2
+  （页面错误驱动的文件访问通常称为“请求分页”）
 
-problem: IPC performance
-  Microkernel programs do lots of IPC!
-  Was expensive in early systems
-    multiple kernel crossings, cache misses, context switches, &c
-  Cost of IPC caused many to dismiss microkernels
-  L4 designers put huge effort into IPC performance
+问题：IPC性能
+  微内核程序执行大量 IPC！
+  早期系统价格昂贵
+    多个内核交叉、缓存未命中、上下文切换等
+  IPC 的成本导致许多人放弃微内核
+  L4设计师在IPC性能上投入了大量精力
 
-Here's a slow IPC design
-  patterned on UNIX pipes
-  [diagram, message queue in kernel]
-  send(id, msg)
-    copy msg to a queue in the kernel, return
-  recv(&id, &data)
-    if msg waiting in queue, copy to user space, return
-    otherwise wait for send()
-  called "asynchronous" and "buffered"
-  the usual request-response pattern (RPC) would be:
-    [diagram: 2nd message queue for replies]
+这是一个慢速 IPC 设计
+  UNIX 管道上的图案
+  [示意图，内核中的消息队列]
+  发送（ID，消息）
+    将 msg 复制到内核中的队列中，返回
+  接收（&id，&数据）
+    如果消息在队列中等待，则复制到用户空间，返回
+    否则等待 send()
+  称为“异步”和“缓冲”
+  通常的请求-响应模式 (RPC) 是：
+    [图：第二个回复消息队列]
     4 system calls (user->kernel->user)
-      send()
-      recv()
-               recv()
-               send()
-      (recv() returns)
-    or eight user/kernel or kernel/user crossings
-      each is slow!
-    four message copies (two for request, two for reply)
+      发送（）
+      接收（）
+               接收（）
+               发送（）
+      （recv() 返回）
+    或八个用户/内核或内核/用户交叉
+      每一个都很慢！
+    四份消息副本（两份用于请求，两份用于回复）
 
-L4's fast IPC
-  "Improving IPC by Kernel Design," Jochen Liedtke, 1993
-  * combined call() and sendrecv() system calls
-    IPC almost always used as request-response RPC
-    thus wasteful to use separate send() and recv() system calls
-    [diagram]
-    client: call(): send a message, obtain response
-    server: sendrecv(): reply to one request, wait for the next one
-    2x reduction in user/kernel crossings
-  * synchronous
-    [diagram]
-    call() waits for target thread's sendrecv()
-    common case: target is already waiting in sendrecv()
-    call() returns into target, as if returning from sendrecv()
-  * unbuffered
+L4的快速IPC
+  “通过内核设计改进 IPC”，Jochen Liedtke，1993 年
+  * 组合call()和sendrecv()系统调用
+    IPC 几乎总是用作请求-响应 RPC
+    因此使用单独的 send() 和 receive() 系统调用是浪费的
+    [图]
+    client: call()：发送消息，获取响应
+    服务器：sendrecv()：回复一个请求，等待下一个请求
+    用户/内核交叉减少 2 倍
+  * 同步
+    [图]
+    call() 等待目标线程的 sendrecv()
+    常见情况：目标已经在 sendrecv() 中等待
+    call() 返回目标，就像从 sendrecv() 返回一样
+  * 无缓冲
     synchronous => both src and dst user buffer address known => direct copy
-    no need to copy to/from kernel buffer
-  * small messages in registers, not memory
-  * big messages as page mappings
-    send() maps sender's pages into target's address space
-    recv() specifies address in target
-    again, no copy
-  * careful layout of kernel code to minimize cache footprint
-  result: 20x reduction in IPC cost
+    无需复制到内核缓冲区或从内核缓冲区复制
+  * 小消息在寄存器中，而不是在内存中
+  * 作为页面映射的大消息
+    send() 将发送者的页面映射到目标的地址空间
+    recv() 指定目标中的地址
+    再说一次，没有副本
+  * 仔细布局内核代码以最小化缓存占用空间
+  结果：IPC 成本降低 20 倍
 
-In this case, simplicity did enable optimization -- nice.
+在这种情况下，简单性确实能够实现优化——很好。
 
-How to build a full operating system on a microkernel?
-  Need a set of user-level servers.
-    File system, device drivers, network stack, &c
-  For embedded systems this can be fairly simple.
-  What about services for general-purpose use, e.g. workstations, web servers?
-  Really need compatibility for existing applications.
-    E.g. the system needs mimic something like UNIX.
-  Re-implement UNIX kernel services as lots of user-level service tasks?
+如何在微内核上构建完整的操作系统？
+  需要一套用户级服务器。
+    文件系统、设备驱动程序、网络堆栈等
+  对于嵌入式系统来说，这可能相当简单。
+  通用用途的服务怎么样，例如工作站、网络服务器？
+  确实需要与现有应用程序兼容。
+    例如系统需要模仿类似 UNIX 的东西。
+  将 UNIX 内核服务重新实现为大量用户级服务任务？
 
-Idea: run existing Linux kernel as a process on top of the microkernel.
-  An "O/S server".
-  Perhaps not elegant, but pragmatic.
-  Part of a path to adoption:
-    Users might start by just running Linux apps.
-    Then gradually exploit possibilites of underlying microkernel.
+想法：将现有的 Linux 内核作为微内核之上的进程运行。
+  “操作系统服务器”。
+  也许不优雅，但是务实。
+  采用途径的一部分：
+    用户可能会从运行 Linux 应用程序开始。
+    然后逐步挖掘底层微内核的可能性。
 
-Which brings us to today's paper on L4/Linux.
-  "The Performance of micro-Kernel-Based Systems",
-  by Hartig et al, 1997
+这就引出了今天关于 L4/Linux 的论文。
+  “基于微内核的系统的性能”，
+  哈蒂格等人，1997
 
-Why reading papers is useful but hard:
-  new ideas often described mainly in research papers
-  typically only the new material is explained
-  hard to read if you're not familiar with paper's context
+为什么阅读论文有用但很难：
+  新想法通常主要在研究论文中描述
+  通常只解释新材料
+  如果您不熟悉论文的上下文，则很难阅读
   strategies:
-    extract main ideas without getting lost in details
-    first few pages usually outline the main points
-    evaluation (at end) often reveals the bottom line
-  will get easier as you learn more, read more
+    提取主要思想而不迷失细节
+    前几页通常概述要点
+    评估（最后）通常会揭示底线
+  当你了解更多、阅读更多时，会变得更容易
 
-basic picture
-  [diagram]
-  L4 kernel
-  Linux kernel server
-  one L4 task per Linux process
-  IPC for Linux system calls
+基本图片
+  [图]
+  L4内核
+  Linux内核服务器
+  每个 Linux 进程一个 L4 任务
+  Linux系统调用的IPC
 
-What does it mean to run a Linux kernel at user-level?
-  The Linux kernel is just a program!
-  The authors modified Linux in small ways
-    replacing hardware access with L4 system calls or IPC.
-    Process creation, configuring user page tables, user memory allocation,
-      system call handling, interrupt handling.
-  No changes to Linux file system, network protocols, device drivers, &c.
+在用户级运行 Linux 内核意味着什么？
+  Linux内核只是一个程序！
+  作者对 Linux 进行了一些小修改
+    用 L4 系统调用或 IPC 替换硬件访问。
+    进程创建、配置用户页表、用户内存分配、
+      系统调用处理、中断处理。
+  Linux 文件系统、网络协议、设备驱动程序等没有变化。
 
-L4/Linux system calls via IPC
-  Each Linux process is an L4 task
-  Linux server is mostly a single L4 thread, waiting for IPC
-  System call:
-    IPC to Linux server (process blocks, waiting for IPC reply)
-    Linux server execute system call implementation
-    Send IPC reply (L4 delivers, process can resume)
-    Linux server waits for next system call IPC
+通过 IPC 的 L4/Linux 系统调用
+  每个Linux进程都是一个L4任务
+  Linux服务器大多是单L4线程，等待IPC
+  系统调用：
+    IPC到Linux服务器（进程块，等待IPC回复）
+    Linux服务器执行系统调用实现
+    发送IPC回复（L4传递，进程可以恢复）
+    Linux服务器等待下一个系统调用IPC
 
-L4/Linux server allocates all memory, hands out to processes
-  so all user memory also mapped into Linux server's address space
-  uses this for copyin()/copyout(), to dereference user pointers from sys calls
-  this keeps system call IPCs small -- data address, not the data itself
-  Linux server also uses its memory access for fork() and exec()
+L4/Linux 服务器分配所有内存，分发给进程
+  所以所有用户内存也映射到Linux服务器的地址空间
+  将其用于 copyin()/copyout()，以从系统调用中取消引用用户指针
+  这使得系统调用 IPC 较小——数据地址，而不是数据本身
+  Linux 服务器也将其内存访问用于 fork() 和 exec()
 
-Example: how does L4/Linux fork() work?
-  process P1 calls fork() (P1 is really an L4 task)
-  P1's libc library turns fork() into an IPC to L4/Linux server
-  L4/Linux allocates some of its pages for P2, copies P1's mem.
-  L4/Linux asks L4 to create a new task -- P2
-  L4/Linux sends special IPC to P2 with SP and PC to cause it to run
-  L4/Linux gets external pager faults from P2, maps pages one by one
+示例：L4/Linux fork() 如何工作？
+  进程P1调用fork()（P1实际上是一个L4任务）
+  P1的libc库将fork()变成IPC到L4/Linux服务器
+  L4/Linux 为 P2 分配一些页面，复制 P1 的内存。
+  L4/Linux 要求 L4 创建一个新任务——P2
+  L4/Linux 通过 SP 和 PC 向 P2 发送特殊的 IPC 使其运行
+  L4/Linux 从 P2 获取外部寻呼机故障，逐一映射页面
 
-How to evaluate?
-  A paper must evaluate whether its ideas are good!
-    Preferably with objective measurements.
-  What does "good" mean for this paper?
-  It's not really about whether microkernels are a good idea.
-  Its main goal is to show they can have good performance.
+如何评价？
+  一篇论文必须评价它的想法好不好！
+    最好有客观的测量。
+  对于这篇论文来说，“好”意味着什么？
+  这并不是微内核是否是一个好主意的问题。
+  其主要目标是展示他们可以有良好的表现。
 
-What kind of performance might readers care about?
-  Is IPC fast?
+读者可能会关心什么样的表现？
+  IPC速度快吗？
     -> microbenchmark
-  Is there some other performance obstacle?
+  还有其他性能障碍吗？
     -> whole-system benchmarks
 
-What to compare against?
-  Linux, to help persuade people to switch to L4
-  Mach/Linux, to show L4 fixes bad performance of older microkernels
+与什么比较？
+  Linux，帮助说服人们转向 L4
+  Mach/Linux，展示 L4 修复了旧微内核的不良性能
 
-IPC microbenchmarks
-  Table 2 -- cost of getpid() system call
-    Linux:       1.68 us
-    L4/Linux:    3.95 us
-    Mach Linux: 15.41 us
-  getpid() is one system call on native Linux
-    but two L4 system calls (call, sendrecv) to Linux server task
-    for two IPC messages (request, reply)
-  nice result: takes only somewhat more than 2x as long on L4/Linux
-  FAR faster than Mach+LinuxServer
-    why is Mach slow? the paper doesn't say, sadly.
+IPC 微基准测试
+  表 2 -- getpid() 系统调用的成本
+    Linux：1.68我们
+    L4/Linux：3.95 us
+    Linux马赫数：15.41 us
+  getpid() 是本机 Linux 上的一种系统调用
+    但是对 Linux 服务器任务的两个 L4 系统调用（call、sendrecv）
+    对于两个 IPC 消息（请求、回复）
+  不错的结果：在 L4/Linux 上只需要 2 倍多的时间
+  比 Mach+LinuxServer 快得多
+    马赫为什么慢？可悲的是，报纸上没有说。
 
-What do we think the impact of 2x syscall overhead might be?
+我们认为 2x 系统调用开销可能会产生什么影响？
   Disaster?
-  Hardly noticeable?
+  很难注意到？
 
-Whole-system benchmark: AIM
-  Figure 8
-  AIM forks a bunch of processes
-  Each randomly uses the disk, allocates memory, uses pipe, computes, &c
-    To do a fixed amount of total work
-  x-axis shows [some function of] number of concurrent AIM processes
-    thus total amount of work
-  y-axis shows time to complete all work
-  Only the slope really matters
-    slope is time per unit of work, so lower is better
-    Native Linux is best, but L4Linux is only a little slower
-    Mach+Linux is noticeably less efficient
+全系统基准测试：AIM
+  图8
+  AIM 分叉了一堆进程
+  每个随机使用磁盘、分配内存、使用管道、计算等
+    完成固定的总工作量
+  x 轴显示并发 AIM 进程数的[某些函数]
+    因此总工作量
+  y 轴显示完成所有工作的时间
+  只有坡度才是真正重要的
+    斜率是每单位工作的时间，因此越低越好
+    Native Linux 最好，但 L4Linux 只是慢一点
+    Mach+Linux 效率明显较低
   Conclusions:
-    2x IPC time doesn't seem to make much overall difference
-    L4+Linux is only somewhat slower than Linux
-    L4+Linux is significantly faster than Mach+Linux
+    2x IPC 时间似乎并没有产生太大的总体差异
+    L4+Linux 仅比 Linux 慢一些
+    L4+Linux 明显快于 Mach+Linux
 
-These results are not by themselves an argument for using L4
-  But they are an argument against rejecting L4 due to performance worries
+这些结果本身并不能成为使用 L4 的论据
+  但他们反对因性能担忧而拒绝 L4
 
-What's the current situation?
-  Microkernels are sometimes used for embedded computing
-    Microcontrollers, Apple "enclave" processor
-    Running custom software
-  Microkernels never caught on for general computing
-    No compelling story for why one should switch from Linux &c
-  Many ideas from microkernel research have been adopted into modern UNIXes
-    Sophisticated virtual memory support
-    Threads in user programs
-    Extensibility (but via loading code into kernel)
-    IPC and user-level services
+目前情况如何？
+  微内核有时用于嵌入式计算
+    微控制器、Apple“飞地”处理器
+    运行自定义软件
+  微内核从未在通用计算中流行起来
+    没有令人信服的故事来说明为什么人们应该从 Linux 转向 Linux
+  微内核研究的许多想法已被采用到现代 UNIX 中
+    先进的虚拟内存支持
+    用户程序中的线程
+    可扩展性（但通过将代码加载到内核中）
+    IPC和用户级服务
 
-Next lecture:
-  Page tables
+下一讲：
+  页表
 
 References:
-L4 details
+L4详情
   http://www.cse.unsw.edu.au/~cs9242/02/lectures/01-l4.pdf
   http://www.cse.unsw.edu.au/~cs9242/02/lectures/01-l4/01-l4.html
-fast IPC in L4
+L4 中的快速 IPC
   https://cs.nyu.edu/~mwalfish/classes/15fa/ref/liedtke93improving.pdf
-later evolution of L4
+L4后来的演变
   https://trustworthy.systems/publications/nicta_full_text/8988.pdf
-an earlier paper on the ideas behind L4:
+一篇关于 L4 背后想法的早期论文：
   https://www.cs.fsu.edu/~awang/courses/cop5611_s2004/microkernel.pdf
-The Fiasco.OC Microkernel -- a current L4 descendent
+Fiasco.OC 微内核——当前的 L4 后代
   https://l4re.org/doc/

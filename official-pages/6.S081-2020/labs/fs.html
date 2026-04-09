@@ -1,42 +1,27 @@
-<html>
-<head>
-<title>Lab: file system</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：文件系统</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: file system</h1>
-
-<p>In this lab you will add large files and symbolic links to the xv6
-  file system.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：文件系统</h1>
+<p>在本实验中，您将向 xv6 文件系统添加大文件和符号链接。
 
 <div class="prereq">
-<p>Before writing code, you should read "Chapter 8:
-  File system" from the <a href="../xv6/book-riscv-rev1.pdf">xv6
-  book</a> and study the corresponding code.
-</div>
-
-<p>Fetch the xv6 source for the lab and check out the <tt>util</tt> branch:
+<p>在编写代码之前，您应该阅读《第 8 章：文件系统》 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a> 并研究相应的代码。
+</p></div>
+<p>获取实验室的 xv6 源代码并查看 <tt>util</tt> branch:
 
 <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout fs</kbd>
   $ <kbd>make clean</kbd>
 </pre>
+<h2>大文件 <script>g("moderate")</script></h2>
+<p>在此作业中，您将增加 xv6 文件的最大大小。目前 xv6 文件限制为 268 个块或 268*BSIZE 字节（xv6 中 BSIZE 为 1024）。这一限制来自于一个 xv6 inode 包含 12 个“直接”块号和 1 个“单间接”块号，即一个块最多可容纳 256 个块号，总共 12+256=268 个块。
 
-
-<h2>Large files <script>g("moderate")</script></h2>
-
-<p>In this assignment you'll increase the maximum size of an xv6
-file. Currently xv6 files are limited to 268 blocks, or 268*BSIZE
-bytes (BSIZE is 1024 in xv6). This limit comes from the fact that an
-xv6 inode contains 12 "direct" block numbers and one "singly-indirect"
-block number, which refers to a block that holds up to 256 more block
-  numbers, for a total of 12+256=268 blocks.
-
-<p>The <tt>bigfile</tt> command creates the longest file it can,
-and reports that size:
+<p>的 <tt>bigfile</tt> 命令创建它可以创建的最长文件，并报告该大小：
 <pre>
 $ bigfile
 ..
@@ -44,77 +29,40 @@ wrote 268 blocks
 bigfile: file is too small
 $
 </pre>
-The test fails because <tt>bigfile</tt> expects to be able
-to create a file with 65803 blocks, but unmodified xv6 limits
-files to 268 blocks.
+测试失败是因为 <tt>bigfile</tt> 期望能够创建具有 65803 个块的文件，但未修改的 xv6 将文件限制为 268 个块。
 
-<p>You'll change the xv6 file system code to support a
-"doubly-indirect" block in each inode, containing 256 addresses of
-singly-indirect blocks, each of which can contain up to 256 addresses
-of data blocks. The result will be that a file will be able to consist
-of up to 65803 blocks, or 256*256+256+11 blocks (11 instead of 12, because we will
-sacrifice one of the direct block numbers for the double-indirect
-block).
+<p>您将更改 xv6 文件系统代码以支持每个 inode 中的“双间接”块，其中包含 256 个单间接块地址，每个块最多可包含 256 个数据块地址。结果将是一个文件最多可以包含 65803 个块，即 256*256+256+11 个块（11 而不是 12，因为我们将牺牲双间接块的直接块号之一）。
 
-<h3>Preliminaries</h3>
+<h3>预赛</h3>
 
-The <tt>mkfs</tt> program creates the xv6 file system disk image
-and determines
-how many total blocks the file system has; this size is controlled by
-<tt>FSSIZE</tt> in <tt>kernel/param.h</tt>.
-You'll see that <tt>FSSIZE</tt> in the repository for
-this lab is set to
-200,000 blocks.  You should see the following output from <tt>mkfs/mkfs</tt>
-in the make output:
+的 <tt>mkfs</tt> 程序创建 xv6 文件系统磁盘映像并确定文件系统总共有多少块；这个大小由控制
+<tt>FSSIZE</tt> 在 <tt>kernel/param.h</tt>。你会看到 <tt>FSSIZE</tt> 本实验室存储库中的块数设置为 200,000 个。您应该看到以下输出 <tt>mkfs/mkfs</tt>
+在 make 输出中：
 <pre>
 nmeta 70 (boot, super, log blocks 30 inode blocks 13, bitmap blocks 25) blocks 199930 total 200000
 </pre>
-This line describes the file system that <tt>mkfs/mkfs</tt> built: it
-has 70 meta-data blocks (blocks used to describe the file system) and
-199,930 data blocks, totaling 200,000 blocks.
-<br>
-If at any point during the lab you find yourself having to rebuild the file system from scratch, you
-can run <tt>make clean</tt> which forces make to rebuild fs.img.
+该行描述了文件系统 <tt>mkfs/mkfs</tt> 建成：它有70个元数据块（用于描述文件系统的块）和199,930个数据块，总共200,000个块。
+<br/>
+如果在实验过程中的任何时候您发现自己必须从头开始重建文件系统，您可以运行 <tt>make clean</tt> 这迫使重建 fs.img。
 
-<h3>What to Look At</h3>
+<h3>看什么</h3>
 
-The format of an on-disk inode is defined by <tt>struct dinode</tt>
-in <tt>fs.h</tt>. You're particularly interested in <tt>NDIRECT</tt>,
-<tt>NINDIRECT</tt>, <tt>MAXFILE</tt>, and the <tt>addrs[]</tt> element
-of <tt>struct dinode</tt>. Look at Figure 8.3 in the xv6 text for a
-diagram of the standard xv6 inode.
+磁盘上 inode 的格式定义为 <tt>struct dinode</tt>
+在 <tt>fs.h</tt>。您特别感兴趣 <tt>NDIRECT</tt>,
+<tt>NINDIRECT</tt>, <tt>MAXFILE</tt>，以及 <tt>addrs[]</tt> 的元素 <tt>struct dinode</tt>。请参阅 xv6 文本中的图 8.3，了解标准 xv6 inode 的图表。
 
 <p>
-The code that finds a file's data on disk is in <tt>bmap()</tt>
-in <tt>fs.c</tt>. Have a look at it and make sure you understand
-what it's doing. <tt>bmap()</tt> is called both when reading and
-writing a file. When writing, <tt>bmap()</tt> allocates new
-blocks as needed to hold file content, as well as allocating
-an indirect block if needed to hold block addresses.
+在磁盘上查找文件数据的代码位于 <tt>bmap()</tt>
+在 <tt>fs.c</tt>。看一下它并确保您了解它在做什么。 <tt>bmap()</tt> 在读取和写入文件时都会被调用。写作时， <tt>bmap()</tt> 根据需要分配新块来保存文件内容，并根据需要分配间接块来保存块地址。
 
 <p>
-<tt>bmap()</tt> deals with two kinds of block numbers. The <tt>bn</tt>
-argument is a "logical block number" -- a block number within the file,
-relative to the start
-of the file. The block numbers in <tt>ip->addrs[]</tt>, and the
-argument to <tt>bread()</tt>, are disk block numbers.
-You can view <tt>bmap()</tt> as mapping a file's logical
-block numbers into disk block numbers.
+<tt>bmap()</tt> 处理两种块号。这 <tt>bn</tt>
+参数是一个“逻辑块号”——文件内相对于文件开头的块号。中的块号 <tt>ip-&gt;addrs[]</tt>，以及论证 <tt>bread()</tt>, 是磁盘块号。您可以查看 <tt>bmap()</tt> 将文件的逻辑块号映射到磁盘块号。
 
-<h3>Your Job</h3>
-
+<h3>你的工作</h3>
 <div class="required">
-Modify <tt>bmap()</tt> so that it implements a doubly-indirect block,
-in addition to direct blocks and a singly-indirect block.  You'll have
-to have only 11 direct blocks, rather than 12, to make room for your
-new doubly-indirect block; you're not allowed to change the size of an
-on-disk inode.  The first 11 elements of <tt>ip->addrs[]</tt> should
-be direct blocks; the 12th should be a singly-indirect block (just
-like the current one); the 13th should be your new doubly-indirect
-block. You are done with this exercise when <tt>bigfile</tt> writes
-65803 blocks and <tt>usertests</tt> runs successfully:
+修改 <tt>bmap()</tt> 这样除了直接块和单间接块之外，它还实现了双重间接块。您只需拥有 11 个直接块（而不是 12 个）即可为新的双重间接块腾出空间；您不能更改磁盘上 inode 的大小。前 11 个元素 <tt>ip-&gt;addrs[]</tt> 应该是直接块；第 12 个应该是一个单间接块（就像当前的块一样）；第 13 个应该是新的双重间接块。当你完成这个练习时 <tt>bigfile</tt> 写入 65803 块并且 <tt>usertests</tt> 运行成功：
 </div>
-
 <pre>
 $ <kbd>bigfile</kbd>
 ..................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................
@@ -125,74 +73,41 @@ $ usertests
 ALL TESTS PASSED
 $ 
 </pre>
-
 <p>
-<tt>bigfile</tt> will take at least a minute and a half to run.
+<tt>bigfile</tt> 运行至少需要一分半钟。
 
 <p>Hints:
 
 <ul>
-    
-<li> Make sure you understand <tt>bmap()</tt>. Write out a diagram of the
-relationships between <tt>ip->addrs[]</tt>, the indirect block, the
-doubly-indirect block and the singly-indirect blocks it points to, and
-data blocks. Make sure you understand why adding a doubly-indirect
-block increases the maximum file size by 256*256 blocks (really -1,
-since you have to decrease the number of direct blocks by one).
+<li> 确保你明白 <tt>bmap()</tt>。写出它们之间的关系图 <tt>ip-&gt;addrs[]</tt>、它指向的间接块、双间接块和单间接块以及数据块。确保您理解为什么添加双重间接块会使最大文件大小增加 256*256 块（实际上是 -1，因为您必须将直接块的数量减少 1）。
 
 <li>
-Think about how you'll index the doubly-indirect block, and
-the indirect blocks it points to, with the logical block
-number.
+考虑如何使用逻辑块号对双重间接块及其指向的间接块进行索引。
 
-<li>If you change the definition of <tt>NDIRECT</tt>, you'll
-probably have to change the declaration of <tt>addrs[]</tt>
-in <tt>struct inode</tt> in <tt>file.h</tt>. Make sure that
-<tt>struct inode</tt> and <tt>struct dinode</tt> have the
-same number of elements in their <tt>addrs[]</tt> arrays.
+<li>如果你改变定义 <tt>NDIRECT</tt>，您可能需要更改以下声明 <tt>addrs[]</tt>
+在 <tt>struct inode</tt> 在 <tt>file.h</tt>。确保
+<tt>struct inode</tt> 和 <tt>struct dinode</tt> 它们中具有相同数量的元素 <tt>addrs[]</tt> arrays.
 
-<li>If you change the definition of <tt>NDIRECT</tt>, make sure to create a
-new <tt>fs.img</tt>, since <tt>mkfs</tt> uses <tt>NDIRECT</tt> to build the
-file system.  
+<li>如果你改变定义 <tt>NDIRECT</tt>，确保创建一个新的 <tt>fs.img</tt>，因为 <tt>mkfs</tt> 用途 <tt>NDIRECT</tt> 构建文件系统。  
 
-<li>If your file system gets into a bad state, perhaps by crashing,
-delete <tt>fs.img</tt> (do this from Unix, not xv6).  <tt>make</tt> will build a
-new clean file system image for you.
+<li>如果您的文件系统进入不良状态（可能是崩溃），请删除 <tt>fs.img</tt> （在 Unix 上执行此操作，而不是 xv6）。  <tt>make</tt> 将为您构建一个新的干净的文件系统映像。
 
-<li>Don't forget to <tt>brelse()</tt> each block that you
+<li>别忘了 <tt>brelse()</tt> 你的每一个街区
 <tt>bread()</tt>.
 
-<li>You should allocate indirect blocks and doubly-indirect
-  blocks only as needed, like the original <tt>bmap()</tt>.
+<li>您应该仅根据需要分配间接块和双重间接块，就像原始块一样 <tt>bmap()</tt>.
 
-<li>Make sure <tt>itrunc</tt> frees all blocks of a file, including
-  double-indirect blocks.
+<li>确保 <tt>itrunc</tt> 释放文件的所有块，包括双间接块。
 
-</ul>
+</li></li></li></li></li></li></li></li></ul>
+<h2>符号链接 <script>g("moderate")</script></h2>
+<p>在本练习中，您将添加到 xv6 的符号链接。符号链接（或软链接）通过路径名引用链接文件；当打开符号链接时，内核会跟踪指向所引用文件的链接。符号链接类似于硬链接，但硬链接仅限于指向同一磁盘上的文件，而符号链接可以跨磁盘设备。尽管 xv6 不支持多个设备，但实现此系统调用是了解路径名查找如何工作的一个很好的练习。
 
-
-<h2>Symbolic links <script>g("moderate")</script></h2>
-
-<p>In this exercise you will add symbolic links to xv6.  Symbolic
-links (or soft links) refer to a linked file by pathname; when a
-symbolic link is opened, the kernel follows the link to the referred
-file.  Symbolic links resembles hard links, but hard links are
-restricted to pointing to file on the same disk, while symbolic links
-can cross disk devices.  Although xv6 doesn't support multiple
-devices, implementing this system call is a good exercise to
-understand how pathname lookup works.
-
-<h3>Your job</h3>
-
+<h3>你的工作</h3>
 <div class="required">
-<p>You will implement the <tt>symlink(char *target, char *path)</tt>
-system call, which creates a new symbolic link at path that refers
-to file named by target. For further information, see the man page
-symlink.  To test, add symlinktest to the Makefile and run it. Your
-solution is complete when the tests produce the following output
-(including usertests succeeding).
-</div>
-
+<p>您将实施 <tt>symlink(char *target, char *path)</tt>
+系统调用，它在引用由目标命名的文件的路径中创建一个新的符号链接。有关更多信息，请参阅手册页符号链接。要进行测试，请将 symlinktest 添加到 Makefile 并运行它。当测试产生以下输出（包括成功的用户测试）时，您的解决方案就完成了。
+</p></div>
 <pre>
 $ <kbd>symlinktest</kbd>
 Start: test symlinks
@@ -204,75 +119,42 @@ $ usertests
 ALL TESTS PASSED
 $ 
 </pre>
- 
 <p>Hints:
 
 <ul>
+<li> 首先，为符号链接创建一个新的系统调用号，向 user/usys.pl、user/user.h 添加一个条目，并在 kernel/sysfile.c 中实现一个空的 sys_symlink。
 
-<li> First, create a new system call number for symlink, add an entry
-to user/usys.pl, user/user.h, and implement an empty sys_symlink in kernel/sysfile.c.
+<li>添加新文件类型（<tt>T_SYMLINK</tt>) 到 kernel/stat.h 来表示符号链接。
 
-<li>Add a new file type (<tt>T_SYMLINK</tt>) to kernel/stat.h to
-represent a symbolic link.
+<li> 向 kernel/fcntl.h 添加一个新标志，(<tt>O_NOFOLLOW</tt>），可以与 <tt>open</tt> 系统调用。请注意，标志传递给
+<tt>open</tt> 使用按位 OR 运算符进行组合，因此您的新标志不应与任何现有标志重叠。将 user/symlinktest.c 添加到 Makefile 后，您就可以对其进行编译。
 
-<li> Add a new flag to kernel/fcntl.h, (<tt>O_NOFOLLOW</tt>), that can
-be used with the <tt>open</tt> system call. Note that flags passed to
-<tt>open</tt> are combined using a bitwise OR operator, so your new
-flag should not overlap with any existing flags. This will let you
-compile user/symlinktest.c once you add it to the Makefile.
+<li>实施 <tt>symlink(target, path)</tt> 系统调用在引用目标的路径上创建新的符号链接。请注意，目标不需要存在才能使系统调用成功。您需要选择某个位置来存储符号链接的目标路径，例如在 inode 的数据块中。 <tt>symlink</tt> 应返回一个表示成功 (0) 或失败 (-1) 的整数，类似于 <tt>link</tt> 和 <tt>unlink</tt>.
 
-<li>Implement the <tt>symlink(target, path)</tt> system call to create
-a new symbolic link at path that refers to target. Note that target
-does not need to exist for the system call to succeed. You will need
-to choose somewhere to store the target path of a symbolic link, for
-example, in the inode's data blocks. <tt>symlink</tt> should return an integer
-representing success (0) or failure (-1) similar to <tt>link</tt> and <tt>unlink</tt>.
+<li>修改 <tt>open</tt> 系统调用来处理路径引用符号链接的情况。如果该文件不存在， <tt>open</tt>
+一定会失败。当一个进程指定 <tt>O_NOFOLLOW</tt> 在标志中 <tt>open</tt>, <tt>open</tt> 应该打开符号链接（而不是遵循符号链接）。
 
-<li>Modify the <tt>open</tt> system call to handle the case where the path
-refers to a symbolic link. If the file does not exist, <tt>open</tt>
-must fail.  When a process specifies <tt>O_NOFOLLOW</tt> in the flags
-to <tt>open</tt>, <tt>open</tt> should open the symlink (and not
-follow the symbolic link).
+<li>如果链接的文件也是符号链接，则必须递归地跟踪它，直到到达非链接文件。如果链接形成循环，则必须返回错误代码。如果链接深度达到某个阈值（例如 10），您可以通过返回错误代码来近似这一点。
 
-<li>If the linked file is also a symbolic link, you must recursively
-follow it until a non-link file is reached. If the links form a cycle,
-you must return an error code. You may approximate this by returning
-an error code if the depth of links reaches some threshold (e.g., 10).
+<li> 其他系统调用（例如 link 和 unlink）不得遵循符号链接；这些系统调用对符号链接本身进行操作。
 
-<li> Other system calls (e.g., link and unlink) must not
-  follow symbolic links; these system calls operate on the symbolic
-  link itself.
+<li>您不必处理本实验目录的符号链接。
 
-<li>You do not have to handle symbolic links to directories for this
-lab.
+</li></li></li></li></li></li></li></li></ul>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-</ul>
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
+<h3>提交</h3>
 
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
-
-<h3>Time spent</h3>
-
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -287,54 +169,37 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
+<h2>可选的挑战练习</h2>
+<p>支持三重间接块。
 
-
-
-
-<h2>Optional challenge exercises</h2>
-
-<p>Support triple-indirect blocks.
-
-<h3>Acknowledgment</h3>
+<h3>致谢</h3>
+<p>感谢华盛顿大学 CSEP551（2019 年秋季）的工作人员进行符号链接练习。
   
-<p>Thanks to the staff of UW's CSEP551 (Fall 2019) for the symlink exercise.
-  
-</body>
+</p></p></p></p></a></p></p></p></p></p></p></p></p></p></p></p></p></body>
 </html>

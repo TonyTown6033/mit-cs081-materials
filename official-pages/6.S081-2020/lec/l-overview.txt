@@ -1,275 +1,278 @@
-6.S081 2020 Lecture 1: O/S overview
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Overview
+6.S081 2020 第一讲：操作系统概述
 
-* 6.S081 goals
-  * Understand operating system (O/S) design and implementation
-  * Hands-on experience extending a small O/S
-  * Hands-on experience writing systems software
+概览
 
-* What is the purpose of an O/S?
-  * Abstract the hardware for convenience and portability
-  * Multiplex the hardware among many applications
-  * Isolate applications in order to contain bugs
-  * Allow sharing among cooperating applications
-  * Control sharing for security
-  * Don't get in the way of high performance
-  * Support a wide range of applications
+* 6.S081目标
+  * 了解操作系统（O/S）的设计和实现
+  * 扩展小型操作系统的实践经验
+  * 编写系统软件的实践经验
 
-* Organization: layered picture
-  [user/kernel diagram]
-  - user applications: vi, gcc, DB, &c
-  - kernel services
-  - h/w: CPU, RAM, disk, net, &c
-  * we care a lot about the interfaces and internal kernel structure
+* 操作系统的目的是什么？
+  * 抽象硬件以方便和便携
+  * 在许多应用程序之间复用硬件
+  * 隔离应用程序以遏制错误
+  * 允许协作应用程序之间共享
+  * 控制共享以确保安全
+  * 不要妨碍高性能
+  * 支持广泛的应用
 
-* What services does an O/S kernel typically provide?
-  * process (a running program)
-  * memory allocation
-  * file contents
-  * file names, directories
-  * access control (security)
-  * many others: users, IPC, network, time, terminals
+* 组织方式：分层图片
+  [用户/内核图]
+  - 用户应用程序：vi、gcc、DB 和c
+  - 内核服务
+  - 硬件：CPU、RAM、磁盘、网络等
+  * 我们非常关心接口和内部内核结构
 
-* What's the application / kernel interface?
-  * "System calls"
-  * Examples, in C, from UNIX (e.g. Linux, macOS, FreeBSD):
+* 操作系统内核通常提供哪些服务？
+  * 进程（正在运行的程序）
+  * 内存分配
+  * 文件内容
+  * 文件名、目录
+  * 访问控制（安全）
+  * 许多其他：用户、IPC、网络、时间、终端
 
-            fd = open("out", 1);
-            write(fd, "hello\n", 6);
+* 应用程序/内核接口是什么？
+  *“系统调用”
+  * 来自 UNIX（例如 Linux、macOS、FreeBSD）的 C 语言示例：
+
+            fd = open("输出", 1);
+            写(fd, "你好\n", 6);
             pid = fork();
 
-  * These look like function calls but they aren't 
+  * 这些看起来像函数调用，但事实并非如此
 
-* Why is O/S design+implementation hard and interesting?
-  * unforgiving environment: quirky h/w, hard to debug
-  * many design tensions:
-    - efficient vs abstract/portable/general-purpose
-    - powerful vs simple interfaces
-    - flexible vs secure
-  * features interact: `fd = open(); fork()`
-  * uses are varied: laptops, smart-phones, cloud, virtual machines, embedded
-  * evolving hardware: NVRAM, multi-core, fast networks
+* 为什么操作系统设计+实现既困难又有趣？
+  * 环境恶劣：硬件古怪，难以调试
+  * 许多设计张力：
+    - 高效与抽象/便携/通用
+    - 强大与简单的界面
+    - 灵活与安全
+  * 功能交互：`fd = open();分叉()`
+  * 用途多种多样：笔记本电脑、智能手机、云、虚拟机、嵌入式
+  * 不断发展的硬件：NVRAM、多核、快速网络
 
-* You'll be glad you took this course if you...
-  * care about what goes on under the hood
-  * like infrastructure
-  * need to track down bugs or security problems
-  * care about high performance
+* 如果您...，您会很高兴参加了本课程
+  *关心幕后发生的事情
+  * 比如基础设施
+  * 需要追踪错误或安全问题
+  * 关心高性能
 
-Class structure
+类结构
 
-* Online course information:
+* 在线课程信息：
   https://pdos.csail.mit.edu/6.S081/ -- schedule, assignments, labs
-  Piazza -- announcements, discussion, lab help
+  Piazza——公告、讨论、实验室帮助
 
-* Lectures
-  * O/S ideas
-  * case study of xv6, a small O/S, via code and xv6 book
-  * lab background
-  * O/S papers
-  * submit a question about each reading, before lecture.
+* 讲座
+  * 操作系统想法
+  * 通过代码和 xv6 书籍对 xv6（一个小型操作系统）进行案例研究
+  * 实验室背景
+  * O/S论文
+  * 在讲座前提交有关每次阅读的问题。
 
-* Labs: 
-  The point: hands-on experience
-  Mostly one week each.
-  Three kinds:
-    Systems programming (due next week...)
-    O/S primitives, e.g. thread switching.
-    O/S kernel extensions to xv6, e.g. network.
-  Use piazza to ask/answer lab questions.
-  Discussion is great, but please do not look at others' solutions!
+* 实验：
+  重点：亲身体验
+  大多是一周一次。
+  三种：
+    系统编程（下周到期......）
+    O/S 原语，例如线程切换。
+    对 xv6 的操作系统内核扩展，例如网络。
+  使用广场询问/回答实验室问题。
+  讨论很好，但请不要看别人的解决方案！
 
-* Grading:
-  70% labs, based on tests (the same tests you run).
-  20% lab check-off meetings: we'll ask you about randomly-selected labs.
-  10% home-work and class/piazza discussion.
-  No exams, no quizzes.
-  Note that most of the grade is from labs. Start them early!
+* 评分：
+  70% 是基于测试的实验室（与您运行的测试相同）。
+  20% 实验室检查会议：我们会向您询问随机选择的实验室的情况。
+  10% 的家庭作业和课堂/广场讨论。
+  没有考试，没有测验。
+  请注意，大部分成绩来自实验室。尽早开始！
 
-Introduction to UNIX system calls
+UNIX系统调用简介
 
-* Applications see the O/S via system calls; that interface will be a big focus.
-  let's start by looking at how programs use system calls.
-  you'll use these system calls in the first lab.
-  and extend and improve them in subsequent labs.
+* 应用程序通过系统调用查看操作系统；该界面将成为一大焦点。
+  让我们首先看看程序如何使用系统调用。
+  您将在第一个实验中使用这些系统调用。
+  并在后续实验室中对其进行扩展和改进。
 
-* I'll show some examples, and run them on xv6.
-  xv6 has similar structure to UNIX systems such as Linux.
-  but much simpler -- you'll be able to digest all of xv6
-    accompanying book explains how xv6 works, and why
-  why UNIX?
-    open source, well documented, clean design, widely used
-    studying xv6 will help if you ever need to look inside Linux
-  xv6 has two roles in 6.S081:
-    example of core functions: virtual memory, multi-core, interrupts, &c
-    starting point for most of the labs
-  xv6 runs on RISC-V, as in current 6.004
-  you'll run xv6 under the qemu machine emulator
+* 我将展示一些示例，并在 xv6 上运行它们。
+  xv6 的结构与 Linux 等 UNIX 系统类似。
+  但更简单——你将能够消化所有的 xv6
+    随附的书籍解释了 xv6 的工作原理以及原因
+  为什么是UNIX？
+    开源、有据可查、简洁设计、广泛使用
+    如果您需要深入了解 Linux，学习 xv6 将会有所帮助
+  xv6在6.S081中有两个角色：
+    核心功能示例：虚拟内存、多核、中断等
+    大多数实验室的起点
+  xv6 在 RISC-V 上运行，如当前的 6.004 所示
+  您将在 qemu 机器模拟器下运行 xv6
 
-* example: copy.c, copy input to output
-  read bytes from input, write them to the output
+* 示例：copy.c，将输入复制到输出
+  从输入读取字节，将其写入输出
   $ copy
-  copy.c is written in C
-    Kernighan and Ritchie (K&R) book is good for learning C
-  you can find these example programs via the schedule on the web site
-  read() and write() are system calls
-  first read()/write() argument is a "file descriptor" (fd)
-    passed to kernel to tell it which "open file" to read/write
-    must previously have been opened
-    an FD connects to a file/device/socket/&c
-    a process can open many files, have many FDs
-    UNIX convention: fd 0 is "standard input", 1 is "standard output"
-  second read() argument is a pointer to some memory into which to read
-  third argument is the maximum number of bytes to read
-    read() may read less, but not more
-  return value: number of bytes actually read, or -1 for error
-  note: copy.c does not care about the format of the data
-    UNIX I/O is 8-bit bytes
-    interpretation is application-specific, e.g. database records, C source, &c
-  where do file descriptors come from?
+  copy.c是用C编写的
+    Kernighan 和 Ritchie (K&R) 的书非常适合学习 C
+  您可以通过网站上的时间表找到这些示例程序
+  read() 和 write() 是系统调用
+  第一个 read()/write() 参数是“文件描述符”(fd)
+    传递给内核告诉它要读/写哪个“打开文件”
+    必须之前已经打开过
+    FD 连接到文件/设备/套接字/&c
+    一个进程可以打开多个文件，拥有多个FD
+    UNIX约定：fd 0是“标准输入”，1是“标准输出”
+  第二个 read() 参数是指向要读取的内存的指针
+  第三个参数是要读取的最大字节数
+    read() 可能会读得更少，但不会读得更多
+  返回值：实际读取的字节数，错误则为-1
+  注意：copy.c不关心数据的格式
+    UNIX I/O 是 8 位字节
+    解释是特定于应用程序的，例如数据库记录、C 源代码等
+  文件描述符从哪里来？
 
-* example: open.c, create a file
+* 示例：open.c，创建文件
   $ open
   $ cat output.txt
-  open() creates a file, returns a file descriptor (or -1 for error)
-  FD is a small integer
-  FD indexes into a per-process table maintained by kernel
-  [user/kernel diagram]
-  different processes have different FD name-spaces
-    i.e. FD 1 often means different things to different processes
-  these examples ignore errors -- don't be this sloppy!
-  Figure 1.2 in the xv6 book lists system call arguments/return
-    or look at UNIX man pages, e.g. "man 2 open"
+  open() 创建一个文件，返回一个文件描述符（或 -1 表示错误）
+  FD是一个小整数
+  FD 索引到由内核维护的每进程表
+  [用户/内核图]
+  不同的进程有不同的FD命名空间
+    即 FD 1 对于不同的进程通常意味着不同的东西
+  这些例子忽略了错误——别这么马虎！
+  xv6书中的图1.2列出了系统调用参数/返回值
+    或者查看 UNIX 手册页，例如“人2开”
 
-* what happens when a program calls a system call like open()?
-  looks like a function call, but it's actually a special instruction
-  hardware saves some user registers
-  hardware increases privilege level
-  hardware jumps to a known "entry point" in the kernel
-  now running C code in the kernel
-  kernel calls system call implementation
-    open() looks up name in file system
-    it might wait for the disk
-    it updates kernel data structures (cache, FD table)
-  restore user registers
-  reduce privilege level
-  jump back to calling point in the program, which resumes
-  we'll see more detail later in the course
+* 当程序调用像 open() 这样的系统调用时会发生什么？
+  看似函数调用，其实是一条特殊指令
+  硬件保存一些用户寄存器
+  硬件增加特权级别
+  硬件跳转到内核中已知的“入口点”
+  现在在内核中运行C代码
+  内核调用系统调用实现
+    open() 在文件系统中查找名称
+    它可能会等待磁盘
+    它更新内核数据结构（缓存、FD表）
+  恢复用户寄存器
+  降低特权级别
+  跳回到程序中的调用点，继续执行
+  我们将在课程后面看到更多细节
 
-* I've been typing to UNIX's command-line interface, the shell.
-  the shell prints the "$" prompts.
-  the shell lets you run UNIX command-line utilities
-    useful for system management, messing with files, development, scripting
+* 我一直在 UNIX 的命令行界面（shell）中输入内容。
+  shell 打印“$”提示。
+  shell 允许您运行 UNIX 命令行实用程序
+    对于系统管理、处理文件、开发、脚本编写很有用
     $ ls
     $ ls > out
     $ grep x < out
-  UNIX supports other styles of interaction too
-    window systems, GUIs, servers, routers, &c.
-  but time-sharing via the shell was the original focus of UNIX.
-  we can exercise many system calls via the shell.
+  UNIX 也支持其他交互方式
+    窗口系统、GUI、服务器、路由器等。
+  但通过 shell 进行分时是 UNIX 最初的重点。
+  我们可以通过 shell 执行许多系统调用。
 
-* example: fork.c, create a new process
-  the shell creates a new process for each command you type, e.g. for
+* 示例：fork.c，创建一个新进程
+  shell 为您键入的每个命令创建一个新进程，例如为了
     $ echo hello
-  the fork() system call creates a new process
+  fork() 系统调用创建一个新进程
     $ fork
-  the kernel makes a copy of the calling process
-    instructions, data, registers, file descriptors, current directory
-    "parent" and "child" processes
-  only difference: fork() returns a pid in parent, 0 in child
-  a pid (process ID) is an integer, kernel gives each process a different pid
+  内核复制调用进程
+    指令、数据、寄存器、文件描述符、当前目录
+    “父”和“子”进程
+  唯一的区别： fork() 在父级中返回 pid，在子级中返回 0
+  pid（进程ID）是一个整数，内核给每个进程一个不同的pid
   thus:
-    fork.c's "fork() returned" executes in *both* processes
+    fork.c 的“fork() returned”在*两个*进程中执行
     the "if(pid == 0)" allows code to distinguish
-  ok, fork lets us create a new process
-    how can we run a program in that process?
+  好的，fork 让我们创建一个新进程
+    我们如何在该进程中运行程序？
 
-* example: exec.c, replace calling process with an executable file
-  how does the shell run a program, e.g.
+* 示例：exec.c，用可执行文件替换调用进程
+  shell 如何运行程序，例如
     $ echo a b c
-  a program is stored in a file: instructions and initial memory
-    created by the compiler and linker
-  so there's a file called echo, containing instructions
+  程序存储在文件中：指令和初始内存
+    由编译器和链接器创建
+  所以有一个名为 echo 的文件，其中包含说明
   $ exec
-  exec() replaces current process with an executable file
-    discards instruction and data memory
-    loads instructions and memory from the file
-    preserves file descriptors
-  exec(filename, argument-array)
-    argument-array holds command-line arguments; exec passes to main()
-    cat user/echo.c
-    echo.c shows how a program looks at its command-line arguments
+  exec() 用可执行文件替换当前进程
+    丢弃指令和数据存储器
+    从文件加载指令和内存
+    保留文件描述符
+  exec（文件名，参数数组）
+    argument-array 保存命令行参数； exec 传递给 main()
+    猫用户/echo.c
+    echo.c 显示程序如何查看其命令行参数
 
-* example: forkexec.c, fork() a new process, exec() a program
+* 示例：forkexec.c，fork()一个新进程，exec()一个程序
   $ forkexec
-  forkexec.c contains a common UNIX idiom:
-    fork() a child process
-    exec() a command in the child
-    parent wait()s for child to finish
-  the shell does fork/exec/wait for every command you type
-    after wait(), the shell prints the next prompt
-    to run in the background -- & -- the shell skips the wait()
+  forkexec.c 包含一个常见的 UNIX 习惯用法：
+    fork() 子进程
+    exec() 子进程中的命令
+    父进程 wait() 等待子进程完成
+  shell 会 fork/exec/wait 你输入的每个命令
+    wait() 之后，shell 打印下一个提示
+    在后台运行 -- & -- shell 跳过 wait()
   exit(status) -> wait(&status)
-    status convention: 0 = success, 1 = command encountered an error
-  note: the fork() copies, but exec() discards the copied memory
-    this may seem wasteful
-    you'll transparently eliminate the copy in the "copy-on-write" lab
+    状态约定：0 = 成功，1 = 命令遇到错误
+  注意：fork() 进行复制，但 exec() 会丢弃复制的内存
+    这可能看起来很浪费
+    您将透明地消除“写时复制”实验室中的副本
 
-* example: redirect.c, redirect the output of a command
-  what does the shell do for this?
+* 示例：redirect.c，重定向命令的输出
+  shell 为此做什么？
     $ echo hello > out
-  answer: fork, change FD 1 in child, exec echo
+  答案：fork，更改child中的FD 1，exec echo
   $ redirect
   $ cat output.txt
-  note: open() always chooses lowest unused FD; 1 due to close(1).
-  fork, FDs, and exec interact nicely to implement I/O redirection
-    separate fork-then-exec give child a chance to change FDs before exec
-    FDs provide indirection
-      commands just use FDs 0 and 1, don't have to know where they go
-    exec preserves the FDs that sh set up
-  thus: only sh has to know about I/O redirection, not each program
+  注意：open() 总是选择最低的未使用的 FD； 1 由于关闭(1)。
+  fork、FD、exec良好交互实现I/O重定向
+    单独的 fork-then-exec 让子进程有机会在 exec 之前更改 FD
+    FD 提供间接
+      命令只使用 FD 0 和 1，不必知道它们去哪里
+    exec 保留 sh 设置的 FD
+  因此：只有 sh 需要了解 I/O 重定向，而不是每个程序
 
-* It's worth asking "why" about design decisions:
-  Why these I/O and process abstractions? Why not something else?
-  Why provide a file system? Why not let programs use the disk their own way?
-  Why FDs? Why not pass a filename to write()?
-  Why are files streams of bytes, not disk blocks or formatted records?
-  Why not combine fork() and exec()?
-  The UNIX design works well, but we will see other designs!
+* 关于设计决策，值得询问“为什么”：
+  为什么要进行这些 I/O 和进程抽象？为什么不做点别的呢？
+  为什么要提供文件系统？为什么不让程序按照自己的方式使用磁盘呢？
+  为什么是FD？为什么不向 write() 传递文件名？
+  为什么文件是字节流，而不是磁盘块或格式化记录？
+  为什么不结合 fork() 和 exec() 呢？
+  UNIX 设计运行良好，但我们会看到其他设计！
 
-* example: pipe1.c, communicate through a pipe
-  how does the shell implement
+* 示例：pipe1.c，通过管道进行通信
+  shell是如何实现的
     $ ls | grep x
   $ pipe1
-  an FD can refer to a "pipe", as well as a file
-  the pipe() system call creates two FDs
-    read from the first FD
-    write to the second FD
-  the kernel maintains a buffer for each pipe
-    [u/k diagram]
-    write() appends to the buffer
-    read() waits until there is data
+  FD 可以指“管道”，也可以指文件
+  pipeline()系统调用创建两个FD
+    从第一个FD读取
+    写入第二个FD
+  内核为每个管道维护一个缓冲区
+    [u/k 图]
+    write() 追加到缓冲区
+    read() 等待直到有数据
 
-* example: pipe2.c, communicate between processes
-  pipes combine well with fork() to implement ls | grep x
-    shell creates a pipe,
-    then forks (twice),
-    then connects ls's FD 1 to pipe's write FD,
-    and grep's FD 0 to the pipe
-    [diagram]
+* 示例：pipe2.c，进程间通信
+  管道与 fork() 很好地结合起来实现 ls | grep x
+    shell 创建一个管道，
+    然后用叉子（两次），
+    然后将 ls 的 FD 1 连接到管道的 write FD，
+    和 grep 的 FD 0 到管道
+    [图]
   $ pipe2 -- a simplified version 
-  pipes are a separate abstraction, but combine well w/ fork()
+  管道是一个单独的抽象，但与 fork() 结合得很好
 
-* example: list.c, list files in a directory
-  how does ls get a list of the files in a directory?
+* 示例：list.c，列出目录中的文件
+  ls 如何获取目录中的文件列表？
   you can open a directory and read it -> file names
-  "." is a pseudo-name for a process's current directory
-  see ls.c for more details
+  “。”是进程当前目录的伪名称
+  请参阅 ls.c 了解更多详细信息
 
-* Summary
-  * We've looked at UNIX's I/O, file system, and process abstractions.
-  * The interfaces are simple -- just integers and I/O buffers.
-  * The abstractions combine well, e.g. for I/O redirection.
+* 总结
+  * 我们已经研究了 UNIX 的 I/O、文件系统和进程抽象。
+  * 接口很简单——只有整数和 I/O 缓冲区。
+  * 抽象结合得很好，例如用于 I/O 重定向。
 
-You'll use these system calls in the first lab, due next week.
+您将在下周到期的第一个实验中使用这些系统调用。

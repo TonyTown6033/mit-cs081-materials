@@ -1,318 +1,321 @@
-6.1810 2025 Lecture 18: Crash Recovery, Logging
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Plan
-  problem: crash recovery
-    crash leads to inconsistent on-disk file system
+6.1810 2025 第 18 讲：崩溃恢复、日志记录
+
+计划
+  问题：崩溃恢复
+    崩溃导致磁盘文件系统不一致
   solution:
-    write-ahead logging
+    预写日志记录
 
 # Why crash recovery
 
-What is crash recovery?
-  process creates files, directories, etc.
-  then the power fails
-  you reboot
-  is your file system still usable?
+什么是崩溃恢复？
+  进程创建文件、目录等。
+  然后就停电了
+  你重新启动
+  你的文件系统还能用吗？
 
-file system reminder
-  a file system is a on-disk data structure
-    tree of directories containing files
-    each file is an inode and tree of blocks
-  on-disk layout in xv6: 
-    0: unused
-    1: super block (size, ninodes)
-    2: log for transactions (31 blocks)
-    33: array of inodes, 64 bytes each, packed 16 per block
-    46: block in-use bitmap (0=free, 1=used)
-    47: file/dir content blocks...
-  modifications to the file system require multiple disk write
-    removing a file f involves
-      - marking inode free
-      - marking its data blocks as free
-      - update the directory to remove f
+文件系统提醒
+  文件系统是磁盘上的数据结构
+    包含文件的目录树
+    每个文件都是一个索引节点和块树
+  xv6 中的磁盘布局：
+    0：未使用
+    1：超级块（大小，ninodes）
+    2：交易日志（31 个区块）
+    33：inode 数组，每个 64 字节，每块打包 16 个
+    46：块正在使用的位图（0=空闲，1=已使用）
+    47：文件/目录内容块...
+  对文件系统的修改需要多次磁盘写入
+    删除文件 f 涉及
+      - 标记空闲索引节点
+      - 将其数据块标记为空闲
+      - 更新目录以删除 f
 
-problem: crash during system call that writes several blocks
-  risk: may leave FS invariants violated
-    e.g., crash during unlink
-      inode marked free but file still in directory
-  after reboot:
-    bad: crash again due to corrupt FS
-    worse: no crash, but reads/writes incorrect data
+问题：写入多个块的系统调用期间崩溃
+  风险：可能会违反 FS 不变量
+    例如，取消链接期间崩溃
+      inode 标记为空闲，但文件仍在目录中
+  重启后：
+    坏：由于 FS 损坏而再次崩溃
+    更糟糕：没有崩溃，但读取/写入错误的数据
 
 examples:
   create:
   
     $ echo > x
     // create trace from last lecture:
-    log_write: block 34 by ialloc   // allocate inode in 2nd inode block
-    log_write: block 34 by iupdate  // update inode (e.g., set nlink)
-    log_write: block 47 by writei   // write directory entry, adding "x" by dirlink()
-    log_write: block 33 by iupdate  // update directory inode, because inode may have changed
-    log_write: block 34 by iupdate  // itrunc new inode
+    log_write: block 34 by ialloc // 在第二个 inode 块中分配 inode
+    log_write: block 34 by iupdate // 更新 inode (例如，设置 nlink)
+    log_write: block 47 by writei // 写入目录项，通过 dirlink() 添加“x”
+    log_write: block 33 by iupdate // 更新目录 inode，因为 inode 可能已更改
+    log_write: block 34 by iupdate // itrunc 新索引节点
 
-    crash between iupdate and writei
-      allocate file inode
-      crash: inode not free but not used -- not so bad
+    iupdate 和 writei 之间崩溃
+      分配文件索引节点
+      崩溃：inode 不空闲但未使用——还不错
 
-    what if the file system first performed the writes to 47 and 33 and then 34
-      that is, first create the directory entry and then the file
-      if crash between 33 and 34, then dirent points to free inode -- disaster!
-      crash again, or worse if inode is allocated for something else
+    如果文件系统首先执行对 47 和 33 的写入，然后对 34 执行写入，会怎样？
+      即先创建目录项，再创建文件
+      如果在 33 和 34 之间崩溃，则 dirent 指向空闲 inode——灾难！
+      再次崩溃，或者如果 inode 被分配给其他东西，情况会更糟
 
-    a real file system gives a batch of writes to disk to achieve higher performance
-      so after crash some may have happened, some not
+    真实的文件系统会对磁盘进行批量写入以获得更高的性能
+      所以崩溃后有些可能发生了，有些则没有
 
   write:
-    inode addrs[] and len
-    indirect block
-    block content
-    block free bitmap
-    crash: inode refers to free block -- disaster!
-    crash: block not free but not used -- not so bad
+    inode addrs[] 和 len
+    间接块
+    块内容
+    无块位图
+    崩溃：inode 指的是空闲块——灾难！
+    崩溃：块不可用但未使用——还不错
     
   unlink:
-    free block
-    free inode
-    erase dirent
-    crash: dirent refers to free inode -- disaster!
+    空闲块
+    空闲索引节点
+    擦除目录
+    crash: dirent 指的是空闲 inode——灾难！
 
-what can we hope for?
-  after rebooting and running recovery code
-  1. FS internal invariants maintained
-     e.g., no block is both in free list and in a file
-  2. all but last few operations preserved on disk
-     e.g., data I wrote yesterday are preserved
-     but perhaps not data I was writing at time of crash
-     so user might have to check last few operations
-  3. no order anomalies
-     echo 99 > result ; echo done > status
+我们能指望什么？
+  重新启动并运行恢复代码后
+  1. 维持FS内部不变量
+     例如，没有块同时位于空闲列表和文件中
+  2. 除最后几个操作外的所有操作都保留在磁盘上
+     例如，我昨天写的数据被保留
+     但也许不是我在崩溃时写入的数据
+     所以用户可能必须检查最后几个操作
+  3.无订单异常情况
+     回声 99 > 结果;回显完成 > 状态
 
-correctness and performance often conflict
-  disk writes are slow!
+正确性和性能经常发生冲突
+  磁盘写入速度慢！
   safety => write to disk ASAP
   speed => don't write the disk (e.g., batch, write-back cache)
 
-crash recovery is a recurring problem
-  arises in all storage systems, e.g. databases
-  a lot of work has gone into solutions over the years
-  many clever performance/correctness tradeoffs
+崩溃恢复是一个反复出现的问题
+  出现在所有存储系统中，例如数据库
+  多年来我们在解决方案上做了大量的工作
+  许多巧妙的性能/正确性权衡
 
 # Logging solution
 
 most popular solution: logging (== journaling)
-  goal: atomic system calls w.r.t. crashes
-  goal: fast recovery (no hour-long fsck)
+  目标：原子系统调用 w.r.t.崩溃
+  目标：快速恢复（无需长达一小时的 fsck）
 
-will introduce logging in two steps
-  first xv6's log, which only provides safety and fast recovery
-  then Linux EXT3, which is also fast in normal operation
+将分两步介绍日志记录
+  首先是xv6的日志，只提供安全和快速恢复
+  然后是Linux EXT3，正常运行也很快
 
-the basic idea behind logging
-  you want atomicity: all of a system call's writes, or none
-    let's call an atomic operation a "transaction"
-    kernel developer must mark begin and end of a transaction
-  record all writes the sys call *will* do in the log on disk (log)
-  then record "done" on disk (commit)
-    this operation must be atomic
-    a commit happens or doesn't happen (no 1/2 commit)
-  then do the FS disk writes  (install)
-  on crash+recovery:
-    if "done" in log, replay all writes in log
-    if no "done", ignore log
-  this is a WRITE-AHEAD LOG
+日志记录背后的基本思想
+  你想要原子性：系统调用的所有写入，或者没有
+    我们将原子操作称为“事务”
+    内核开发人员必须标记事务的开始和结束
+  记录系统调用*将*在磁盘日志中执行的所有写入操作（日志）
+  然后在磁盘上记录“完成”（提交）
+    这个操作必须是原子的
+    提交发生或未发生（无 1/2 提交）
+  然后进行 FS 磁盘写入（安装）
+  关于崩溃+恢复：
+    如果日志中“完成”，则重播日志中的所有写入
+    如果没有“完成”，则忽略日志
+  这是一个预写日志
 
-write-ahead log rule
-  install *none* of a transaction's writes to disk
-  until *all* writes are in the log on disk,
-  and the logged writes are marked committed.
+预写日志规则
+  安装*无*事务写入磁盘
+  直到*所有*写入都记录在磁盘上，
+  并且记录的写入被标记为已提交。
 
-why the rule?
-  once we've installed one write to the on-disk FS,
-  we have to do *all* of the transaction's other
-  writes -- so the transaction is atomic. we have
-  to be prepared for a crash after the first installation
-  write, so the other writes must be still available
-  after the crash -- in the log.
+为什么有这个规则？
+  一旦我们安装了对磁盘 FS 的写入操作，
+  我们必须完成该交易的“所有”其他操作
+  写——所以事务是原子的。我们有
+  为首次安装后崩溃做好准备
+  写入，因此其他写入必须仍然可用
+  崩溃后——在日志中。
 
-logging is magic
-  crash recovery of complex mutable data structures is generally hard
-  logging can often be layered on existing storage systems
-  and it's compatible with high performance (topic for next lecture)
+日志记录是神奇的
+  复杂可变数据结构的崩溃恢复通常很困难
+  日志记录通常可以分层在现有存储系统上
+  并且它与高性能兼容（下一讲的主题）
 
 # Overview of xv6 logging
 
-xv6 log representation
-  [diagram: buffer cache, in-memory log block # array,
-            FS tree on disk, log header and blocks on disk]
-  on write add blockno to in-memory array
-  keep the data itself in buffer cache (pinned)
-  on commit:
-    write buffers to the log on disk
-    WAIT for disk to complete the writes ("synchronous")
-    write the log header sector to disk
-      block numbers
-      non-zero "n"
-  after commit:
-    install (write) the blocks in the log to their home location in FS
-    unpin blocks
-    write zero to "n" in the log header on disk
+xv6 日志表示
+  [图：缓冲区高速缓存，内存中日志块#数组，
+            磁盘上的 FS 树、日志头和磁盘上的块]
+  写入时将 blockno 添加到内存数组
+  将数据本身保留在缓冲区高速缓存中（固定）
+  提交时：
+    将缓冲区写入磁盘上的日志
+    等待磁盘完成写入（“同步”）
+    将日志头扇区写入磁盘
+      块号
+      非零“n”
+  提交后：
+    将日志中的块安装（写入）到 FS 中的主位置
+    取消固定块
+    在磁盘上的日志头中将零写入“n”
 
-the "n" value in the log header on disk indicates commit
+磁盘上日志头中的“n”值表示提交
   non-zero == committed, log content valid and is a complete transaction
   zero == not committed, may not be complete, recovery should ignore log
-  write of non-zero "n" is the "commit point"
+  写入非零“n”是“提交点”
   
-Let's look at an example.
-  I've modified log_write() and bwrite() to print low-level disk writes,
-  i.e. the disk writes that occur during transaction commit.
+让我们看一个例子。
+  我修改了 log_write() 和 bwrite() 以打印低级磁盘写入，
+  即事务提交期间发生的磁盘写入。
 
   $ echo > x
-  log_write 34
-  log_write 34
-  log_write 47
-  log_write 33
-  log_write 34
+  日志写入 34
+  日志写入 34
+  日志写入 47
+  日志写入 33
+  日志写入 34
   // no disk writes until commit!
-  bwrite 3    // block w. x inode 34
-  bwrite 4    // directory block 47
-  bwrite 5    // block w. dir inode 33
-  bwrite 2    // commit
-  bwrite 34   // install inode for x 
-  bwrite 47   // install directory content
-  bwrite 33   // update dir inode
-  bwrite 2    // mark log empty
+  bwrite 3 // 块 w. x 索引节点 34
+  bwrite 4 // 目录块 47
+  bwrite 5 // 块 w.目录索引节点 33
+  bwrite 2 // 提交
+  bwrite 34 // 为 x 安装 inode
+  bwrite 47 //安装目录内容
+  bwrite 33 // 更新目录 inode
+  bwrite 2 // 将日志标记为空
   // multiple writes to same block become one write
   // every block written twice: log and install
 
-What would have happened if we crashed during a transaction?
-  memory is lost, leaving only the disk as of the crash
-  kernel calls recover_from_log() during boot, before using FS
-    if log header block says "done":
-      copy blocks from log to real locations on disk
-  what is in the on-disk log?
-    crash before commit
-    crash during commit -- commit point
-      bwrite 2 must be atomic; a single sector
-      so, either committed or not
-    crash during install_trans()
-    crash just after reboot, while in recover_from_log()
-  note: it is OK to replay the log more than once!
-    as long no other activity intervenes
+如果我们在交易过程中崩溃了会发生什么？
+  内存丢失，只剩下崩溃时的磁盘
+  内核在启动期间、使用 FS 之前调用recover_from_log()
+    如果日志头块显示“完成”：
+      将块从日志复制到磁盘上的实际位置
+  磁盘日志中有什么内容？
+    提交前崩溃
+    提交期间崩溃——提交点
+      bwrite 2 必须是原子的；单一部门
+      所以，无论是否承诺
+    install_trans() 期间崩溃
+    重新启动后崩溃，而在recover_from_log()中
+  注意：可以多次重放日志！
+    只要没有其他活动干预
   
-let's look at code and walk through the create transaction
+让我们看一下代码并逐步了解创建事务
   sysfile.c: sys_open()
-    begin_op/end_op: mark transaction
-  sysfile.c: create
-    ialloc() allocates inode
+    begin_op/end_op：标记事务
+  sysfile.c：创建
+    alloc() 分配 inode
       log_write
 
-  begin_op() in log.c:
-    need to indicate which group of writes must be atomic!
-    need to check if log is being committed
-    need to check if our writes will fit in remainder of log
-  log_write():
-    add sector # to in-memory array
-    bpin() will pin block in buffer cache, so that bio.c won't evict it
-  end_op():
-    if no outstanding operations, commit
-  commit():
-    copy updated blocks from cache to log on disk
-    record sector #s and "done" in on-disk log header
-    install writes -- copy from on-disk log to on-disk FS
-      bunpin() will unpin from cache --- now it can be evicted
-    erase "done" from log
+  log.c 中的 begin_op() ：
+    需要指出哪组写入必须是原子的！
+    需要检查日志是否正在提交
+    需要检查我们的写入是否适合日志的其余部分
+  日志写入（）：
+    将扇区号添加到内存数组中
+    bpin() 将在缓冲区缓存中 pin 块，这样 bio.c 就不会驱逐它
+  结束操作（）：
+    如果没有未完成的操作，则提交
+  提交（）：
+    将更新的块从缓存复制到登录磁盘
+    在磁盘日志头中记录扇区号和“完成”
+    install writes -- 从磁盘日志复制到磁盘 FS
+      Bunpin() 将从缓存中取消固定 --- 现在可以将其逐出
+    从日志中删除“完成”
 
-note xv6 assumes the disk is fail-stop
-  it either does the write correctly, or does not do the write
-    i.e. perhaps it can't do the last write due to power failure
+注意 xv6 假设磁盘是故障停止的
+  它要么正确写入，要么不写入
+    即可能由于电源故障而无法进行最后一次写入
   thus:
-    no partial writes (each sector write is atomic)
-    no wild writes
-    no decay of sectors (no read errors)
-    no read of the wrong sector
+    无部分写入（每个扇区写入都是原子的）
+    没有狂野的写
+    无扇区衰减（无读取错误）
+    没有读错扇区
 
 # Challenges
   
-challenge: prevent write-back from cache
-  a system call can safely update a *cached* block,
-    but the block cannot be written to the FS
-    until the transaction commits
-  tricky because e.g. cache may run out of space,
-    and be tempted to evict some entries in order
-    to read and cache other data.
-  consider create example:
-    write dirty inode to log
-    write dir block to log
-    evict dirty inode
-    commit
-  xv6 solution:
-    ensure buffer cache is big enough
-    pin dirty blocks in buffer cache
-    after commit, unpin block
+挑战：防止从缓存写回
+  系统调用可以安全地更新*缓存*块，
+    但该块无法写入FS
+    直到事务提交
+  棘手，因为例如缓存可能会耗尽空间，
+    并试图按顺序驱逐一些条目
+    读取和缓存其他数据。
+  考虑创建示例：
+    将脏 inode 写入日志
+    将目录块写入日志
+    驱逐脏索引节点
+    提交
+  xv6解决方案：
+    确保缓冲区缓存足够大
+    将脏块固定在缓冲区高速缓存中
+    提交后，取消固定块
   
-challenge: system's call data must fit in log
-  xv6 solution:
-  - compute an upper bound of number of blocks each system call writes
-    set log size >= upper bound
-  - break up some system calls into several transactions
-    for example, large write()s
-    thus: large write()s are not atomic
-      but a crash will leave a correct prefix of the write
+挑战：系统调用数据必须适合日志
+  xv6解决方案：
+  - 计算每个系统调用写入的块数的上限
+    设置日志大小 >= 上限
+  - 将一些系统调用分解为多个事务
+    例如，大的 write()
+    因此：大的 write() 不是原子的
+      但崩溃会留下正确的写入前缀
 	
-challenge: allowing concurrent system calls
-  must allow writes from several calls to be in log
-  on commit must write them all
-  BUT cannot write data from calls still in a transaction
+挑战：允许并发系统调用
+  必须允许多个调用的写入记录在日志中
+  提交时必须将它们全部写入
+  但无法从仍在事务中的调用写入数据
 
-xv6 solution
-  allow no new system calls to start if their data might not fit in log
-    must wait for current calls to complete and leave enough space in log
-    or, wait until concurrent calls have committed, which frees up log
-  when number of in-progress calls falls to zero
-    commit
-    free up log space
-    wake up waiting calls
+xv6解决方案
+  如果数据可能不适合日志，则不允许启动新的系统调用
+    必须等待当前调用完成并在日志中留出足够的空间
+    或者，等待并发调用提交，这会释放日志
+  当进行中的呼叫数量降至零时
+    提交
+    释放日志空间
+    叫醒等待电话
 
-challenge: a block may be written multiple times in a transaction
-  log_write() affects only the cached block in memory
-  so a cached block may reflect multiple uncommitted transactions
-  but install only happens when there are no in-progress transactions
-    so installed blocks reflect only committed transactions
-  good for performance: "write absorbtion"
+挑战：一个区块可能在一次交易中被多次写入
+  log_write() 仅影响内存中的缓存块
+  因此缓存的块可能反映多个未提交的事务
+  但安装仅在没有进行中的事务时发生
+    因此安装的块仅反映已提交的事务
+  对性能有好处：“写吸收”
 
-challenge: orphaned files/directories
-  inode has refcnt = 0 but some process has still has an open fd for it
-    cannot delete just yet
-  but crash may happen before close(fd)
-    file is on disk but no dirent points to it
+挑战：孤立的文件/目录
+  inode refcnt = 0 但某些进程仍然有一个打开的 fd
+    暂时还不能删除
+  但在 close(fd) 之前可能会发生崩溃
+    文件位于磁盘上，但没有 dirent 指向它
 
-xv6 solution:
-  ireclaim: on reboot check for orphaned files
+xv6解决方案：
+  ireclaim：重新启动时检查孤立文件
 
-challenge: when does an process know its writes are on disk?
-  e.g., when write() returns, the updates may not have been committed
-    another transaction was in progress and delayed the commit 
+挑战：进程何时知道其写入位于磁盘上？
+  例如，当 write() 返回时，更新可能尚未提交
+    另一笔交易正在进行中并延迟了提交
 
-typical solution: sync() system call 
-  returns only when all dirty blocks are on the disk
-  xv6 doesn't have a sync call
+典型解决方案：sync()系统调用
+  仅当所有脏块都在磁盘上时才返回
+  xv6 没有同步调用
     
 # Summary
 
-what is good about xv6's log design?
-  correctness due to write-ahead log
-  good disk throughput: log naturally batches writes
-    but data disk blocks are written twice
-  concurrency
+xv6的日志设计有什么好处？
+  由于预写日志的正确性
+  良好的磁盘吞吐量：日志自然批量写入
+    但数据盘块被写入两次
+  并发性
   
-what's wrong with xv6's logging?
-  not very efficient:
-    every block is written twice (log and install)
-    logs whole blocks even if only a few bytes modified
-    writes each log block synchronously
-      could write them as a batch and only write head synchronously 
-    log writes and install writes are eager
-      both could be lazy, for more write absorbtion
-      but must still write the log first
-  trouble with operations that don't fit in the log
-    unlink might dirty many blocks while truncating file
+xv6 的日志记录出了什么问题？
+  效率不高：
+    每个块被写入两次（记录并安装）
+    记录整个块，即使只修改了几个字节
+    同步写入每个日志块
+      可以将它们批量写入并且仅同步写入头
+    日志写入和安装写入都是急切的
+      两者都可能是懒惰的，为了更多的写入吸收
+      但仍然必须先写日志
+  不适合日志的操作出现问题
+    截断文件时取消链接可能会弄脏许多块

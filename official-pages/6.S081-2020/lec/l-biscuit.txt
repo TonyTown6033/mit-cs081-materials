@@ -1,15 +1,18 @@
-Motivation
-  Commodity kernels written in C
-  For good reason: C gives programmer total control
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-  But C hard to use correctly
-    Memory management left to programmer
-    Serious problems for kernel developers:
-      Concurrent data structures challenging
-        (RCU, next week)
-      Memory safety bugs
-        Use-after-free (notoriously difficult to debug)
-        Buffer overflows (security vulnerabilities)
+动机
+  用 C 编写的商品内核
+  有充分的理由：C 给予程序员完全控制权
+
+  但C很难正确使用
+    内存管理留给程序员
+    内核开发人员面临的严重问题：
+      并发数据结构具有挑战性
+        （RCU，下周）
+      内存安全漏洞
+        释放后使用（众所周知难以调试）
+        缓冲区溢出（安全漏洞）
           https://source.codeaurora.org/quic/la//kernel/msm-3.14/commit/?id=72f67b29a9c5e6e8d3c34751600c749c5f5e13e1
             CVE-2017-0619
           https://source.codeaurora.org/quic/la//kernel/msm-3.10/commit/?id=9656e2c2b3523af20502bf1e933e35a397f5e82f
@@ -17,213 +20,213 @@ Motivation
           https://source.codeaurora.org/quic/la//kernel/msm-4.4/commit/?id=01b2c9a5d728ff6f2f1f28a5d4e927aaeabf56ed
             CVE-2017-0620
 
-  HLL automatically eliminates memory safety bugs!
-    HLLs have a garbage collector (GC)
-    GC automates memory deallocation
-    Convenient for programmer
-    ...and provides memory safety
-    But GC has costs:
-      CPU cycles at runtime
-      Delays execution
-      Extra memory
-    Thus HLL use is a trade-off: safety vs perf
-    Determining perf. cost important to understand this trade-off
-    No in-depth performance evaluation of HLL kernel has been done before
-      Despite researchers building many HLL kernels already
-    Want: better understanding of HLL kernel perf
-    Goal: compare perf of HLL kernel against fast kernel
-      i.e. against Linux
+  HLL自动消除内存安全漏洞！
+    HLL 有一个垃圾收集器 (GC)
+    GC 自动释放内存
+    方便程序员
+    ...并提供内存安全
+    但 GC 有成本：
+      运行时的CPU周期
+      延迟执行
+      额外内存
+    因此，HLL 的使用是一种权衡：安全性与性能
+    确定性能。成本对于理解这种权衡很重要
+    之前没有对HLL内核进行过深入的性能评估
+      尽管研究人员已经构建了许多 HLL 内核
+    想要：更好地了解 HLL 内核性能
+    目标：将 HLL 内核与快速内核的性能进行比较
+      即针对Linux
 
-Biscuit
-  Started in 2014
-  ~30k LOC in Go
-  Arch similar to Linux for more fair comparison
-  POSIX syscalls
-  Can run complex apps (NGINX, Redis) w/o source modifications
-  Similar to Linux in many ways
-  Some differences:
-    Kernel threads are light-weight goroutines
-      Context switch doesn't save/restore pgtable
-      Cannot dereference user pointers
-        Manually translate
-    (What are SSE regs/instructions?)
-    Go compiler freely uses SSE registers
-      While Linux avoids using SSE
-        Explicitly saves/restores SSE regs
-      Result: Biscuit saves/restores SSE regs more often
-    Go isn't designed to handle interrupts
-      Runtime doesn't disable/enable interrupts in critical sections
-        Calling critical sections (allocation) in Interrupts could deadlock
-      Interrupt handlers can't do much
-      Instead they wakeup a handling goroutine and return
-  Biggest difference: Handling OOM
+饼干
+  2014年开始
+  Go 中约 30k LOC
+  Arch 与 Linux 类似，比较更公平
+  POSIX 系统调用
+  无需修改源即可运行复杂的应用程序（NGINX、Redis）
+  在很多方面与 Linux 相似
+  一些差异：
+    内核线程是轻量级的 goroutine
+      上下文切换不保存/恢复 pgtable
+      无法取消引用用户指针
+        手动翻译
+    （什么是上交所规则/说明？）
+    Go编译器自由使用SSE寄存器
+      虽然 Linux 避免使用 SSE
+        显式保存/恢复 SSE 规则
+      结果：Biscuit 更频繁地保存/恢复 SSE 规则
+    Go 并不是为处理中断而设计的
+      运行时不会禁用/启用关键部分的中断
+        在中断中调用关键部分（分配）可能会死锁
+      中断处理程序不能做太多事情
+      相反，他们唤醒一个处理 goroutine 并返回
+  最大的区别：处理 OOM
 
 OOM
-  Problem Biscuit, Windows, Linux, FreeBSD etc. all face
-  (Swap doesn't solve this problem, though may make OOM less likely)
-  Many kernel ops allocate memory
-    open(2) allocates a file object
-    socket(2) allocates a socket object
-  User program decides when to release the resource/free the mem
+  问题饼干，Windows、Linux、FreeBSD等都面临
+  （交换并不能解决这个问题，但可能会降低 OOM 的可能性）
+  许多内核操作分配内存
+    open(2) 分配一个文件对象
+    socket(2) 分配一个套接字对象
+  用户程序决定何时释放资源/释放内存
   => User prog determines how much heap memory kernel uses
-  But machine has limited memory
+  但机器内存有限
 
-  Problem: What if user programs cause kernel to allocate all of mem?
-    Why would this happen?
-      Buggy program
-      Database server is intentionally using most mem
-        + unlucky spike in allocations
-    Result: almost no operation can succeed until memory is free
-      Hard or impossible for user program to handle sensibly
-      i.e. printf() fails
-      Even exit(2) fails!
-      Memory used by other process
-    No user prog can make progress
+  问题：如果用户程序导致内核分配所有内存怎么办？
+    为什么会出现这种情况呢？
+      越野车程序
+      数据库服务器有意使用大部分内存
+        + 分配数量不幸激增
+    结果：在内存释放之前几乎没有操作可以成功
+      用户程序很难或不可能合理地处理
+      即 printf() 失败
+      即使 exit(2) 也失败了！
+      其他进程使用的内存
+    没有用户编程可以取得进展
 
-  How to recover? Need to free memory
-    Recover mem by killing mem hogging process
-    Can't simply kill
-      exit(2) must allocate to close files and keep FS consistent
-    Result: Kernel must reserve enough mem for exit(2)
-      Linux and Biscuit both do so
+  如何恢复？需要释放内存
+    通过杀死内存占用进程来恢复内存
+    不能简单地杀掉
+      exit(2) 必须分配以关闭文件并保持 FS 一致
+    结果：内核必须为退出（2）保留足够的内存
+      Linux 和 Biscuit 都是这样做的
 
-  How kernel kills hog is important
-    Linux's approach:
-      Blocking in allocator is tempting
-        Then caller doesn't have to handle failure
-      But this can deadlock
-        Ex: Good prog takes lock on directory in FS
-          Mem hog waiting for lock
-            Kernel can't kill hog
-            Hog waits for good prog
-            Good prog waits for hog to exit
-            Deadlock
+  内核如何杀猪很重要
+    Linux的做法：
+      分配器中的阻塞很诱人
+        那么调用者就不必处理失败
+      但这可能会陷入僵局
+        例如：Good prog 锁定 FS 中的目录
+          内存占用等待锁定
+            内核无法杀猪
+            猪等待好的节目
+            好的 prog 等待 hog 退出
+            死锁
       Avoid deadlock by failing alloc of good prog
-      Result: kernel must handle failure of nearly all allocations
-        Hard and filled with bugs
-        "Too small to fail" rule
+      结果：内核必须处理几乎所有分配的失败
+        困难且充满错误
+        “太小而不能失败”规则
 
-    Biscuit's approach
-      Can't use Linux's approach
-      Before executing op, wait until enough mem
-        No waiting in the middle of an op
-        No locks held
-        Thus no deadlock
-      How to calculate max mem?
-        Turns out static analysis of Go is easy
-        Wrote tool: MAXLIVE
-          Highlevel: fancy escape analysis
-          Not exact, but conservative
-            over-estimates needed memory, never under-estimates
-          Inspects call graph
-          Finds all allocations of each syscall
-          Two kinds of objects:
-            1) May be written to global
-            2) Only ever referenced by stack pointer
-          Type 1 objects always live
-          Type 2 objects freed on some stack frame destruction
-          Mem = sum of type 1 + max of type 2 at each call graph leaf
-      Result: no deadlock, almost no handling of allocation failures
+    饼干的做法
+      无法使用Linux的方法
+      在执行op之前，等待足够的mem
+        无需在操作中等待
+        没有持有锁
+        因此不会出现死锁
+      如何计算最大内存？
+        事实证明 Go 的静态分析很容易
+        编写工具：MAXLIVE
+          高级：花哨的逃逸分析
+          不准确，但保守
+            高估所需的内存，永远不会低估
+          检查调用图
+          查找每个系统调用的所有分配
+          两种对象：
+            1) 可以写入全局
+            2）仅由堆栈指针引用
+          类型 1 对象始终存在
+          某些堆栈帧破坏时释放的类型 2 对象
+          Mem = 每个调用图叶子处类型 1 的总和 + 类型 2 的最大值
+      结果：没有死锁，几乎没有分配失败的处理
 
-Experience
-  90 uses of unsafe
-  Hacked the runtime in a couple ways
-    Schedule interrupt goroutines
-    Count allocations
-  Some code non-portable due to unclear memory model
-  Go was helpful
-    Slices vs pointer+size
-    Defer vs gotos
-    Closures
-    Maps
-    GC vs manual mem
-      GC significantly simplifies concurrent data structures
-        Entries heap allocated
-        When to free an entry?
-        When all other threads done with entry?
-  Implemented many OS perf optimizations to compete with Linux
-    Map kernel text w/large pages
-    Per-CPU NIC TX queues
-    RCU-like directory cache
-    Go didn't prevent their implementation
+经验
+  90 种不安全的用途
+  通过几种方式破解运行时
+    调度中断 goroutine
+    计数分配
+  由于内存模型不明确，一些代码不可移植
+  Go 很有帮助
+    切片与指针+大小
+    Defer 与 goto
+    闭包
+    地图
+    GC 与手动内存
+      GC 显着简化了并发数据结构
+        分配的条目堆
+        什么时候释放条目？
+        当所有其他线程完成输入时？
+  实施了许多操作系统性能优化以与 Linux 竞争
+    映射内核文本和大页面
+    每个 CPU NIC TX 队列
+    类似 RCU 的目录缓存
+    Go 并没有阻止它们的实现
 
-Performance
-  Three demanding apps
-    NGINX: webserver
-    Redis: key-value store
-    Cmailbench: fork/exec/VM benchmark
-  Exercise 10 Gb NIC, TCP stack, VM, FS
-  No idle CPU cycles
+性能
+  三个要求较高的应用程序
+    NGINX：网络服务器
+    Redis：键值存储
+    Cmailbench：fork/exec/VM 基准测试
+  练习 10 Gb NIC、TCP 堆栈、VM、FS
+  无空闲 CPU 周期
   At least 80% of CPU time spent in kernel
 
   Results:
-    Linux comparison
-      Is Biscuit performance in the same league?
-      Disabled expensive Linux features
-        Speeds Linux up
-        Makes comparison more fair
-      Biscuit within 9% of Linux on our apps
-      Linux much faster in other situations
-        More than four CPUs
-        NUMA aware
+    Linux比较
+      Biscuit的表现在同一个联赛中吗？
+      禁用昂贵的 Linux 功能
+        加快 Linux 速度
+        让比较更加公平
+      我们的应用程序中 9% 的 Linux 中存在饼干
+      Linux 在其他情况下要快得多
+        四个以上 CPU
+        NUMA 感知
 
-    GC < 3%
-      Cost of GC determined by two factors:
-        1) Number of objects (cost increases with objects)
-          GC must mark/read pointers in each object
-        2) Amount of free heap memory (cost decreases with free mem)
-          GC each time free memory exhausted
-      Apps use up to 5GB of memory
-        And cause kernel to allocate rapidly
-        But # of kernel objects is small
-          Kernel heap contains small metadata objects
-          Separate allocator for pages
-            User memory
-            File content pages
-            Socket buffers
-            Page-table pages
-          Reduces # kernel objects
-          Increases free heap mem
-      In general:
-        Trade mem for reduced CPU overhead for large heaps
+    气相色谱<3%
+      GC 的成本由两个因素决定：
+        1）对象数量（成本随着对象的增加而增加）
+          GC必须标记/读取每个对象中的指针
+        2) 可用堆内存量（成本随着可用内存的增加而降低）
+          每次空闲内存耗尽时进行GC
+      应用程序最多使用 5GB 内存
+        并导致内核快速分配
+        但内核对象的数量很小
+          内核堆包含小型元数据对象
+          单独的页面分配器
+            用户记忆
+            文件内容页面
+            套接字缓冲区
+            页表页
+          减少#个内核对象
+          增加可用堆内存
+      一般来说：
+        使用 mem 来减少大型堆的 CPU 开销
 
-    Isolate perf diff due to HLL from diff OS features
-      Modified Linux/Biscuit to get two nearly identical code paths
-        Pipe ping-pong
-        Page fault
-      CPU-time profiles show both OSes doing the same thing
-      Ping-pong 15% faster
-        Go version has safety checks/write barriers
-      Page fault 5% faster
-        Kernel entry/exit and copying dominate other work
+    将 HLL 导致的性能差异与差异操作系统功能隔离开来
+      修改 Linux/Biscuit 以获得两个几乎相同的代码路径
+        管乒乓球
+        页面错误
+      CPU 时间配置文件显示两个操作系统执行相同的操作
+      乒乓球速度提高 15%
+        Go版本有安全检查/写屏障
+      页面错误速度提高 5%
+        内核的进入/退出和复制主导其他工作
 
-    GC pauses
-      During GC, each allocation must complete GC work
-      Pauses come from GC work
+    GC 暂停
+      GC期间，每次分配都必须完成GC工作
+      暂停来自 GC 工作
 
-      Max single pause of 115us
-      Pauses can accumulate
-      Max accumulated in NGINX: 600us
-      We reduced pause times by tuning GC
+      最大单次暂停115us
+      暂停可以累积
+      NGINX 中累计最大：600us
+      我们通过调整 GC 减少了暂停时间
 
-Conclusion
-  HLL worked well
-  Performance pretty good
-  But C is faster
+结论
+  HLL 运行良好
+  性能相当不错
+  但C更快
 
-Questions
-  What about other languages, like Python?
-    Other HLLs would likely have much different performance results.
-    Multithreading in Python harder than in Go
+问题
+  其他语言呢，比如Python？
+    其他 HLL 可能会产生截然不同的性能结果。
+    Python 中的多线程比 Go 中的多线程更难
 
-  Feasible to use HLL when perf less important and C when perf important?
-    Interesting idea, seems like it could work
-    Difficult to share GC heap objects with C code
+  当性能不太重要时使用 HLL 是否可行，而当性能重要时使用 C 是否可行？
+    有趣的想法，似乎可行
+    难以与 C 代码共享 GC 堆对象
 
-  How does Biscuit access physical addresses without pointer arithmetic?
-    Uses "unsafe" pointer conversion
+  Biscuit如何在没有指针运算的情况下访问物理地址？
+    使用“不安全”的指针转换
 
-  Why is nearly-identical Go code slower than C?
-    The Go compiler inserts more instructions
+  为什么几乎相同的 Go 代码比 C 慢？
+    Go编译器插入更多指令
     Safety-checks
-    Write barriers
+    写障碍

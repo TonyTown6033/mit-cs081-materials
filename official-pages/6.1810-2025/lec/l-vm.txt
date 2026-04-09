@@ -1,213 +1,216 @@
-6.1810 2025 Lecture 5: Virtual Memory/Page tables
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-* plan:
-  address spaces
-  paging hardware
-  xv6 VM code
+6.1810 2025 第5讲：虚拟内存/页表
+
+* 计划：
+  地址空间
+  寻呼硬件
+  xv6 虚拟机代码
 
 ## Virtual memory overview
 
-* today's problem:
-  [user/kernel diagram]
-  suppose the shell has a bug:
-    sometimes it writes to a random memory address
-  [physical memory, 0..2^64 : apps and kernel in same memory]
-  how can we keep it from wrecking the kernel?
-    and from wrecking other processes?
+* 今天的问题：
+  [用户/内核图]
+  假设 shell 有一个 bug：
+    有时它会写入随机内存地址
+  [物理内存，0..2^64：应用程序和内核位于同一内存中]
+  我们怎样才能防止它破坏内核呢？
+    并避免破坏其他进程？
 
-* we want isolated address spaces
-  each process has its own memory
-  it can read and write its own memory
-  it cannot read or write anything else
+* 我们想要隔离的地址空间
+  每个进程都有自己的内存
+  它可以读写自己的内存
+  它无法读取或写入任何其他内容
   challenge: 
-    how to multiplex several address spaces onto one physical memory?
-    while maintaining isolation
+    如何将多个地址空间复用到一个物理内存上？
+    在保持隔离的同时
 
-* xv6 uses RISC-V's paging hardware to implement AS's
-  ask questions! this material is important but complex
-  topic of this week's lab (and shows up in several other labs)
+* xv6使用RISC-V的分页硬件来实现AS
+  问问题！这种材料很重要但很复杂
+  本周实验室的主题（并出现在其他几个实验室中）
 
-* page tables provide a level of indirection for addressing
+* 页表提供一定程度的间接寻址
   CPU -> MMU -> RAM
-      VA     PA
-  s/w can only ld/st to virtual addresses, not physical
-  kernel tells MMU how to map each virtual address to a physical address
-    MMU essentially has a table, indexed by va, yielding pa
-    called a "page table"
-    va | pa
+      VAPA
+  软件只能 ld/st 到虚拟地址，而不是物理地址
+  内核告诉MMU如何将每个虚拟地址映射到物理地址
+    MMU 本质上有一个表，由 va 索引，产生 pa
+    称为“页表”
+    弗吉尼亚州 |帕
     -------
-    x  |  y
-  code can only use addresses that have mappings in the table
+    x| y
+  代码只能使用表中具有映射的地址
 
-* we want a different address space for each process
-  so we need more than one page table -- and need to switch
-  MMU has a register (satp) that kernel writes to change page table
+* 我们希望每个进程有不同的地址空间
+  所以我们需要多个页表——并且需要切换
+  MMU 有一个寄存器（satp），内核写入该寄存器来更改页表
 
-* where does the page table live?
-  in memory
-  satp holds the (physical) address of the current page table
-  MMU loads page table entries from memory
-  kernel can modify page table by writing it in memory
+* 页表位于哪里？
+  记忆中
+  satp 保存当前页表的（物理）地址
+  MMU从内存加载页表条目
+  内核可以通过将页表写入内存来修改页表
 
-* how big is a page table?
-  there are 2^64 distinct virtual addresses possible
-  not practical to have a table with 2^64 entries!
-  many of details are about reducing size
+* 页表有多大？
+  可能有 2^64 个不同的虚拟地址
+  拥有一个包含 2^64 个条目的表是不切实际的！
+  许多细节都是为了减小尺寸
 
-* RISC-V maps 4-KB "pages"
-  page table only needs to have an entry per page
-  4 KB = 12 bits
-  RISC-V has 64-bit addresses, so at most 52-bit page address
-    64 bits of address - 12 bits of page offset = 52 bits of page index
-  still too many entries, so hardware typically makes further assumptions
-    RISC-V Sv39 limits address space to 512GB (39 bits)
-    27-bit page table index
-    if apps need more than 512GB, need to change hardware (Sv48, Sv57)
+* RISC-V 映射 4 KB“页面”
+  页表只需每页有一个条目
+  4 KB = 12 位
+  RISC-V有64位地址，因此最多52位页地址
+    64 位地址 - 12 位页偏移 = 52 位页索引
+  条目仍然太多，因此硬件通常会做出进一步的假设
+    RISC-V Sv39 将地址空间限制为 512GB（39 位）
+    27位页表索引
+    如果应用程序需要超过 512GB，则需要更改硬件（Sv48、Sv57）
 
-* Figure 3.1 -- simplified view
-  MMU uses index bits of VA to find a page table entry (PTE)
-  MMU constructs physical address using PPN from PTE + offset of VA
+* 图 3.1 -- 简化视图
+  MMU使用VA的索引位来查找页表项（PTE）
+  MMU使用PPN从PTE + VA的偏移量构造物理地址
   
-* what is in a PTE (page table entry)?
-  bottom of Figure 3.2
-  [10 reserved | 44 PPN | 10 flags]
-  each PTE is 64 bits, but only 54 are used
-  44-bit PPN (physical page number) is top bits of 56-bit phys addr
-    hardware assumption that there's at most 2^56 = 64PB of physical DRAM
-  low 10 bits of PTE are flags
-    Valid, Writeable, &c
-  recall: when translating a virtual address to physical address,
-    low 12 bits of physical address are copied from virtual address
+* PTE（页表条目）中有什么？
+  图3.2底部
+  [10 保留 | 44 PPN | 44 10 旗]
+  每个PTE都是64位，但只使用了54位
+  44 位 PPN（物理页号）是 56 位 phys addr 的最高位
+    硬件假设最多有 2^56 = 64PB 物理 DRAM
+  PTE的低10位是标志
+    有效、可写等
+  回想一下：将虚拟地址转换为物理地址时，
+    物理地址的低12位是从虚拟地址复制而来的
 
-* would it be reasonable for page table to just be an array of PTEs?
-  as in Figure 3.1
-  directly indexed by 27 index bits of virtual addresses?
-  how big would page table be?
-  2^27 is roughly 134 million
-  64 bits per entry
-  134*8 MB for a full page table
-    roughly 1GB per page table
-    one page table per address space -- per process
-  would waste lots of memory for small programs!
-    you might only need mappings for a small fraction of possible pages
-    so the rest of the entries would consume RAM but not be needed
+* 页表只是 PTE 数组是否合理？
+  如图3.1
+  直接用虚拟地址的27个索引位来索引？
+  页表有多大？
+  2^27 大约是 1.34 亿
+  每个条目 64 位
+  整页表 134*8 MB
+    每个页表大约 1GB
+    每个地址空间一个页表——每个进程
+  小程序会浪费大量内存！
+    您可能只需要一小部分可能页面的映射
+    所以其余的条目会消耗 RAM，但不需要
 
-* RISC-V 64 uses a "three-level page table" to save space
-  Figure 3.2
-  high 9 bits of va index into level-one page directory
-  PTE from level one has phys addr of level-two page directory
-    2nd 9 bits indexes level-two directory
-  same for 3rd 9 bits
-    now we have PTE for page with desired memory
-  it's really a tree: [diagram]
-    descended 9 bits at a time
+* RISC-V 64使用“三级页表”来节省空间
+  图3.2
+  va索引的高9位进入一级页目录
+  一级 PTE 具有二级页目录的 phys addr
+    第2个9位索引二级目录
+  第三个 9 位也相同
+    现在我们有了具有所需内存的页面的 PTE
+  它真的是一棵树：[图]
+    一次下降 9 位
 
-* why does tree-shaped page table save space?
+* 为什么树形页表节省空间？
 
-* why 9 bits?
-  9 bits determines the size of a page directory
+* 为什么是 9 位？
+  9位决定了页目录的大小
   9 bits -> 512 PTEs -> 64 bits / PTE -> 4096 bytes, or one page
-  that is, 9 bits means a directory fits on a single page
+  也就是说，9 位意味着一个目录适合一页
 
-* isn't traversing the tree expensive, even if happens in hardware?
-  yes, the CPU's MMU typically caches recently-used translations
-  this cache is called the Translation Look-aside Buffer (TLB)
-  to make the TLB more effective: page tables support super pages
-  kernel is aware of TLB, flushes it using sfence.vma
+* 即使发生在硬件中，遍历树不是很昂贵吗？
+  是的，CPU 的 MMU 通常会缓存最近使用的翻译
+  该缓存称为转换后备缓冲区 (TLB)
+  使TLB更有效：页表支持超级页
+  内核知道 TLB，使用 sfence.vma 刷新它
 
-* flags in PTE
-  V, R, W, X, U
+* PTE 中的标志
+  V、R、W、X、U
 
-* what if V bit not set? or store happens when W bit not set?
-  "page fault"
-  forces transfer to kernel
-    trap.c in xv6 source
-    kernel must decide what to do
-  xv6 kernel: page fault could be due to lazy allocation
-    zeroed heap memory is not allocated until it's accessed
+* 如果 V 位未设置怎么办？或者当 W 位未设置时发生存储？
+  “页面错误”
+  强制转移到内核
+    xv6 源代码中的 trap.c
+    内核必须决定要做什么
+  xv6 内核：页面错误可能是由于延迟分配造成的
+    归零的堆内存在被访问之前不会被分配
     access -> page fault -> allocate memory -> install PTE -> resume process
-  page fault might be due to app bug: xv6 kernel prints error, kills process
-    "usertrap(): unexpected scause ... pid=... sepc=... stval=..."
-  many other tricks possible using page tables
-    e.g., passing page in L4 without copying
-    will see more VM tricks in a few weeks
+  页面错误可能是由于应用程序错误造成的：xv6 内核打印错误，终止进程
+    “usertrap()：意外原因...pid=...sepc=...stval=...”
+  使用页表可以实现许多其他技巧
+    例如，在 L4 中传递页面而不进行复制
+    几周后将会看到更多虚拟机技巧
 
 ## Virtual memory in xv6
 
-* kernel page table 
-  Figure 3.3 
-  left side is virtual
-  right is physical
+* 内核页表
+  图3.3
+  左边是虚拟的
+  权利是物理的
 
-* what is a physical address layout?
-  usually defined by hardware -- the board
-  RAM and memory-mapped device registers
+* 什么是物理地址布局？
+  通常由硬件（主板）定义
+  RAM 和内存映射设备寄存器
 
-* for us, qemu simulates the board and thus the physical address layout
+* 对于我们来说，qemu 模拟主板，从而模拟物理地址布局
   https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c#L82
-  MROM, UART, VIRTIO, DRAM
-  same as the right-hand side of Figure 3.3
+  MROM、UART、VIRTIO、DRAM
+  与图3.3右侧相同
 
-* the left side of Figure 3.3 is defined by the kernel's page table
-  which the kernel sets up while booting
-  mostly "direct mapping"
-    allows kernel to use physical address as virtual address
-    easy to write to physical address by casting to C pointer (VA)
-    very convenient!
-  note no W bit for kernel text
-  note no X bit for kernel data &c
-    helps catch some bugs
-  xv6 assumes 128 MB of RAM -- PHYSTOP = 0x88000000
-    ought to find RAM size dynamically!
-  way up at the top: trampoline, kernel stacks
-    note the high pages have *two* virtual mappings!
-  kernel executes in trampoline when switching page tables
-    creates user page tables with identical trampoline at same va
+* 图3.3左边是由内核的页表定义的
+  内核在启动时设置的
+  主要是“直接映射”
+    允许内核使用物理地址作为虚拟地址
+    通过转换为 C 指针 (VA) 可以轻松写入物理地址
+    很方便！
+  注意内核文本没有 W 位
+  注意内核数据和c没有X位
+    帮助捕获一些错误
+  xv6 假定 128 MB RAM -- PHYSTOP = 0x88000000
+    应该动态查找 RAM 大小！
+  顶部：蹦床、内核堆栈
+    请注意，高页面有*两个*虚拟映射！
+  切换页表时内核在蹦床中执行
+    在相同的 va 处创建具有相同蹦床的用户页表
 
-* could we run the kernel without paging? turn off the MMU?
-  it's often possible to do that (depends on CPU design)
-  why page the kernel?
-    help transition to/from user code, which runs with paging
-    forbid some accesses to catch bugs
+* 我们可以在没有分页的情况下运行内核吗？关闭MMU？
+  通常可以做到这一点（取决于 CPU 设计）
+  为什么要对内核进行分页？
+    帮助与分页运行的用户代码之间的转换
+    禁止某些访问以捕获错误
 
-* each process has its own address space
-  kernel makes a separate page table per process
-  Figure 3.4; we saw the bottom part in lecture 2
-  kernel switches page tables (i.e. sets satp) when switching processes
-  different processes have similar virtual address layouts
-    but page tables map to different physical addresses in RAM
+* 每个进程都有自己的地址空间
+  内核为每个进程创建一个单独的页表
+  图3.4；我们在第二讲中看到了底部部分
+  内核在切换进程时切换页表（即设置 satp）
+  不同的进程有相似的虚拟地址布局
+    但页表映射到RAM中不同的物理地址
 
-* why this user address space arrangement?
-  user virtual addresses start at zero
-    predictable, easier for compiler to generate code
-  contiguous addresses -- good for e.g. big arrays
-    but needn't have contiguous phys mem -- no fragmentation problem
-  lots of address range in which to grow
-  both kernel and user map trampoline page
+* 为什么这样的用户地址空间安排？
+  用户虚拟地址从零开始
+    可预测，编译器更容易生成代码
+  连续地址——例如适用于大数组
+    但不需要有连续的物理内存——没有碎片问题
+  许多地址范围可供增长
+  内核和用户映射蹦床页面
     eases transition user -> kernel and back
-    but U bit not set
-  how does kernel use user virtual addresses, e.g. passed to read()?
-    kernel software must translate to kernel virtual address
-    consulting that process's page table
+    但U位未设置
+  内核如何使用用户虚拟地址，例如传递给 read()?
+    内核软件必须转换为内核虚拟地址
+    查询该进程的页表
 
 ## Code walk through
 
-* setup of kernel address space 
-  paging is not enabled when kernel starts, so addresses are physical
-    kernel is compiled/link to start at 0x80000000, where there's RAM
-  kernel must first create its own page table
-  kvmmake() in vm.c
-  building Figure 3.3
-  UART0 at pa=0x10000000, want to direct-map at va=0x10000000
-  kvmmap() adds PTEs to a page table under construction
-    we're not using it yet, it's just data in memory
+* 内核地址空间的设置
+  内核启动时未启用分页，因此地址是物理的
+    内核被编译/链接到从 0x80000000 开始，那里有 RAM
+  内核必须首先创建自己的页表
+  vm.c 中的 kvmmake()
+  建筑图3.3
+  UART0 at pa=0x10000000，想要直接映射到 va=0x10000000
+  kvmmap() 将 PTE 添加到正在构建的页表中
+    我们还没有使用它，它只是内存中的数据
 
-* let's vmprint() resulting page table (you'll write vmprint())
+* 让我们使用 vmprint() 生成页表（您将编写 vmprint()）
     [conf/lab.mk: LAB=pgtbl]
-  [draw tree, note first PTE's PPN indicates 2nd-level location, &c]
-  the page directory pages came from kalloc()
-    sequential due to the way kinit() worked
-  which entries in the page directories are filled in for UART0?
+  [绘制树，注意第一个 PTE 的 PPN 指示第二级位置，&c]
+  页面目录页面来自 kalloc()
+    由于 kinit() 的工作方式而连续
+  UART0 的页目录中的哪些条目被填充？
     UART0 = 0x10000000
     ## L2
     (gdb) p/x 0x10000000 >> 12 >> 9 >> 9
@@ -223,67 +226,67 @@
     ## Offset within page
     (gdb) p/x 0x10000000 & 0xfff
     $5 = 0x0
-    (gdb)
+    （gdb）
 
-* does UART's last-level PTE refer to the expected physical address?
-  (gdb) print/x (0x10000000 >> 12) << 10
+* UART的最后一级PTE是否指的是预期的物理地址？
+  (gdb) 打印/x (0x10000000 >> 12) << 10
   $2 = 0x4000000
-  what's the 7 in the low bits of the PTE?
+  PTE的低位7是多少？
 
-* what about with two pages mapped?
-  move the vmprint to after VIRTIO0 is mapped
-  [add to tree]
+* 映射两个页面怎么样？
+  将 vmprint 移至 VIRTIO0 映射后
+  [添加到树]
 
-* the full kernel page table?
-  it's too big to print this way
-  you can ask qemu for the page table that's in satp
-  ^a c
-  info mem
-  note UART, RAM, trampoline at very top
-  ^a c (to resume)
+* 完整的内核页表？
+  它太大了，无法以这种方式打印
+  你可以向 qemu 询问 satp 中的页表
+  ^c
+  信息内存
+  注意最顶部的 UART、RAM、trampoline
+  ^a c（恢复）
 
-* kvmmap() calls mappages() in vm.c
-  arguments are root PD, va, size, pa, perm
-  adds mappings from a range of va's to corresponding pa's
-  for each page in the range
-    calls walk to find address of PTE
-      need the PTE's address (not just content) b/c we want to modify
-      walk will create page directory pages if it needs to
-    put the desired pa into the PTE
-    mark PTE as valid w/ PTE_V
+* kvmmap()调用vm.c中的mappages()
+  参数为 root PD、va、size、pa、perm
+  添加从一系列 va 到相应 pa 的映射
+  对于范围内的每个页面
+    调用 walk 来查找 PTE 的地址
+      需要 PTE 的地址（不仅仅是内容） b/c 我们要修改
+      如果需要，walk 将创建页面目录页面
+    将想要的pa放入PTE中
+    使用 PTE_V 将 PTE 标记为有效
 
-* walk() in vm.c
-  walk() mimics how the paging h/w finds the PTE for an address
-    used to update process page table, or to access memory at user pointer
-  descends the three levels, through three directory pages
-  PX(level, va) extracts the 9 bits at Level level
-  the C type of pagetable is a 512-entry array of 64-bit integers (PTEs)
-  so &pagetable[PX(level, va)] is the address of the PTE we want
-  except at last level:
-    if PTE_V
-      the relevant page-table page already exists
-      PTE2PA extracts the PPN from the PTE as a PA
-      which the kernel can use (as a va) to read the next level
-    if not PTE_V
-      kalloc() a fresh page-table page
-      fill in pte with PPN (using PA2PTE)
-      and mark it PTE_V
-  now the PTE we want is in the page-table page
+* vm.c 中的 walk()
+  walk() 模仿寻呼硬件如何查找地址的 PTE
+    用于更新进程页表，或通过用户指针访问内存
+  下降三个级别，通过三个目录页面
+  PX(level, va) 提取Level级别的9位
+  C 类型的页表是一个包含 512 个条目的 64 位整数 (PTE) 数组
+  所以&pagetable[PX(level, va)]就是我们想要的PTE的地址
+  除了最后一级：
+    如果PTE_V
+      相关页表页已存在
+      PTE2PA从PTE中提取PPN作为PA
+      内核可以使用它（作为 va）来读取下一个级别
+    如果不是 PTE_V
+      kalloc() 一个新的页表页
+      用PPN填写pte（使用PA2PTE）
+      并将其标记为 PTE_V
+  现在我们想要的PTE就在页表页面中
 
 * kvminithart()
-  load address of the root of the page table into satp
-  Q: is the address a virtual or physical address?
+  将页表根地址加载到 satp 中
+  问：地址是虚拟地址还是物理地址？
 
-* TLB management
-  CPUs caches paging translation for speed
-  xv6 flushes entire TLB during user/kernel transitions
+* TLB管理
+  CPU 缓存分页转换以提高速度
+  xv6 在用户/内核转换期间刷新整个 TLB
     why?
-  RISC-V allows more sophisticated plans
-    * PTE_G: global TLB bits
-      what page could use this?
-    * ASID numbers
-      TLB entries are tagged with ASID, so kernel can flush selectively
-      SATP takes an ASID number
-      sfence.vma also takes an ASID number
-    * super pages
-      2MB and 1GB
+  RISC-V 允许更复杂的计划
+    * PTE_G：全局TLB位
+      什么页面可以使用这个？
+    * ASID 号码
+      TLB 条目标有 ASID，因此内核可以有选择地刷新
+      SATP 采用 ASID 编号
+      sfence.vma 还采用 ASID 编号
+    * 超级页面
+      2MB 和 1GB

@@ -1,249 +1,252 @@
-6.1810 2025 Lecture 14: Coordination (sleep&wakeup)
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
+
+6.1810 2025第14讲：协调（睡眠&唤醒）
 
 # plan
-  review two points about xv6 thread switching
-  sequence coordination
-    sleep & wakeup
-    lost wakeup problem
-  termination
+  回顾一下关于xv6线程切换的两点
+  顺序协调
+    睡眠与唤醒
+    丢失唤醒问题
+  终止
 
 review #1: why hold p->lock across swtch()?
-   this rule affects many situations in xv6
-   yield()                     scheduler()
+   该规则影响 xv6 中的许多情况
+   产量（） 调度程序（）
    -------                     -----------
    acquire(&p->lock);
    p->state = RUNNABLE;
-   swtch();
-                               swtch();
+   开关（）；
+                               开关（）；
                                release(&p->lock);
 
 Q: why is p->lock held across swtch()?
   1. prevent another core's scheduler from seeing p->state == RUNNABLE
-     until after original core has finished saving registers
-     until after original core has stopped using thread's stack
-  2. prevent timer interrupt from calling yield() during swtch()
-     (remember: acquire() turns off interrupts)
-     2nd swtch() would overwrite already-saved registers in context
+     直到原始核心完成寄存器保存后
+     直到原始核心停止使用线程堆栈之后
+  2.防止定时器中断在swtch()期间调用yield()
+     （记住：acquire() 关闭中断）
+     第二个 swtch() 将覆盖上下文中已保存的寄存器
 
-review #2: why does xv6 never hold a spinlock when yielding the CPU?
+评论 #2：为什么 xv6 在让出 CPU 时从不持有自旋锁？
    (other than p->lock)
-   on a single-core machine, imagine this:
-     P1           P2
-     acq(x)
-     sched()
-                  acq(x)
+   在单核机器上，想象一下：
+     P1 P2
+     获取(x)
+     安排（）
+                  获取(x)
 
-Q: what is the problem here, on a single-core machine?
-   P2 will wait forever:
-     P2 will spin waiting for P1 to release x
-     P2 disables interrupts before spinning (device interrupt...)
-     No clock interrupts, so P2 won't yield() and P1 won't run
-     So P1 won't ever release x
-   possible even on multi-core, with more locks/threads
-   solution: forbid holding lock when yielding the CPU!
+问：在单核机器上，这里有什么问题？
+   P2将永远等待：
+     P2将旋转等待P1释放x
+     P2 在旋转之前禁用中断（设备中断...）
+     没有时钟中断，因此P2不会yield()并且P1不会运行
+     所以 P1 永远不会发布 x
+   即使在具有更多锁/线程的多核上也是可能的
+   解决办法：让出CPU时禁止持有锁！
      (other than p->lock)
 
 # topic: sequence coordination
-  threads often wait for specific events / "conditions":
-    a disk read is complete (signaled by an interrupt)
-    a pipe has data to read (written by another process)
-    a child has exited
+  线程经常等待特定事件/“条件”：
+    磁盘读取完成（由中断发出信号）
+    管道有数据要读取（由另一个进程写入）
+    一个孩子已经退出
 
 # coordination is a fundamental building-block for thread programming.
-  but care required to follow some rules.
+  但需要注意遵守一些规则。
 
 # Q: why not just have a while-loop that spins until condition is true?
-  pipe read:
-    while buffer is empty {
+  管道读取：
+    当缓冲区为空时{
     }
-  pipe write:
-    put data in buffer
+  管道写：
+    将数据放入缓冲区
 
 # better solution: coordination primitives that yield the CPU
-  operating systems use a variety of schemes
-    e.g. barriers, semaphores, event queues, condition variables.
-  xv6 uses sleep & wakeup
-    used by many systems
-    similar to condition variables
+  操作系统使用多种方案
+    例如屏障、信号量、事件队列、条件变量。
+  xv6 使用睡眠和唤醒
+    被许多系统使用
+    类似于条件变量
 
 # example: uartwrite() and uartintr() in kernel/uart.c
-  recall: the UART is the device hardware that connects to the console
-    the UART h/w accepts one byte of output at a time
-    h/w takes a long time to send each byte, perhaps a millisecond
-  the basic idea:
+  回想一下：UART 是连接到控制台的设备硬件
+    UART 硬件一次接受一个字节的输出
+    h/w 发送每个字节需要很长时间，可能是一毫秒
+  基本思想：
     processes writing the console must wait until UART sends prev char
-    the UART h/w interrupts after it has sent each character
-      writing thread should give up the CPU while waiting for interrupt
-  write() calls uartwrite() with a buffer of output
-    uartwrite() writes first byte (if it can)
-    uartwrite() calls sleep() to wait for the UART's interrupt
-    uartintr() calls wakeup()
+    UART 硬件在发送每个字符后中断
+      写线程在等待中断时应该放弃CPU
+  write() 使用输出缓冲区调用 uartwrite()
+    uartwrite() 写入第一个字节（如果可以的话）
+    uartwrite()调用sleep()等待UART的中断
+    uartintr() 调用wakeup()
 
-sleep/wakeup jargon
-  sleep(wait_chan, lock)
-  wakeup(wait_chan)
-  sleep yields the CPU
-  wakeup wakes up every process in sleep() w/ same wait_chan
-  the "&tx_chan" argument serves to link the sleep and wakeup
-    "wait channel"
-    just a number, tells wakeup which sleeping threads to wake
-    can be anything convenient to both sleeper and waker
-  sleep/wakeup don't know what even we're waiting for
-  the programmer knows:
+睡眠/唤醒术语
+  睡眠（wait_chan，锁）
+  唤醒（wait_chan）
+  睡眠让出CPU
+  wakeup 使用相同的 wait_chan 唤醒 sleep() 中的每个进程
+  “&tx_chan”参数用于链接睡眠和唤醒
+    “等待通道”
+    只是一个数字，告诉唤醒要唤醒哪些睡眠线程
+    可以是任何对睡眠者和醒来者都方便的东西
+  睡觉/醒来都不知道我们在等什么
+  程序员知道：
     tx_busy == 0 is the "condition" uartwrite() is waiting for
-    set by uartwrite(); cleared by uartintr()
-  simple and flexible
+    通过uartwrite()设置；由 uartintr() 清除
+  简单灵活
 
 # why the lock argument to sleep()?
-  sadly you cannot design sleep() as cleanly as you might hope
-  sleep() cannot simply be "wait for wakeup() to be called"
-  the problem is called "lost wakeups"
-  here's the story
+  遗憾的是，您无法像您希望的那样干净地设计 sleep()
+  sleep() 不能简单地“等待wakeup() 被调用”
+  该问题称为“唤醒丢失”
+  故事是这样的
 
 # suppose just sleep(chan); how would we implement?
-  here's a BROKEN sleep/wakeup
-  [on board, not in vi]
-  broken_sleep(chan)
+  这是一个破碎的睡眠/唤醒
+  [在船上，不在 vi 中]
+  破碎的睡眠（陈）
     acquire(&p->lock)
     p->state = SLEEPING;
     p->chan = chan;
-    swtch(...);
-    (now scheduler() won't run it -- not RUNNABLE)
-  wakeup(chan)
-    for each p:
+    开关（...）；
+    （现在scheduler()不会运行它——不是RUNNABLE）
+  唤醒（陈）
+    对于每个 p：
       acquire(&p->lock);
       if p->state == SLEEPING && p->chan == chan:
         p->state = RUNNABLE
-  wakeup wakes up all threads sleeping on chan
-    may wake up more than one thread
+  wakeup 唤醒所有在 chan 上休眠的线程
+    可能会唤醒多个线程
 
 # how would uart code use this (broken) sleep/wakeup?
-  uartwrite(buf):
-    for each char c:
-      while tx_busy:
-        broken_sleep(&tx_chan)
-      send c
-      busy = 1
-  uartintr():
+  串口写入（buf）：
+    对于每个字符 c：
+      当 tx_busy 时：
+        破碎的睡眠（&tx_chan）
+      发送 c
+      忙=1
+  UARTINTTR（）：
     tx_busy = 0
-    wakeup(&tx_chan)
+    唤醒(&tx_chan)
 
 # but what about locking around UART operations?
-  - driver's data structures e.g. tx_busy
-  - UART hardware 
-  both uartwrite() and uartintr() need to lock
-  Q: should uartwrite() hold a lock for its whole lifetime?
-     no: then uartintr() can't get lock and clear tx_busy
-  maybe uartwrite() could release the lock before sleep()?
-  let's try it -- modify uart.c to call broken_sleep()
-    release(&tx_lock);
+  - 驱动程序的数据结构，例如tx_忙
+  - UART硬件
+  uartwrite() 和 uartintr() 都需要加锁
+  问：uartwrite() 应该在其整个生命周期内保持锁定吗？
+     否：那么 uartintr() 无法获取锁定并清除 tx_busy
+  也许 uartwrite() 可以在 sleep() 之前释放锁？
+  让我们尝试一下——修改uart.c以调用broken_sleep()
+    释放(&tx_lock);
     broken_sleep(&tx_chan);
-    acquire(&tx_lock);
-  Q: what will go wrong?
-  make qemu
-  cat README
+    获取(&tx_lock);
+  问：会出什么问题吗？
+  制作qemu
+  猫自述文件
 
-the problem:
-  uartwrite() sees tx_busy = 1 (UART not done with previous byte)
-  releases tx_lock
-    which enables interrupts
-  interrupt!
-    uartintr() sets tx_busy = 0
-    uartintr() calls wakeup() -- but nothing to wake up!
-  then uartwrite() calls sleep()
-  uartwrite() went to sleep EVEN THOUGH UART TX INTERRUPT WAS DONE
-    and tx_busy is zero...
-  now there is nothing to wake up uartwrite(), it will sleep forever
-    really, until a UART *input* interrupt
+问题：
+  uartwrite() 看到 tx_busy = 1（UART 未完成前一个字节）
+  释放 tx_lock
+    允许中断
+  打断！
+    uartintr() 设置 tx_busy = 0
+    uartintr() 调用wakeup()——但没有唤醒任何东西！
+  然后 uartwrite() 调用 sleep()
+  即使 UART TX 中断已完成，uartwrite() 仍进入睡眠状态
+    并且 tx_busy 为零...
+  现在没有什么可以唤醒uartwrite()，它将永远休眠
+    真的，直到 UART *输入* 中断
 
-this is the "lost wakeup" problem.
+这就是“唤醒丢失”问题。
 
-we need to eliminate the window between uartwrite()'s check of
-  the condition, and sleep() marking the process as asleep.
-  we'll use locks to prevent wakeup() from running during the entire window.
+我们需要消除 uartwrite() 检查之间的窗口
+  条件，sleep() 将进程标记为睡眠状态。
+  我们将使用锁来防止wakeup()在整个窗口期间运行。
 
-we'll change the sleep() interface and the way it's used.
-  sleep() will require that there be a "condition lock" that prevents
-    the condition from changing, and require that the callers of
-    both sleep() and wakeup() hold this lock
-  sleep(chan, lock)
-    caller must hold lock
-    sleep releases lock, re-acquires before returning
-  wakeup(chan)
-    caller must hold lock
+我们将更改 sleep() 接口及其使用方式。
+  sleep() 需要有一个“条件锁”来阻止
+    条件发生变化，并要求调用者
+    sleep() 和wakeup() 都持有这个锁
+  睡眠（陈，锁）
+    调用者必须持有锁
+    sleep 释放锁，返回前重新获取
+  唤醒（陈）
+    调用者必须持有锁
 
-sleep does not know what the condition is, or how the lock relates to it
-  BUT the lock must prevent changes to the condition being waited for!
-  AND the lock must be passed to sleep()
-  AND the lock must be held across calls to wakeup()
+sleep 不知道条件是什么，也不知道锁与它有何关系
+  但是锁必须防止正在等待的条件发生变化！
+  并且锁必须传递给 sleep()
+  并且必须在调用wakeup()期间保持锁定
 
-(repair uart.c)
+（修复UART.c）
 
-let's look at wakeup(chan) in proc.c
-  it scans the process table, looking for SLEEPING and chan
+让我们看看proc.c中的wakeup(chan)
+  它扫描进程表，寻找 SLEEPING 和 chan
   it grabs each p->lock
-  caller acquired condition lock before calling wakeup()
+  调用者在调用wakeup()之前获得条件锁
   so wakeup() holds BOTH the condition lock AND each p->lock
 
 Q: why is it enough to just set p->state = RUNNABLE?
-   why does that cause the thread to (eventually) run?
+   为什么这会导致线程（最终）运行？
 
-let's look at sleep() in proc.c
-  hmm: sleep *must* release the condition lock
+让我们看看 proc.c 中的 sleep()
+  嗯：睡眠*必须*释放条件锁
     since we can't hold locks when calling swtch(), other than p->lock
-    and waker will need it to modify the condition
-  Q: how to prevent wakeup() from running after sleep() releases
-     the condition lock?
+    唤醒器需要它来修改条件
+  问：如何防止 sleep() 释放后 waitup() 运行
+     条件锁？
   A: acquire p->lock *before* releasing condition lock
      so, throughout, sleep() holds either lk, p->lock, or both
-  since wakeup() holds *both* locks, it's enough for sleep() to hold *either*
-    to force wakeup() to spin rather than look at process calling sleep()
-  now wakeup() can't proceed until after sleep()'s swtch() completes
+  由于wakeup()持有*两个*锁，所以sleep()持有*任一*就足够了
+    强制wakeup()旋转而不是查看调用sleep()的进程
+  现在，直到 sleep() 的 swtch() 完成后，wakeup() 才能继续
     so wakeup() is guaranteed to see p->state==SLEEPING and p->chan==chan
-  thus: no lost wakeups!
-    wakeup() cannot sneak in between check of condition and sleep()
+  因此：不会丢失唤醒！
+    wakeup() 不能潜入条件检查和 sleep() 之间
 
-[time diagram, or narrate, lines for locks]
-  uartwrite()         uartintr()
+[时间图，或叙述，锁线]
+  uartwrite() uartintr()
   -----------         ----------
-  acq tx_lock         acq tx_lock
-  check tx_busy       tx_busy = 0
-  sleep()             wakeup()
+  获取 tx_lock 获取 tx_lock
+  检查 tx_busy tx_busy = 0
+  睡眠（） 唤醒（）
     acq p->lock         acq p->lock
-    rel tx_lock         check SLEEPING / chan
+    rel tx_lock 检查 SLEEPING / chan
     SLEEPING            rel p->lock
-    swtch()             rel tx_lock
+    swtch() 相关 tx_lock
       rel p->lock
 
-the point: the overlapping locks prevent wakeup from sneaking
-  in between releasing tx_lock and going to sleep.
-  and thus avoids lost wakeups.
+要点：重叠的锁可以防止唤醒偷偷摸摸
+  在释放 tx_lock 和进入睡眠之间。
+  从而避免唤醒丢失。
 
-Q: why does uartwrite() wrap the sleep() in a loop?
-  i.e. re-checks the condition after sleep() returns, may sleep again
-  two reasons:
-    1. maybe multiple waiters, another thread might have set tx_busy
-    2. kill() wakes up processes even when condition isn't true
-  all calls to sleep are wrapped in loops, so they re-check
+问：为什么 uartwrite() 将 sleep() 包裹在一个循环中？
+  即在 sleep() 返回后重新检查条件，可能会再次睡眠
+  两个原因：
+    1. 可能有多个等待者，另一个线程可能设置了 tx_busy
+    2. 即使条件不成立，kill() 也会唤醒进程
+  所有对 sleep 的调用都包含在循环中，因此它们会重新检查
 
 # Another example: piperead() in pipe.c
   the condition is data waiting to be read (nread != nwrite)
   the condition lock is the pipe's pi->lock
-  pipewrite() calls wakeup() at the end
-  what is the race if piperead() used broken_sleep()?
-    i.e. release the lock, then sleep
-    lost wakeups are not just about interrupts!
-  note the the loop around sleep()
-    multiple processes may be reading the same pipe
-  Q: why the wakeup() at the end of piperead()?
+  pipelinewrite() 最后调用wakeup()
+  如果piperead()使用broken_sleep()，会发生什么竞争？
+    即释放锁，然后睡眠
+    丢失唤醒不仅仅是中断！
+  注意 sleep() 周围的循环
+    多个进程可能正在读取同一个管道
+  问：为什么要在 pipelineread() 的末尾添加wakeup()？
 
 # the sleep/wakeup interface/rules are a little complex
     -> sleep() needs the condition lock
-  but, sleep() doesn't need to understand the condition
-  sleep/wakeup is pretty flexible, though low-level
-  there are other schemes that are cleaner but perhaps less general-purpose
-    e.g. counting semaphores
-  all have to cope with lost wakeups, one way or another
+  但是， sleep() 不需要了解条件
+  睡眠/唤醒非常灵活，尽管级别较低
+  还有其他更干净但可能不太通用的方案
+    例如计数信号量
+  所有人都必须以某种方式应对失去的唤醒
 
 *************
 
@@ -252,97 +255,97 @@ Q: why does uartwrite() wrap the sleep() in a loop?
 # xv6 has two ways to get rid of processes: exit() and kill()
 
 # exit() puzzle: a thread cannot free all of its own resources
-  e.g. its own proc[] slot
-  e.g. its own stack, which it is still using
+  例如它自己的 proc[] 槽
+  例如它自己的堆栈，它仍在使用
 
 # exit():
-  where we want to end up:
+  我们想要结束的地方：
     p->state = UNUSED, so a future fork() can use this proc[] slot
-    and all resources free
-  the strategy:
-    exit() frees some things, but not all e.g. kernel stack
-    parent's wait() does the final frees
+    并且所有资源都是免费的
+  策略：
+    exit() 释放了一些东西，但不是全部，例如内核堆栈
+    父级的 wait() 执行最后的释放
 
 # kexit() in proc.c:
-    some cleanup
-    wake up wait()ing parent
+    一些清理工作
+    唤醒等待（）的父母
     p->state = ZOMBIE
-      can't be UNUSED yet!
-        still using kernel stack and proc[] entry
-      ZOMBIE means ready for parent's wait()
-        but fork() won't allocate it (not UNUSED)
-        and scheduler won't run it (not RUNNABLE)
-    swtch() to scheduler
+      还不能未使用！
+        仍然使用内核堆栈和 proc[] 条目
+      ZOMBIE 表示已准备好等待父级的 wait()
+        但 fork() 不会分配它（不是未使用的）
+        并且调度程序不会运行它（不可运行）
+    swtch() 到调度程序
 
 # kwait() in proc.c (parent should eventually call):
   scans proc[] table for any child with p->state==ZOMBIE
-  calls freeproc()
+  调用 freeproc()
     (p->lock held...)
     trapframe, pagetable, ..., p->state=UNUSED
   could child still be executing, perhaps after kexit() set p->state to ZOMBIE?
     no: kexit() held p->lock during that time
-    so it's safe to free child's stack and struct proc
-  thus: wait() is not just for app convenience, but for O/S as well
+    所以释放孩子的堆栈和结构过程是安全的
+  因此： wait() 不仅是为了应用程序方便，也是为了操作系统
 
 #  what avoids a lost exit()->wait() wakeup?
-   if child exit()s between parent's check for ZOMBIEs, and parent sleep()
-   what's the condition?
-     some child is a ZOMBIE
-   what's the condition lock?
+   如果子进程 exit() 在父进程检查 ZOMBIE 和父进程 sleep() 之间
+   条件是什么？
+     有些孩子是僵尸
+   条件锁是什么？
    can't be child's p->lock, since parent wait() doesn't know
-     which child it is waiting for!
-   so: wait_lock is the condition lock
-     it's a global variable, not per-process
-   wait():
-     holds wait_lock while scanning proc[] for a ZOMBIE child
-     wait_lock is the condition lock wait() passes to sleep()
-   exit():
+     它在等哪个孩子！
+   so：wait_lock是条件锁
+     它是一个全局变量，而不是每个进程
+   等待（）：
+     扫描 proc[] 中的 ZOMBIE 子进程时持有 wait_lock
+     wait_lock 是 wait() 传递给 sleep() 的条件锁
+   退出（）：
      holds wait_lock around p->state=ZOMBIE and wakeup(p->parent)
-   so: child exit() must wait for parent to finish ZOMBIE check and sleep
-   so: parent can't miss wakeup between checking for ZOMBIE and sleeping
-   a better design might have a separate wait_lock per parent
+   所以：子进程 exit() 必须等待父进程完成 ZOMBIE 检查并睡眠
+   所以：父母不能在检查 ZOMBIE 和睡觉之间错过唤醒
+   更好的设计可能每个父级都有一个单独的 wait_lock
 
 # kill() puzzle: thread X cannot just destroy thread Y
-  what if Y is executing on another core?
-    can't just free its kernel stack or user memory!
-  what if Y holds locks?
-  what if Y is in the middle of a complex update to important data structures?
-    must let it finish!
-  so: kill() can't directly destroy the target.
+  如果 Y 在另一个核心上执行怎么办？
+    不能只是释放其内核堆栈或用户内存！
+  如果 Y 持有锁怎么办？
+  如果 Y 正在对重要数据结构进行复杂更新怎么办？
+    必须让它结束！
+  所以：kill()不能直接摧毁目标。
 
 # kill() solution: 
   kill() sets p->killed flag, nothing else
   the target process itself checks for p->killed
-    and calls kexit() itself
-  look for "if(killed(p)) kexit(-1);" in usertrap()
-    not in the middle of anything here, and no locks are held
-    so it's safe to exit
+    并调用 kexit() 本身
+  寻找“if(killed(p)) kexit(-1);”在用户陷阱()中
+    不在任何东西中间，也没有锁
+    所以可以安全退出
 
 # what if kill() target is SLEEPING -- in sleep()?
-  in that case it doesn't hold locks, and isn't executing!
-  is it OK for kill() to destroy the target right away?
-  no: what if waiting for disk midway through file creation?
+  在这种情况下，它不会持有锁，并且不会执行！
+  Kill() 可以立即摧毁目标吗？
+  否：如果在文件创建过程中等待磁盘怎么办？
 
 # xv6 solution to kill() of sleep()ing process
-  see kill() in proc.c
-    changes SLEEPING to RUNNABLE -- like wakeup()
-    so sleep() will return, probably before condition is true
+  参见 proc.c 中的kill()
+    将 SLEEPING 更改为 RUNNABLE - 就像wakeup()
+    所以 sleep() 可能会在条件成立之前返回
   some sleep loops check for p->killed
-    e.g. piperead(), consoleread()
-    otherwise read could hang indefinitely for a killed process
+    例如管道读取()、控制台读取()
+    否则 read 可能会因被终止的进程而无限期挂起
   some sleep loops don't check p->killed
-    e.g. virtio_disk.c
-    can't just quit since maybe midway through a file system update
-    not so bad since disk reads are pretty quick
-  so a kill()ed process may continue for a while
-    but usertrap() will exit() after the system call finishes
+    例如virtio_disk.c
+    无法退出，因为可能是文件系统更新中途
+    还不错，因为磁盘读取速度非常快
+  所以一个被kill()ed的进程可能会持续一段时间
+    但 usertrap() 将在系统调用完成后 exit()
 
 # xv6 spec for kill
-  if target is in user space
-    will die next time it makes a system call or takes a timer interrupt
-  if target is in the kernel
-    target will never execute another user instruction
-    but may spend a while yet in the kernel
+  如果目标位于用户空间
+    将在下次进行系统调用或进行定时器中断时死亡
+  如果目标在内核中
+    目标永远不会执行另一个用户指令
+    但可能会在内核中花费一段时间
 
 # Next week:
-  Networking
+  网络

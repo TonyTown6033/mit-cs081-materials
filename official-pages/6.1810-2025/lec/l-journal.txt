@@ -1,442 +1,445 @@
-6.1810 2025 Lecture 19: Linux ext3 crash recovery
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-[ demo setup ]
+6.1810 2025第19讲：Linux ext3崩溃恢复
+
+[ 演示设置 ]
   pacman -S busybox cpio
 
   mkdir -p rootfs/bin
   cp /usr/bin/busybox rootfs/bin/busybox
 
-  cat <<EOM >rootfs/init
+  猫 <<EOM >rootfs/init
   #!/bin/busybox sh
   /bin/busybox mkdir -p /mnt /proc /sys /sbin /usr/bin /usr/sbin
   /bin/busybox --install -s
-  mount -t proc x /proc
-  mount -t devtmpfs x /dev
-  mount -t sysfs x /sys
-  exec /bin/busybox sh
-  EOM
-  chmod 755 rootfs/init
+  挂载 -t proc x /proc
+  挂载-t devtmpfs x /dev
+  挂载-t sysfs x /sys
+  执行 /bin/busybox sh
+  结束语
+  chmod 755 rootfs /初始化
   ( cd rootfs; find . | cpio -ov -H newc ) > initrd.cpio
 
-  dd if=/dev/zero of=fs.img bs=1024k count=256
+  dd if=/dev/zero of=fs.img bs=1024k 计数=256
   mke2fs -t ext3 fs.img
 
-[ demo ]
+[演示]
   $ qemu-system-x86_64 -m 1024 -nographic -drive if=virtio,file=fs.img -kernel /boot/vmlinuz-linux -initrd initrd.cpio -append "console=ttyS0 debug"
   # mount -t ext3 /dev/vda /mnt
   # ls /mnt
   # echo hello > /mnt/f
-  (kill qemu, restart)
+  （杀死qemu，重新启动）
   # mount -t ext /dev/vda /mnt
-  (observe: ext3 recovery)
+  （观察：ext3 恢复）
   # ls /mnt
   # echo hello > /mnt/f
   # sync
-  (kill qemu)
+  （杀死qemu）
   $ e2fsck -nf fs.img
   $ debugfs fs.img
-  debugfs:  ls
-  debugfs:  stats
-  (see journal inode, various stats)
-  debugfs:  logdump -Sa
-  debugfs:  logdump -ac
-  (see directory block contents, superblock/inode/bitmap blocks, but no "hello" data!)
-  (restart)
+  调试：ls
+  调试：统计信息
+  （参见日志索引节点，各种统计数据）
+  debugfs：logdump -Sa
+  debugfs：logdump -ac
+  （参见目录块内容、超级块/索引节点/位图块，但没有“hello”数据！）
+  （重新启动）
   # mount -t ext3 /dev/vda /mnt
   # cat /mnt/f
   # ( echo orphaned; sleep 999 ) > /mnt/x &
   # cat /mnt/x
   # rm /mnt/x
   # sync
-  (kill qemu)
+  （杀死qemu）
   $ debugfs fs.img
-  debugfs:  ls
-  debugfs:  orphan
-  debugfs:  cat <6146>
-  (restart)
+  调试：ls
+  debugfs：孤儿
+  调试：猫<6146>
+  （重新启动）
   # mount -t ext3 /dev/vda /mnt
-  (observe: ext3 recovery, delete orphan)
+  （观察：ext3 恢复，删除孤儿）
   # for i in $(seq 0 100); do echo $i > /mnt/$i; done
   # ls /mnt
   # sync
-  (kill qemu)
+  （杀死qemu）
   $ debugfs fs.img
-  debugfs:  logdump -Sa
-  (observe: many fewer than 100 blocks in journal)
+  debugfs：logdump -Sa
+  （观察：日志中的块数远少于 100 个）
 
-This lecture: a case study of logging in Linux's ext3 file system
-  with an eye to performance and real-world design details
+本讲：Linux ext3文件系统日志记录案例
+  着眼于性能和现实世界的设计细节
 
-Review: why do we care about logging?
-  crash recovery for on-disk file-system data structures
-  ideas widely used e.g. in databases and distributed systems
+回顾：为什么我们关心日志记录？
+  磁盘文件系统数据结构的崩溃恢复
+  广泛使用的想法，例如在数据库和分布式系统中
     "log" == "journal"
-  lots to chew on for performance and correctness
+  对于性能和正确性有很多值得思考的地方
 
-Review: the problem
-  [diagram: FS tree on disk, free bitmaps]
-  FS on disk is a complex data structure -- a tree
-  Crash while updating can leave it permanently broken, if not repaired
-  e.g. file append, add block to i-node, mark block non-free
-    if crash w/o repair, that block can be allocated for a 2nd file!
-  why crashes are threatening:
-    crash w/o repair can leave file system permanently broken
-    typically seemingly OK but with mystery problems that will
-      surface later
-  the bad pattern: an update that involves writing multiple disk
-    blocks, and crash occurs after some but not all writes
+点评：问题所在
+  [图：磁盘上的 FS 树，空闲位图]
+  磁盘上的FS是一个复杂的数据结构——树
+  如果不修复，更新时崩溃可能会使其永久损坏
+  例如文件追加、向 i 节点添加块、将块标记为非空闲
+    如果崩溃没有修复，该块可以分配给第二个文件！
+  为什么崩溃会带来威胁：
+    无法修复的崩溃可能会导致文件系统永久损坏
+    通常看起来不错，但存在神秘的问题
+      稍后浮出水面
+  错误模式：涉及写入多个磁盘的更新
+    阻塞，并且在一些但不是全部写入后发生崩溃
 
-Review: the basic idea of logging (both ext3 and xv6)
-  [diagram: cached blocks, FS on disk, log on disk]
-  the goal:
-    make system calls ("operations") atomic w.r.t. crashes, after recovery
-    atomic = all-or-nothing
-  system calls initially only write the block cache, not disk
-  when system call is done -- commit:
-    1. write all updated blocks to log on disk
-    2. then mark on-disk log as committed (i.e. contains all of operation's writes)
-    3. then write blocks to home locations in FS
-  recovery after crash+reboot:
-    if log marked as committed, copy blocks from log to home locations
-    otherwise, ignore log
+回顾：日志记录的基本思想（ext3和xv6）
+  [图：缓存块、磁盘上的 FS、磁盘上的日志]
+  目标：
+    使系统调用（“操作”）原子化。恢复后崩溃
+    原子=全有或全无
+  系统调用最初只写入块缓存，而不写入磁盘
+  当系统调用完成时——提交：
+    1.将所有更新的块写入磁盘
+    2.然后将磁盘日志标记为已提交（即包含所有操作的写入）
+    3.然后将块写入FS中的起始位置
+  崩溃+重启后恢复：
+    如果日志标记为已提交，则将块从日志复制到主位置
+    否则，忽略日志
 
-Review: two critical rules
-  write-ahead rule:
-    don't start home FS writes until all writes committed in log on disk
-    i.e. don't start modifying FS until *all* the operation's
-         writes are in the log, so the operation can be completely
-         finished if there's a crash+reboot.
-  freeing rule:
-    don't erase/overwrite log until all home FS writes are done
+回顾：两条关键规则
+  预写规则：
+    在所有写入提交到磁盘上之前，不要启动主 FS 写入
+    即，直到*所有*操作完成后才开始修改 FS
+         写入都在日志中，所以操作可以完全
+         如果出现崩溃+重启，则完成。
+  释放规则：
+    在所有主 FS 写入完成之前不要擦除/覆盖日志
 
-ext3 is the modern name of the file system in today's reading
-  for many years ext3 was the main Linux FS
-  modern ext4 similar to ext3
+ext3 是今天阅读的文件系统的现代名称
+  多年来 ext3 一直是主要的 Linux FS
+  现代 ext4 类似于 ext3
 
-ext3 has higher performance than xv6:
-  better asynchrony and batching
-    xv6: usually log commit per syscall; and syscall waits
-    ext3: syscalls rarely have to wait for log writes; many per xaction
-          batching allows write absorbtion, thus fewer writes
-  ordered data mode:
-    does not write file content to journal, so only written once
+ext3 比 xv6 具有更高的性能：
+  更好的异步和批处理
+    xv6：通常记录每个系统调用的提交；和系统调用等待
+    ext3：系统调用很少需要等待日志写入；每次动作很多
+          批处理允许写入吸收，从而减少写入
+  有序数据模式：
+    不将文件内容写入日志，因此只写入一次
 
-ext3 data structures:
-  [cache, info, disk FS tree, disk log]
-  in memory:
-    write-back block cache
-    current xaction info:
-      sequence #
-      block #s to be logged
-      outstanding "handles" -- one per syscall
-    prev xaction info...
-  on disk:
+ext3数据结构：
+  [缓存、信息、磁盘FS树、磁盘日志]
+  在内存中：
+    回写块缓存
+    当前xaction信息：
+      序列#
+      要记录的块#s
+      出色的“句柄”——每个系统调用一个
+    上一个动作信息...
+  在磁盘上：
     FS
-    circular log -- in a special pre-allocated fixed-size file.
+    循环日志——在一个特殊的预先分配的固定大小文件中。
 
-the ext3 log can hold multiple transactions
-  |SB: offset+seq#| ... |D4|...blocks...|C4|D5|...
-  log superblock: log offset and seq # of earliest valid transaction
-    (this is not the FS superblock; it's a block at start of log file)
-  descriptor blocks: magic, seq, block #s
-  data blocks (as described by descriptor)
-  commit blocks: magic, seq
+ext3日志可以保存多个事务
+  |SB：偏移+序列#| ... |D4|...块...|C4|D5|...
+  记录超级块：记录最早有效交易的偏移量和序列号
+    （这不是 FS 超级块；它是日志文件开头的块）
+  描述符块：magic、seq、块#s
+  数据块（由描述符描述）
+  提交块：magic、seq
 
-an ext3 transaction reflects updates of many syscalls -- a "compound" transaction
-  ext3 "batches" updated blocks from many system calls into each transaction
-  ext3 commits the current "open" transaction every few seconds
+ext3 事务反映了许多系统调用的更新——“复合”事务
+  ext3 将许多系统调用中的更新块“批量”放入每个事务中
+  ext3 每隔几秒提交一次当前“打开”的事务
 
-ext3's batching reduces time spent writing the log:
-  1. spreads fixed transaction costs over many system calls
-     fixed costs: descriptor and commit blocks, seek/rotate, syscall barrier
-  2. "write absorbtion"
-     many syscalls in the batch may modify the same block, in cache
-       e.g. an app creating many files in the same directory
-     thus one disk write for many syscalls' updates
+ext3 的批处理减少了写入日志的时间：
+  1. 将固定交易成本分摊到许多系统调用上
+     固定成本：描述符和提交块、查找/旋转、系统调用屏障
+  2.“写吸收”
+     批处理中的许多系统调用可能会修改缓存中的同一块
+       例如一个应用程序在同一目录中创建许多文件
+     因此，一个磁盘写入可用于许多系统调用的更新
 
-ext3 also gets performance from two kinds of concurrency:
-  1. multiple system calls can add to the current transaction
-  2. multiple transactions may be at various stages:
-     * one "open" transaction that's accepting new syscalls 
-     * committing transactions doing their log writes
-     * committed transactions writing to home locations in FS on disk
+ext3 还从两种并发中获得性能：
+  1.多个系统调用可以添加到当前事务中
+  2. 多笔交易可能处于不同阶段：
+     * 一项接受新系统调用的“开放”事务
+     * 提交事务进行日志写入
+     * 已提交的事务写入磁盘上 FS 中的主位置
 
-ext3 syscalls are "asynchronous"
-  they write cached blocks, and return -- fast!
-  they do not wait for log write or commit
-  multiple transactions is necessary for this asynchrony
-    to allow syscalls to proceed without waiting for prev transaction to commit
+ext3 系统调用是“异步的”
+  他们写入缓存的块，然后返回——速度很快！
+  他们不等待日志写入或提交
+  这种异步需要多个事务
+    允许系统调用继续进行而无需等待上一个事务提交
     batching -> big transactions -> take a long time to commit
 
-a crash may "forget" the last few seconds of operations
-  even if the system calls completed and returns
-  b/c system calls return before effects are committed to disk
-  and transactions are committed only every few seconds
-  why? to allow batching lots of operations into each transaction.
+崩溃可能会“忘记”最后几秒的操作
+  即使系统调用完成并返回
+  b/c 系统调用在效果提交到磁盘之前返回
+  并且事务仅每隔几秒提交一次
+  为什么？允许将大量操作批处理到每个事务中。
 
-careful applications need to be aware that crash may lose last few ops
-  databases, mail systems, editors, &c
-  need some combination of careful writing and post-crash recovery
-    but at the application layer, to ensure application invariants
-  e.g. databases layer their own logging on top of FS
-    and call fsync() to enforce their own ordering rules
+谨慎的应用程序需要意识到崩溃可能会丢失最后几个操作
+  数据库、邮件系统、编辑器等
+  需要仔细写作和崩溃后恢复的结合
+    但在应用层，保证应用不变性
+  例如数据库将自己的日志记录置于 FS 之上
+    并调用 fsync() 来强制执行自己的排序规则
 
-main goals of logging:
-  1. protect FS's own invariants despite crash
-     e.g. a block cannot be both free and used in an i-node
-  2. high performance
-  but *not* to provide application-level transactions!
+日志记录的主要目标：
+  1. 尽管发生崩溃，仍能保护 FS 自身的不变量
+     例如一个块不能既空闲又在 i 节点中使用
+  2.高性能
+  但*不*提供应用程序级交易！
 
-kernel implementation of ext3 system calls:
+ext3系统调用的内核实现：
   sys_unlink() {
-    h = start()
-    get(h, block #) ...
-    modify the block(s) in the cache
-    stop(h)
+    h = 开始()
+    获取（h，块＃）...
+    修改缓存中的块
+    停止（小时）
   }
-  start():
-    tells the logging system about a new system call
-      can't commit until all start()ed system calls have called stop()
-    start() may decide to close current xaction, start a new one
-  get():
-    tells logging system we'll modify cached block
-      added to list of blocks to be logged in current transaction
-  stop():
-    stop() does *not* cause a commit
-    transaction can commit iff all included syscalls have called stop()
+  开始（）：
+    告诉日志系统一个新的系统调用
+      在所有 start()ed 系统调用都调用 stop() 之前无法提交
+    start() 可能会决定关闭当前的 xaction，开始一个新的 xaction
+  获取（）：
+    告诉日志系统我们将修改缓存块
+      添加到当前交易中要记录的块列表
+  停止（）：
+    stop() *不会*导致提交
+    事务可以提交当且仅当所有包含的系统调用都已调用 stop()
 
-note: syscalls update cached blocks, but do not add to log
+注意：系统调用更新缓存块，但不添加到日志中
 
-note: syscalls lock i-nodes &c, not shown here, to prevent conflicting updates
+注意：系统调用锁定 i-nodes &c，此处未显示，以防止更新冲突
 
-committing a transaction to disk
-  (this happens in the background)
-  1. start blocking any new syscalls
-  2. wait for in-progress syscalls to stop()
-  3. open a new transaction, unblock new syscalls
-  4. write descriptor to on-disk log w/ list of block #s
-  5. write modified blocks from cache to on-disk log
-  6. wait for descriptor and data log disk writes to finish
-  7. write the commit record to on-disk log
-  8. wait for the commit disk write to finish
-  9. now modified blocks allowed to go to homes on disk (but not forced)
-     though only after all previous transactions have committed too
+将事务提交到磁盘
+  （这发生在后台）
+  1. 开始阻止任何新的系统调用
+  2.等待正在进行的系统调用停止()
+  3.打开一个新的事务，解锁新的系统调用
+  4. 将描述符写入带有块#s列表的磁盘日志
+  5. 将修改的块从缓存写入磁盘日志
+  6.等待描述符和数据日志磁盘写入完成
+  7. 将提交记录写入磁盘日志
+  8.等待提交磁盘写入完成
+  9.现在修改后的块允许进入磁盘上的家（但不是强制的）
+     尽管只有在所有先前的事务都已提交之后
 
-when can ext3 re-use log space?
-  log is circular: SB T4 T5 T2 T3
-  a transaction's log space can be re-used if:
-    it's the oldest transaction in the log -- T2 in this case
-    T2 has committed
-    T2's blocks have all been written to home locations in FS on disk
+ext3什么时候可以重新使用日志空间？
+  日志是循环的：SB T4 T5 T2 T3
+  如果满足以下条件，则可以重新使用事务的日志空间：
+    它是日志中最旧的事务——本例中为 T2
+    T2已承诺
+    T2的块已全部写入磁盘上FS的主位置
       ==> no longer any need to replay from log after a crash
-  before re-use, must write log superblock with
-    offset/seq of now-oldest transaction in log (T3)
+  在重新使用之前，必须写入日志超级块
+    日志中当前最旧事务的偏移量/序列 (T3)
 
-"freeing" a transaction in the log means noting that the space
-  can be re-used and advancing SB seq/offset over it.
-  (*not* putting the blocks in the FS free bitmap).
+“释放”日志中的事务意味着注意到空间
+  可以重复使用并在其上推进 SB seq/offset。
+  （*不是*将块放入 FS 空闲位图中）。
 
-what if a crash?
+如果发生车祸怎么办？
 
-what kinds of crashes can logging help with?
-  "fail-stop"
-  followed by reboot
-  e.g. power failure, then power restored
-  crash causes RAM (and thus cached disk blocks) to be lost
-  disk h/w is assumed to be readable after restart
-    and to reflect all *completed* writes up to the time of the crash
-    and perhaps some writes that were in-progress at time of crash
-    at sector granularity (i.e. no partial sector writes)
-  logging does *not* help with non-fail-stop failures
-    e.g. bugs/errors in FS code, disk firmware or medium, CPU, RAM
+日志记录可以帮助解决哪些类型的崩溃？
+  “故障停止”
+  然后重新启动
+  例如停电，然后恢复供电
+  崩溃会导致 RAM（以及缓存的磁盘块）丢失
+  磁盘硬件在重启后被认为是可读的
+    并反映截至崩溃时所有“已完成”写入
+    可能还有一些在崩溃时正在进行的写入操作
+    以扇区粒度（即没有部分扇区写入）
+  日志记录*不*有助于解决非故障停止故障
+    例如FS 代码、磁盘固件或介质、CPU、RAM 中的错误/错误
 
-after a crash,
-  on-disk log may have a bunch of complete xactions, then some partial
-  may also have written some of block cache to disk before crash
-    i.e. FS *partially* updated, not safe to use
-    e.g. file i-node has new block, but bit not cleared in free bitmap
-         or new directory entry refers to i-node, but i-node not initialized
+发生车祸后，
+  磁盘日志可能有一堆完整的 xactions，然后是一些部分的 xactions
+  也可能在崩溃之前将一些块缓存写入磁盘
+    即 FS *部分*更新，使用不安全
+    例如文件 i 节点有新块，但空闲位图中的位未清除
+         或新的目录项引用 i-node，但 i-node 未初始化
 
-how ext3 recovery works
+ext3 恢复如何工作
   SB T8 xT5 T6 T7
-    SB points to T6
-    T8 has overwritten start of T5
-  0. reboot with intact disk
-  1. look in log superblock for offset and seq# at which to start
-  2. find the end of the log
-     scan forward over valid transactions
-       descriptor/commit pairs with correct magic and seq #
-     end of log is xaction before first invalid xaction
-  3. write all blocks to homes, through end of log, in log order
-     thus completing those partially-written operations
-  4. start normal file-system operation
+    SB指向T6
+    T8 已覆盖 T5 的开头
+  0. 磁盘完好无损重新启动
+  1. 在日志超级块中查找偏移量和开始的 seq#
+  2.找到日志末尾
+     向前扫描有效交易
+       具有正确 magic 和 seq 的描述符/提交对 #
+     日志末尾是第一个无效 xaction 之前的 xaction
+  3.按照日志顺序将所有块写入home，直到日志结尾
+     从而完成那些部分写入的操作
+  4. 开始正常的文件系统操作
 
-write-ahead rule ensures that transactions after last committed
-  cannot have started writing any home locations, so after
-  recovery it will be as if they never happened.
+预写规则确保上次提交后的事务
+  无法开始写入任何家庭位置，所以之后
+  恢复后就好像它们从未发生过一样。
 
-why does recovery write log blocks to homes in log order?
-  to ensure newer block versions replace older ones
+为什么恢复会按日志顺序将日志块写入 home？
+  确保新的区块版本取代旧的区块
 
-what if block after last valid commit block looks like a log descriptor?
-  i.e. looks like the start of the next transaction?
-  perhaps some file data happens to look like a descriptor?
-    ext3 prevents this from happening
-    ext3 replaces magic number in data blocks in journal with zero
-    and sets a flag for that block in the descriptor
-  perhaps a descriptor block left over from an old freed transaction?
+如果最后一个有效提交块之后的块看起来像日志描述符怎么办？
+  即看起来像是下一笔交易的开始？
+  也许某些文件数据恰好看起来像描述符？
+    ext3 可以防止这种情况发生
+    ext3 将日志中数据块中的幻数替换为零
+    并在描述符中为该块设置一个标志
+  也许是旧的释放事务留下的描述符块？
     seq # will be too low -> end of log
 
-what if another crash during log replay?
-  after reboot, recovery will replay exactly the same log writes
+如果日志重放期间再次崩溃怎么办？
+  重新启动后，恢复将重播完全相同的日志写入
 
-that was the straightforward part of ext3.
-  there are also some tricky details!
+这是 ext3 中最简单的部分。
+  还有一些棘手的细节！
 
-why does ext3 delay start of T2's syscalls until all of T1's syscalls finish?
-  i.e. why this:
-    T1: |-syscalls-|
-    T2:             |-syscalls-|
+为什么 ext3 延迟 T2 系统调用的启动，直到 T1 的所有系统调用完成？
+  即为什么这样：
+    T1: |-系统调用-|
+    T2: |-系统调用-|
               ---time--->
-  this barrier sacrifices some performance
-  example problem that this barrier prevents:
-    T1: |-create(x)-|
-    T2:        |-unlink(y)-|
-                       X crash
+  这个障碍会牺牲一些性能
+  此屏障可防止的示例问题：
+    T1：|-创建(x)-|
+    T2: |-取消链接(y)-|
+                       X崩溃
               ---time--->
-  if we allow T2's unlink while T1's create is executing
-    unlink(y) free y's i-node -- i.e. marks it free in block cache
-    create(x) may allocate that same i-node -- i.e. read unlink's write
-  if T1 commits, but crash before T2 commits, then
-    y will exist (the unlink did not commit)
-    x will exist but use the same i-node as y!
-  we can't let T1 see T2's updates!
-    so: don't start T2's syscalls until T1's syscalls are done
-  (note ext3's copy-on-write doesn't fix this: it gives T1
-   a copy of all blocks as of the end of T1, but T2's unlink
-   executed before T1 ended.)
-  (note we can't give T2 its own copies of the blocks, separate from
-   T1's copies, since generally we do want later system calls to
-   see the effects of earlier system calls.)
+  如果我们在 T1 的 create 执行时允许 T2 的取消链接
+    unlink(y) 释放 y 的 i 节点——即在块缓存中将其标记为空闲
+    create(x) 可以分配相同的 i 节点——即读取、取消链接的写入
+  如果 T1 提交，但在 T2 提交之前崩溃，那么
+    y 将存在（取消链接未提交）
+    x 将存在，但使用与 y 相同的 i 节点！
+  我们不能让T1看到T2的更新！
+    所以：在 T1 的系统调用完成之前不要启动 T2 的系统调用
+  （注意 ext3 的写时复制并不能解决这个问题：它给了 T1
+   截至 T1 结束时所有区块的副本，但 T2 已取消链接
+   在 T1 结束之前执行。）
+  （注意，我们不能给 T2 自己的块副本，与
+   T1 的副本，因为通常我们确实希望稍后的系统调用
+   查看早期系统调用的效果。）
     
-why commit needs to write on-disk log from a snapshot of cached blocks
-  consider this:
-  T1: |--create(d/f)--|   ... T1's log writes ...
-  T2:                   |--create(d/g)--|
-  both create()s write d's directory content block
-  suppose T1 writes log to disk *after* T2's create()
-  we can't let T1 include some of T2's writes!
-    then a crash+recovery might replay some but not all of T2
-    e.g. make the directory entry d/g but without initializing g's i-node
-  ext3's solution:
-    give T1 a private copy of the block cache as it existed when T1 closed
-    T1 commits from this snapshot of the cache
-    it's efficient using copy-on-write
-    the copies allow syscalls in T2 to proceed while T1 is committing
+为什么提交需要从缓存块的快照写入磁盘日志
+  考虑一下：
+  T1: |--创建(d/f)--| ... T1的日志写道...
+  T2: |--创建(d/g)--|
+  两个 create() 都写入 d 的目录内容块
+  假设 T1 在 T2 的 create() 之后*将日志写入磁盘
+  我们不能让 T1 包含 T2 的一些写入！
+    那么崩溃+恢复可能会重播 T2 的部分但不是全部
+    例如使目录项为 d/g 但不初始化 g 的 i 节点
+  ext3的解决方案：
+    为 T1 提供块缓存的私有副本，因为它在 T1 关闭时存在
+    T1 从缓存的此快照提交
+    使用写时复制非常高效
+    这些副本允许 T2 中的系统调用在 T1 提交时继续进行
 
-so far we've been talking about EXT3's "journaled data" mode
-  in which file content blocks are written to log
-  as well as meta-data (i-nodes, directory content, indirect blocks, free bitmaps)
-  so file content is included in atomicity guarantee
+到目前为止我们一直在讨论 EXT3 的“日志数据”模式
+  其中文件内容块被写入日志
+  以及元数据（i 节点、目录内容、间接块、空闲位图）
+  所以文件内容包含在原子性保证中
 
-logging file content is slow, every data block written twice to disk
-  data is usually much bigger than meta-data
-  can we entirely omit file content from the log?
-  if we did, when would we write file content to the FS?
+日志文件内容很慢，每个数据块写入磁盘两次
+  数据通常比元数据大得多
+  我们可以从日志中完全省略文件内容吗？
+  如果我们这样做，我们什么时候将文件内容写入FS？
 
-can we write file content blocks after committing write() meta-data to log?
-  no: if metadata is committed first, crash may leave i-node pointing
-      to blocks from someone else's deleted file, with deleted
-      file's content!
+我们可以在将 write() 元数据提交到日志后写入文件内容块吗？
+  否：如果首先提交元数据，崩溃可能会使 i 节点指向
+      阻止其他人删除的文件，并删除
+      文件的内容！
 
-ext3 "ordered data" mode:
-  write file content blocks to disk *before* commiting log
-  (and don't write file content to the log)
-  thus, for a write():
-    1. write file content blocks to FS on disk,
-    2. wait until content writes finish,
-    3. commit i-node (w/ block numbers and new size) and block free bitmap
-  if crash after data write, but before commit:
-    block on disk has new data
-    but not visible, since i-node not updated w/ new block
-    no metadata inconsistencies
-      neither i-node nor free bitmap were updated, so blocks still free
-  most people use ext3 ordered data mode
-    it's much faster: avoids writing data twice
+ext3“有序数据”模式：
+  *在*提交日志之前将文件内容块写入磁盘
+  （并且不要将文件内容写入日志）
+  因此，对于 write()：
+    1.将文件内容块写入磁盘上的FS，
+    2.等待内容写入完成，
+    3.提交i节点（带块号和新大小）和块空闲位图
+  如果在数据写入之后、提交之前崩溃：
+    磁盘上的块有新数据
+    但不可见，因为 i-node 未更新为新块
+    没有元数据不一致
+      i 节点和空闲位图都没有更新，因此块仍然空闲
+  大多数人使用ext3有序数据模式
+    它更快：避免两次写入数据
 
-why does it make sense for the log to omit file content?
-  again, goal of the log is to protect FS's own invariants
-  from this point of view, file content is not relevant.
+为什么日志省略文件内容有意义？
+  再次强调，日志的目标是保护 FS 自身的不变量
+  从这个角度来看，文件内容是不相关的。
 
-correctness challenges w/ ordered data mode:
-  * 1. rmdir() frees directory content block, #27
-    2. file write() (in same compound xaction) allocates block #27
-    3. write() writes block #27 on disk
-    4. crash before rmdir is committed
-    after recovery, as if rmdir never happened,
-      but directory content block (#27) has been overwritten!
-    fix: no re-use of freed block until freeing syscall committed
-  * rmdir, commit, re-use block in file, ordered file write, commit,
-      crash+recover, replay rmdir
+有序数据模式的正确性挑战：
+  * 1. rmdir() 释放目录内容块，#27
+    2. 文件 write() （在同一复合 xaction 中）分配块 #27
+    3. write() 将块 #27 写入磁盘
+    4. rmdir 提交前崩溃
+    恢复后，就好像 rmdir 从未发生过一样，
+      但目录内容块（#27）已被覆盖！
+    修复：在提交释放系统调用之前不会重新使用释放的块
+  * rmdir，提交，重用文件中的块，有序文件写入，提交，
+      崩溃+恢复，重播 rmdir
     1. rmdir
-       erases "." and ".." in content block 28, which is logged
-       then frees 28
-    2. rmdir commits
-    3. write() allocates 28, and writes it (with ordered data mode)
-    4. write commits
-    5. crash, reboot, log is replayed, including the rmdir's write
-       but write()'s data write was not logged, not replayed
-    result: file is left w/ directory content
-    fix: add "revoke" log record when freeing dir block,
-         prevents *prior* log records from writing that block.
-  note: both problems due to changing the type of a block (content vs meta-data)
-    so another solution might be to never change a block's type
+       删除“。”以及内容块 28 中的“..”，已记录
+       然后释放 28
+    2. rmdir 提交
+    3. write()分配28，并写入（有序数据模式）
+    4. 写入提交
+    5.崩溃、重启、日志重放，包括rmdir的写入
+       但 write() 的数据写入未记录，未重放
+    结果：文件保留目录内容
+    修复：释放目录块时添加“撤销”日志记录，
+         防止*之前的*日志记录写入该块。
+  注意：这两个问题都是由于更改块的类型（内容与元数据）而导致的
+    所以另一个解决方案可能是永远不改变块的类型
 
-what if there's not enough free log space for a transaction's blocks?
-  free oldest transaction(s)
-  i.e. install its writes in the on-disk FS
+如果没有足够的可用日志空间用于事务块怎么办？
+  免费最旧的交易
+  即在磁盘 FS 中安装其写入内容
 
-what prevents so many syscalls starting that log isn't big enough?
-  each syscall passes max number of blocks needed to start()
-  start() waits if total for current transaction is too high
-    and works on freeing old transactions
+是什么阻止了如此多的系统调用启动日志不够大？
+  每个系统调用都会传递 start() 所需的最大块数
+  如果当前事务总数过高，则 start() 等待
+    并致力于释放旧交易
 
-another (complex) reason for reservations:
-  T1 updates block 17
-  T1 commits
-  T1 finishes writing its log and commit record
-     but has not yet written block 17 to home location
-  T2 also updates block 17 in the cache
-  a T2 syscall is executing, does a write for which no log space
-  can ext3 install T1's blocks to home locations on disk,
-    and free T1's log space?
-  no: the cache no longer holds T1's version of block 17
-    (ext3 could read the block from the log, but it doesn't)
-  but once T2 commits, logged block 17 will reflect T1's writes
-    so freeing of T1 can just wait for T2 to commit
-  that is, freeing of early transactions may have to wait for
-    commit of later transactions
+预订的另一个（复杂）原因：
+  T1更新块17
+  T1 提交
+  T1 完成写入日志和提交记录
+     但尚未将块 17 写入主位置
+  T2还更新缓存中的块17
+  T2 系统调用正在执行，执行写入操作，但没有日志空间
+  ext3 可以将 T1 的块安装到磁盘上的主位置吗？
+    并释放 T1 的日志空间？
+  no：缓存不再保存 T1 的块 17 版本
+    （ext3 可以从日志中读取该块，但事实并非如此）
+  但是一旦 T2 提交，记录的块 17 将反映 T1 的写入
+    所以释放T1只需等待T2提交
+  也就是说，早期交易的释放可能需要等待
+    提交后续事务
 
-this means any transaction (T2) *must* be able to commit without
-  having to wait for freeing of earlier transaction (T1)
-  log space reservations help ensure this
+这意味着任何事务（T2）*必须*能够提交而无需
+  必须等待早期事务的释放（T1）
+  日志空间预留有助于确保这一点
 
-checksums
-  recall: transaction's log blocks must be on disk before writing commit block
-    ext3 waits for disk to say "done" before starting commit block write
-  risk: disks usually have write caches and re-order writes, for performance
-    sometimes hard to turn off (the disk lies)
-    people often leave re-ordering enabled for speed, out of ignorance
-    bad news if disk writes commit block before the rest of the transaction
-  solution: commit block contains checksum of entire logged transaction
-    on recovery: compute checksum of transaction
-	if matches checksum in commit block: install transaction
-    if no match: don't install transaction
-  ext4 has log checksumming, but ext3 does not
+校验和
+  回想一下：在写入提交块之前，事务的日志块必须位于磁盘上
+    ext3 在开始提交块写入之前等待磁盘说“完成”
+  风险：磁盘通常具有写入缓存并重新排序写入，以提高性能
+    有时很难关闭（磁盘谎言）
+    人们常常出于无知而为了速度而启用重新排序
+    如果磁盘在事务的其余部分之前写入提交块，则是坏消息
+  解决方案：提交块包含整个记录事务的校验和
+    恢复时：计算交易的校验和
+	如果匹配提交块中的校验和：安装事务
+    如果不匹配：不安装交易
+  ext4 有日志校验和，但 ext3 没有
 
 References:
-Stephen Tweedie 2000 talk transcript "EXT3, Journaling Filesystem"
+Stephen Tweedie 2000 年谈话记录“EXT3，日志文件系统”
   http://olstrans.sourceforge.net/release/OLS2000-ext3/OLS2000-ext3.html
-log format details
+日志格式详细信息
   https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout
 https://www.usenix.org/system/files/login/articles/04_tso_018-021_final.pdf

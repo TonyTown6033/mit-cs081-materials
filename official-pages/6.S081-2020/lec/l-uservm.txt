@@ -1,180 +1,183 @@
-6.S081 2020 Lecture 17: User-level virtual memory
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Reading: VM primitives for user programs by Appel & Li (1991)
+6.S081 2020第17讲：用户级虚拟内存
+
+阅读：Appel & Li 的用户程序的 VM 原语 (1991)
 
 Plan:
-  OS kernel uses virtual memory in creative ways
-  Paper argues user-level application can also benefit from VM
-    Concurrent garbage collector
-    Generation garbage collector
-    Concurrent check-pointing
-    Data-compression paging
-    Persistent stores
-  Most OSes have mmap() and user-level pagefaults
+  操作系统内核以创造性的方式使用虚拟内存
+  论文认为用户级应用程序也可以从 VM 中受益
+    并发垃圾收集器
+    生成垃圾收集器
+    并发检查点
+    数据压缩分页
+    持久存储
+  大多数操作系统都有 mmap() 和用户级页面错误
 
-What VM user-level VM primitives?
-  Trap: handle page-fault traps in user mode
-  Prot1: decrease the accessibility of a page
-  ProtN: decrease the accessibility of N pages
-  Unprot: increase the accessibility of a page
-  Dirty: return a list of dirtied pages since previous calls
-  Map2: map the same physical page at two different VAs with
-    different prot levels.
+什么 VM 用户级 VM 原语？
+  Trap：处理用户模式下的页面错误陷阱
+  Prot1：降低页面的可访问性
+  ProtN：减少N个页面的可访问性
+  Unprot：增加页面的可访问性
+  脏：返回自上次调用以来脏页面的列表
+  Map2：将相同的物理页映射到两个不同的VA
+    不同的利润水平。
 
-Xv6 supports none of them
-  One way to see the paper is that a good OS should support them
-  What about Unix today?
+xv6 都不支持
+  看论文的一种方式是一个好的操作系统应该支持它们
+  今天的 Unix 怎么样？
 
-Unix today: mmap()
-  Maps memory into the address space (many flags and options)
-  Example: mapping file
-    mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, offset)
-  Examples: anonymous memory
+当今的 Unix：mmap()
+  将内存映射到地址空间（许多标志和选项）
+  示例：映射文件
+    mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 偏移量)
+  示例：匿名内存
     mmap(NULL, len, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0)
-    (preferred over sbrk)
+    （优于 sbrk）
     
-Unix today: mprotect()
-  Changes the permission of a mapping
+当今的 Unix：mprotect()
+  更改映射的权限
   Examples:
-    mprotect(addr, len, PROT_READ)
-    mprotect(addr, len, PROT_NONE)
-      results in a trap on access
+    mprotect（地址，长度，PROT_READ）
+    mprotect（地址，长度，PROT_NONE）
+      导致访问陷阱
 
-Unix today: munmap()
-  Removes a mapping
+当今的 Unix：munmap()
+  删除映射
   Example:
-    munmap(addr, len)
+    munmap（地址，长度）
 
-Unix today: sigaction()
-  Configures a signal handler
-    (Think sigalarm() lab)
+当今的 Unix：sigaction()
+  配置信号处理程序
+    （想想 sigaarm() 实验室）
   act.sa_sigaction = handle_sigsegv;
   act.sa_flags = SA_SIGINFO;
   segemptyset(&act.sa_mask)
   sigaction(SIGSEGV, &act, NULL);
 
-Additional Linux VM calls
-  Madvise(), Mincore(), Mremap(), Msync(), Mlock(), Mbind(), Shmat(),..
+其他 Linux VM 调用
+  Madvise()、Mincore()、Mremap()、Msync()、Mlock()、Mbind()、Shmat()、..
 
-VM Implementation
-  Address spaces consists of VMAs and page tables
-  VMA (virtual memory area)
-    contiguous range of virtual addresses
-    same permissions
-    backed by the same object (file, anonymous memory)
-  VMA helps the kernel to decide how to handle page faults
+虚拟机实施
+  地址空间由VMA和页表组成
+  VMA（虚拟内存区域）
+    连续的虚拟地址范围
+    相同的权限
+    由同一对象（文件、匿名内存）支持
+  VMA帮助内核决定如何处理页面错误
 
-Trap/sigaction implementation
-  PTE (or TLB entry) marked "protected"
-  CPU saves user state, jumps into kernel.
-  Kernel asks VM system what to do?
-    I.e. page in from disk? Core dump?
-    VM system looks at VMA    
-  Generate signal -- upcall into user process.
-    Lower on user stack, or on separate stack...
-  Run user handler, can do anything.
-    Probably must call UNPROT for referenced page.
-    That is, must avoid repeated fault.
-  User handler returns to kernel.
-  Kernel returns to user program.
-  Continue or re-start instruction that trapped.
+陷阱/sigaction 实施
+  PTE（或 TLB 条目）标记为“受保护”
+  CPU保存用户态，跳转到内核。
+  内核询问VM系统要做什么？
+    即从磁盘调入页？核心转储？
+    VM系统看VMA
+  生成信号——向上调用到用户进程。
+    在用户堆栈的较低位置，或在单独的堆栈上......
+  运行用户处理程序，可以做任何事情。
+    可能必须为引用的页面调用 UNPROT。
+    即必须避免重复发生故障。
+  用户处理程序返回内核。
+  内核返回到用户程序。
+  继续或重新启动被困的指令。
 
-Can we support user-level VM primitives?
-  Trap: sigaction and SIGSEGV
-  Prot1: mprotect()
-  ProtN: mprotect()
-  Unprot: mprotect()
-  Dirty: No, but workaround exists
-  Map2: Not directly, but shm_open/mmap/mmap
+我们可以支持用户级VM原语吗？
+  陷阱：sigaction 和 SIGSEGV
+  Prot1：mprotect()
+  ProtN：mprotect()
+  取消保护：mprotect()
+  肮脏：不，但存在解决方法
+  Map2：不直接，而是shm_open/mmap/mmap
 
-Demo: large sqrt table backed by a single page
-  Application code thinks there is a pre-computed big table
+演示：单页支持的大型 sqrt 表
+  应用程序代码认为有一个预先计算的大表
     n -> sqrt(n)
-  Application can lookup sqrt:  sqrts[n]
-    If present, very fast!
-  Table is bigger than physical memory
-  User-level VM primitives allow it to occupy only a *single* page
+  应用程序可以查找 sqrt：sqrts[n]
+    如果存在的话，速度非常快！
+  表大于物理内存
+  用户级 VM 原语允许其仅占用*单个*页面
 
-Use case: Concurrent GC
-  Application allocates memory and computes with it
-    Application is called the "mutator"
-    Application doesn't have to call free
-    (which is error prone, in particular in concurrent programs)
-  Collector concurrently finds free memory
-    Memory that isn't in use by application anymore
-    Not reachable from root pointer or registers of any thread
-  Traditional implementation requires language/compiler support
-    Instrument loads/stores
-  User-level virtual memory can avoid instrumenting load/stores
-    Faster
+用例：并发 GC
+  应用程序分配内存并用它进行计算
+    应用程序被称为“变异器”
+    应用程序不必拨打免费电话
+    （这很容易出错，特别是在并发程序中）
+  收集器同时发现空闲内存
+    应用程序不再使用的内存
+    无法从任何线程的根指针或寄存器访问
+  传统实现需要语言/编译器支持
+    仪器加载/存储
+  用户级虚拟内存可以避免检测加载/存储
+    更快
 
-Example: Baker's real-time GC algorithm  (see toy version in baker.c)
+示例：Baker 的实时 GC 算法（请参阅 Baker.c 中的玩具版本）
   https://dl.acm.org/citation.cfm?id=359460.359470
-  Divide heap into 2 regions: from-space and to-space
-    to-space is further divided in: scanned, unscanned, and new
-  At start of collection: all objects are in from-space
-    Copy roots to to-space (register and stack)
-    Put forwarding pointers in from-space to the to-space copy
+  将堆分为 2 个区域：from-space 和 to-space
+    to-space 进一步分为：扫描的、未扫描的和新的
+  收集开始时：所有对象都在起始空间中
+    将根复制到空间（寄存器和堆栈）
+    将 from-space 中的转发指针放入 to-space 副本
   At the end of scan, from-space is free memory
-  Don't have to stop the world for GC
-    Do a little of scanning on each allocation
-    Or when dereferencing pointer in from-space
+  不必为了 GC 而停止世界
+    对每个分配进行一些扫描
+    或者在从空间中取消引用指针时
 
-Observations
-  Why attractive?
-    Alloc is cheap. Compacts, so no free list.
-    Incremental: every allocation scan/copy a little
-    This is the "real-time" aspect
-  What are the cost?
-    Does pointer reside in the from space? (If so, it needs to be copied)
-      Requires test and branch for every dereference
-    Difficult to run collector and program at same time
-      Race condition between collector tracing heap and program threads
-      Risk: two copies of the same object
+观察结果
+  为什么有吸引力？
+    分配很便宜。紧凑，所以没有空闲列表。
+    增量：每次分配扫描/复制一点
+    这就是“实时”方面
+  费用是多少？
+    指针是否驻留在from空间中？ （如果有则需要复制）
+      每次取消引用都需要测试和分支
+    很难同时运行收集器和程序
+      收集器跟踪堆和程序线程之间的竞争条件
+      风险：同一对象的两个副本
 
-Solution: let application use VM
+解决方案：让应用程序使用VM
   https://dl.acm.org/doi/10.1145/53990.53992
-  Avoid explicit checks for references in application threads
-    After copying roots, unmap the unscanned part of to-space
-      Initially a page with roots etc.
-    Page fault when thread accesses unscanned region
-      handlers scans just the page and inspects all objects, then UNPROT
-      at most one fault per page
-      no compiler changes
-  Easy to make concurrent
-    A collector thread can run concurrently with application thread
-      A collector thread can UNPROT a page after scanning
-    Only synchronization needed is for which thread is scanning which page
+  避免显式检查应用程序线程中的引用
+    复制root后，取消映射到空间中未扫描的部分
+      最初是一个带有根等的页面。
+    线程访问未扫描区域时出现页面错误
+      处理程序仅扫描页面并检查所有对象，然后 UNPROT
+      每页最多出现一个错误
+      没有编译器更改
+  易于并发
+    收集器线程可以与应用程序线程同时运行
+      收集器线程可以在扫描后取消保护页面
+    唯一需要同步的是哪个线程正在扫描哪个页面
 
-Are existing VM primitives good enough for concurrent GC?
-  MAP2 is the only functionality issue -- but not really.
-    We never have to make the same page accessible twice!
-  Are traps &c fast enough?
-    They say no: 500 us to scan a page, 1200 us to take the trap.
-    Why not scan 3 pages?
-    How much slower to run Baker's actual algorithm, w/ checks?
-      VM version might be faster! Even w/ slow traps.
-    What about time saved by 2nd CPU scanning? They don't count this.
-  Is it an issue how often faults occur for concurrent GC?
-    Not really -- more faults means more scanning.
-    I.e. we'll get <= one fault per page, at most.
+现有的 VM 原语对于并发 GC 是否足够好？
+  MAP2 是唯一的功能问题——但并非如此。
+    我们永远不必使同一页面可访问两次！
+  陷阱和c足够快吗？
+    他们说不：扫描一页需要 500 美元，捕捉陷阱需要 1200 美元。
+    为什么不扫描 3 页？
+    运行贝克的实际算法（带检查）要慢多少？
+      VM版本可能会更快！即使有缓慢的陷阱。
+    第二个 CPU 扫描节省的时间怎么样？他们不计算这个。
+  并发GC故障频率是否有问题？
+    事实并非如此——更多的故障意味着更多的扫描。
+    即我们最多会得到 <= 每页一个错误。
 
-Is user-level VM a good idea?
-  Most of the use cases can be implemented by adding instructions
-    E.g., check in application thread on reference
+用户级虚拟机是个好主意吗？
+  大多数用例都可以通过添加指令来实现
+    例如，检查引用的应用程序线程
   Pro:
-    Avoid compiler changes
-    CPU provides VM support
+    避免编译器更改
+    CPU提供VM支持
   Con:
-    Requires OS support, and efficient support
-    Most OS kernel can't expose the raw hardware performance of paging
-      OS imposes much abstraction
+    需要操作系统支持，需要高效的支持
+    大多数操作系统内核无法公开分页的原始硬件性能
+      操作系统强加了很多抽象
 
-What has changed between 1991 and 2020?
-  Tons of changes to VM API and implementations
-    VM system evolves continuously
-    Continued research too (e.g., see OSDI 2020)
-  Switching address space is free (tagged TLBs)
-  Extended addressibility doesn't matter
-    2^52 bytes of virtual address space
+1991 年至 2020 年发生了什么变化？
+  对 VM API 和实现进行了大量更改
+    VM系统不断发展
+    也在继续研究（例如，参见 OSDI 2020）
+  切换地址空间是空闲的（标记为TLB）
+  扩展可寻址性并不重要
+    2^52字节的虚拟地址空间
   

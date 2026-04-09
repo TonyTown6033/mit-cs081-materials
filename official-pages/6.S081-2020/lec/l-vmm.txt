@@ -1,301 +1,304 @@
-6.S081 2020 Lecture 19: Virtual Machines, Dune
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Read: Dune: Safe User-level Access to Privileged CPU features, Belay et al,
-OSDI 2012.
+6.S081 2020第19讲：虚拟机、沙丘
+
+阅读：Dune：对特权 CPU 功能的安全用户级访问，Belay 等人，
+OSDI 2012。
 
 Plan:
-  virtual machines
-  trap-and-emulate virtualization
-  hardware-supported virtualization (Intel VT-x)
-  Dune
+  虚拟机
+  陷阱和模拟虚拟化
+  硬件支持的虚拟化（Intel VT-x）
+  沙丘
 
-*** Virtual Machines
+*** 虚拟机
 
-what's a virtual machine?
-  simulation of a computer, accurate enough to run an O/S
+什么是虚拟机？
+  计算机模拟，精确到足以运行操作系统
 
-diagram: h/w, host/VMM, guest kernels, guest processes
-  VMM might be stand-alone, or
-  VMM might run in a host O/S, e.g. Linux
+图表：硬件、主机/VMM、来宾内核、来宾进程
+  VMM 可能是独立的，或者
+  VMM 可能在主机操作系统中运行，例如Linux
 
-why use a VM?
-  run lots of guests per physical machine
-    often individual services requires modest resources
-    would waste most of a dedicated server
-    for cloud and enterprise computing
-    need a new layer, under existing O/S kernel, to manage multiple guests
-  VMs offer better isolation than processes
-  one computer, multiple operating systems (OSX and Windows)
-  kernel development environment (like qemu)
-  tricks: checkpoint, migrate, monitor
+为什么要使用虚拟机？
+  每台物理机运行大量访客
+    个别服务通常需要适度的资源
+    会浪费大部分专用服务器
+    用于云和企业计算
+    需要在现有操作系统内核下建立一个新层来管理多个来宾
+  虚拟机比进程提供更好的隔离
+  一台计算机，多个操作系统（OSX 和 Windows）
+  内核开发环境（如qemu）
+  技巧：检查点、迁移、监控
 
-VMs have a long history
-  1960s: IBM used VMs to share big machines
-  1990s: VMWare re-popularized VMs, for x86 hardware
-  2000s: widely used in cloud, enterprise
+虚拟机有着悠久的历史
+  20 世纪 60 年代：IBM 使用虚拟机共享大型机器
+  20 世纪 90 年代：VMWare 重新普及适用于 x86 硬件的虚拟机
+  2000年代：广泛应用于云、企业
 
-why are we talking about virtual machines?
-  some of the most interesting action in O/S design has shifted to VMs
-    much overlap with traditional O/S kernels
-    some new challenges/opportunities as well
-  some problems are solved more easily by inserting a new layer under the O/S
-  VMs have affected both O/S (above) and hardware (below)
+我们为什么谈论虚拟机？
+  操作系统设计中一些最有趣的动作已经转移到虚拟机上
+    与传统操作系统内核有很多重叠
+    还有一些新的挑战/机遇
+  通过在操作系统下插入一个新层可以更轻松地解决一些问题
+  虚拟机同时影响操作系统（上图）和硬件（下图）
 
-how accurate must a VM be?
-  usual goal:
-    guest doesn't have any idea it's running in a VM
-    host can support any guest O/S
-  so we want:
-    impossible for guest to distinguish VM from real computer
-    impossible for guest to escape its VM
-  must allow standard O/S to boot, run
-  must contain malicious software
-    cannot let guest break out of virtual machine!
-  in practice, many VMs compromise
-    guest O/S knows it's running on a VM,
-    has modifications for efficiency
+VM 必须有多准确？
+  通常的目标：
+    来宾不知道它正在虚拟机中运行
+    主机可以支持任何来宾操作系统
+  所以我们想要：
+    访客无法区分虚拟机和真实计算机
+    来宾不可能逃脱其虚拟机
+  必须允许标准操作系统启动、运行
+  必须包含恶意软件
+    不能让guest脱离虚拟机！
+  在实践中，许多虚拟机妥协
+    来宾操作系统知道它正在虚拟机上运行，
+    为了提高效率进行了修改
 
-we could build a VM by writing software to simulate machine instructions
-  VMM interprets each guest instruction
-  maintain virtual machine state for the guest
-    32 registers, satp, mode, RAM, disk, &c
-  pro: it's clear this is possible
-  con: slow
+我们可以通过编写软件来模拟机器指令来构建虚拟机
+  VMM 解释每条访客指令
+  维护来宾虚拟机状态
+    32 个寄存器、satp、模式、RAM、磁盘等
+  专业人士：很明显这是可能的
+  缺点：慢
 
-idea: execute guest instructions on real CPU -- fast!
-  what if the guest kernel executes a privileged instruction?
-    e.g. guest loads a new page table into satp
-    can't give guest kernel direct access to supervisor registers &c!
+想法：在真正的 CPU 上执行客户指令——快！
+  如果来宾内核执行特权指令怎么办？
+    例如guest 将新页表加载到 satp 中
+    无法让客户内核直接访问管理寄存器&c！
 
-idea: run the guest kernel in user mode
-  similar to running the guest kernel as an xv6 process
-  of course the guest kernel assumes it is in supervisior mode
-  ordinary instructions work fine
-    adding two registers, function call, &c
-  privileged RISC-V instructions are illegal in user mode
-    will cause a trap, to the VMM
-  VMM trap handler emulates privileged instruction
-    maybe apply the privileged operation to the virtual state
-      e.g. read/write sepc
-    maybe transform and apply to real hardware
-      e.g. assignment to satp
-  "trap-and-emulate"
-  nice b/c you can build such a virtual machine entirely in software
-    you could modify xv6 to be a trap-and-emulate VMM for RISC-V
+想法：在用户模式下运行来宾内核
+  类似于将来宾内核作为 xv6 进程运行
+  当然，来宾内核假设它处于监督模式
+  普通指令工作正常
+    添加两个寄存器、函数调用等
+  特权 RISC-V 指令在用户模式下是非法的
+    会导致 VMM 陷入陷阱
+  VMM 陷阱处理程序模拟特权指令
+    可能将特权操作应用于虚拟状态
+      例如读/写sepc
+    或许可以改造并应用到真实的硬件上
+      例如分配给卫星技术方案
+  “陷阱与模仿”
+  不错，你可以完全用软件构建这样的虚拟机
+    您可以将 xv6 修改为 RISC-V 的陷阱和模拟 VMM
 
-what RISC-V state must a trap-and-emulate VMM "virtualize"?
-  b/c guest can't be allowed to see/change the real machine state.
-  all s* registers (sepc, stvec, scause, satp, &c)
-  mode
-  hart number
+捕获并模拟 VMM 必须“虚拟化”哪些 RISC-V 状态？
+  不允许 b/c 来宾查看/更改真实机器状态。
+  所有 s* 寄存器（sepc、stvec、scause、satp 和 c）
+  模式
+  哈特数
 
-the RISC-V is very nice w.r.t. trap-and-emulate virtualization
-  all privileged instructions trap if you try to execute them in user mode
-  not all CPUS are as nice -- 32-bit x86, for example
-    some privileged instructions don't trap; x86 ignores if run in user mode
+RISC-V 非常好用。陷阱和模拟虚拟化
+  如果您尝试在用户模式下执行所有特权指令，则会陷入困境
+  并非所有 CPU 都那么好——例如 32 位 x86
+    一些特权指令不会陷入；如果在用户模式下运行，x86 会忽略
 
-for RISC-V trap-and-emulate, what has to happen when:
+对于 RISC-V 陷阱和仿真，在以下情况下会发生什么：
 
-... the guest kernel executes sret (return to user)?
-    [diagram: VMM, guest kernel, guest user, virtual state, real h/w state]
-    CPU traps into the VMM
-      it's really a trap from user mode to supervisor mode
-      guest's PC saved in epc (and perhaps trapframe)
-    VMM trap handler:
-      virtual mode = user
-      real sepc = virtual sepc
-      [switch page tables for PTE_U]
-      return from trap
+...来宾内核执行sret（返回给用户）？
+    [图：VMM、来宾内核、来宾用户、虚拟状态、真实硬件状态]
+    CPU 陷入 VMM
+      这确实是从用户模式到管理模式的一个陷阱
+      访客的 PC 保存在 epc 中（也许还有 trapframe）
+    VMM 陷阱处理程序：
+      虚拟模式=用户
+      真实sepc = 虚拟sepc
+      [为PTE_U切换页表]
+      从陷阱返回
 
-... guest user code executes ecall to make a system call?
-    CPU traps into the VMM (ecall always generates a trap)
-    VMM trap handler:
-      virtual sepc = real sepc
-      virtual mode = supervisor
-      virtual scause = "system call"
-      real sepc = virtual stvec
-      [switch page tables for PTE_U]
-      return from trap
+...来宾用户代码执行 ecall 来进行系统调用？
+    CPU 陷阱进入 VMM（ecall 总是生成陷阱）
+    VMM 陷阱处理程序：
+      虚拟sepc = 真实sepc
+      虚拟模式=主管
+      虚拟原因=“系统调用”
+      真实 sepc = 虚拟 stvec
+      [为PTE_U切换页表]
+      从陷阱返回
 
-... the guest kernel reads scause, e.g. csrr a0, scause
-    trap into VMM
-    trapframe a0 = virtual scause
-    real sepc += 4
-    return from trap
+...来宾内核读取原因，例如csrr a0，原因
+    陷入VMM
+    trapframe a0 = 虚拟原因
+    实数sepc += 4
+    从陷阱返回
 
-... the guest kernel writes satp?
-  VMM must ensure that guest only accesses its own memory
-    and must remap guest physical addresses
-  guest's page table:
+...来宾内核写入 satp？
+  VMM必须确保guest只访问自己的内存
+    并且必须重新映射来宾物理地址
+  访客页表：
     guest va -> guest pa
-  vmm map for this guest
+  该客人的 vmm 地图
     guest pa -> host pa
-  VMM's "shadow" page table
+  VMM 的“影子”页表
     guest va -> host pa
-  VMM installs the shadow page table in the real satp
+  VMM在真实satp中安装影子页表
 
-... the guest kernel modifies a PTE in the active page table?
-  VMM doesn't have to do anything
-  RISC-V spec says PTE modifications don't take effect until sfence.vma
-  sfence.vma causes trap to VMM
-    VMM generates a new shadow page table
+...来宾内核修改活动页表中的 PTE？
+  VMM 无需执行任何操作
+  RISC-V 规范表示 PTE 修改要到 sfence.vma 才会生效
+  sfence.vma 导致 VMM 陷入陷阱
+    VMM生成新的影子页表
 
-how to simulate devices?
-  e.g. disk, NIC, display
-  a big challenge!
-  strategy: emulate a common existing real device
-    needed in order to run oblivious guest O/S
-    intercept memory-mapped control register read/write
-      by marking those pages invalid, so VMM gets page faults
-    VMM turns page faults into operations on (different) real device
-    e.g. qemu simulates uart/console for xv6
-      qemu turns uart r/w into characters to your display or ssh
-  strategy: special virtual device tailored for efficiency
-    requires guest O/S driver -- i.e. guest knows it's in a VM
-    can be more streamlined than trapping on control register r/w
-    e.g. xv6's virtio_disk.c; qemu turns into r/w on file fs.img
-  strategy: pass-through access to a real hardware device
-    guest O/S gets direct access to device h/w, no traps
-    often requires specific support in device
-      modern NICs have the suppor t
-    can be very efficient
+如何模拟设备？
+  例如磁盘、网卡、显示器
+  一个很大的挑战！
+  策略：模拟常见的现有真实设备
+    需要运行不经意的来宾操作系统
+    拦截内存映射控制寄存器读/写
+      通过将这些页面标记为无效，因此 VMM 会出现页面错误
+    VMM 将页面错误转换为（不同）真实设备上的操作
+    例如qemu 模拟 xv6 的 uart/console
+      qemu 将 uart r/w 转换为显示或 ssh 的字符
+  策略：为提高效率而定制的特殊虚拟设备
+    需要来宾操作系统驱动程序——即来宾知道它在虚拟机中
+    比控制寄存器 r/w 上的捕获更加简化
+    例如xv6的virtio_disk.c； qemu 在文件 fs.img 上变成 r/w
+  策略：直通访问真实硬件设备
+    来宾操作系统可以直接访问设备硬件，没有陷阱
+    通常需要设备的特定支持
+      现代 NIC 已支持
+    可以非常高效
 
-trap-and-emulate works well -- but it can be slow!
-  lots of traps into the VMM
+陷阱和模拟效果很好——但可能很慢！
+  VMM中有很多陷阱
 
-*** Hardware-supported x86 virtualization
+*** 硬件支持的 x86 虚拟化
 
-VT-x/VMX/SVM: hardware supported virtualization
-  Intel (and AMD) CPUs have hardware virtualization support
-    CPU directly supports virtual vs real state
-    so guest can execute privileged instructions without trapping
-  faster than trap-and-emulate
-  easier to implement the software for a VMM
-  widely used to implement virtual machines
+VT-x/VMX/SVM：硬件支持的虚拟化
+  Intel（和 AMD）CPU 具有硬件虚拟化支持
+    CPU直接支持虚拟与真实状态
+    因此来宾可以执行特权指令而不被捕获
+  比捕获和模拟更快
+  更容易实现 VMM 软件
+  广泛用于实现虚拟机
 
-VT-x root and non-root mode
-  [diagram: two sets of registers, plus EPT]
-  Host (VMM) runs in "root mode" -- nothing special
-  Guest runs in "non-root mode"
-    has full set of "virtual" control registers
-      x86 equivalents of satp, stvec, user vs supervisor etc
-    guest supervisor mode can do everything an O/S kernel expects
-      switch to (guest) user mode, take system calls, traps, &c
-    non-root mode *looks* just like an ordinary computer
-    but VT-x non-root mode limits guest in some critical ways
-      mostly via page table, as we'll see in a moment
-  New instructions to change between root/non-root mode
+VT-x root 和非 root 模式
+  【图：两组寄存器，加上EPT】
+  主机（VMM）以“根模式”运行——没什么特别的
+  来宾以“非 root 模式”运行
+    具有全套“虚拟”控制寄存器
+      satp、stvec、用户与主管等的 x86 等效项
+    来宾管理模式可以完成操作系统内核期望的一切
+      切换到（来宾）用户模式，进行系统调用、陷阱等
+    非root模式*看起来*就像普通计算机一样
+    但 VT-x 非 root 模式在一些关键方面限制了 guest 虚拟机
+      主要是通过页表，我们稍后会看到
+  在 root/非 root 模式之间切换的新说明
     VMLAUNCH/VMRESUME: root -> non-root
     VMCALL: non-root -> root
-  Device interrupts (e.g. timer, disk) cause exit from non-root mode
-    VMM handles devices by default
-  VM control structure (VMCS)
-    Virtual state saved in VMCS when non-root mode exits
-    Virtual state restored from VMCS in VMLAUNCH/VMRESUME
+  设备中断（例如定时器、磁盘）导致退出非 root 模式
+    VMM 默认处理设备
+  虚拟机控制结构（VMCS）
+    非root模式退出时虚拟状态保存在VMCS中
+    在 VMLAUNCH/VMRESUME 中从 VMCS 恢复虚拟状态
 
-VT-x page tables
+VT-x 页表
   problem:
-    we want to let the guest kernel control the page table,
-    and we want to restrict the guest to just its allowed physical memory,
-    but we don't want the expense of trapping into the VMM when
+    我们想让客户内核控制页表，
+    我们希望将来宾限制为其允许的物理内存，
+    但我们不希望在以下情况下陷入 VMM 中：
       the guest sets %cr3 (== satp) or modifies a PTE.
-  EPT: VT-x has *two* layers of address translation in non-root mode
-    the VMM sets up the EPT page table
-    contains just the "guest physical addresses" the guest can use
-    maps to the real (host) physical addresses the VMM has allocated for the guest
-    EPT = Extended Page Table
-  MMU hardware consults %cr3 to get a guest pa,
-    then uses EPT to convert guest pa to host pa
-  EPT is not visible to the guest
+  EPT：VT-x 在非根模式下有“两层”地址转换
+    VMM建立EPT页表
+    仅包含访客可以使用的“访客物理地址”
+    映射到 VMM 为 guest 分配的真实（主机）物理地址
+    EPT = 扩展页表
+  MMU 硬件参考 %cr3 来获取访客 pa，
+    然后使用EPT将guest pa转换为host pa
+  EPT 对访客不可见
   so:
-    guest can freely read/write %cr3, change PTEs, read D bits, &c
-    VMM can still provide isolation via EPT
-  typical setup:
-    VMM allocates some RAM for guest to use
-    VMM maps guest physical addresses 0..size to RAM, in the EPT
-    guest uses %cr3 to configure guest process address spaces
+    来宾可以自由读取/写入 %cr3、更改 PTE、读取 D 位等
+    VMM 仍然可以通过 EPT 提供隔离
+  典型设置：
+    VMM 分配一些 RAM 供 guest 使用
+    VMM 将客户物理地址 0..size 映射到 EPT 中的 RAM
+    guest 使用 %cr3 配置 guest 进程地址空间
 
-*** Dune
+*** 沙丘
 
-the big idea:
-  use VT-x to run Linux user processes (rather than to run a guest kernel)
-  then user code has fast direct access to page tables, exceptions, &c
-  to allow user code to efficiently:
-    sandbox untrusted code
-    modify page table and take page faults
+大创意：
+  使用 VT-x 运行 Linux 用户进程（而不是运行来宾内核）
+  然后用户代码可以快速直接访问页表、异常等
+  允许用户代码有效地：
+    沙箱不可信代码
+    修改页表并采取页面错误
 
-the scheme
-  [diagram]
-  Dune is a "loadable kernel module" for Linux
-  an ordinary process can switch into "Dune mode"
-  a Dune-mode process is still a process
-    has memory, can make Linux system calls (via VMCALL)
-  the isolation machinery is a little different
-    VT-x non-root supervisor mode
-    memory protection via EPT page table
-    timer interrupts go to Linux, not process, so Linux controls scheduling
-  Dune gives a process additional functionality
-    read and write its own page table, including PTE D (dirty) bit
-      faster than Linux mprotect() system call
-    handle its own page faults
-      faster than having Linux turn faults into upcalls
-    switch into (guest) user mode
-    intercept guest user system calls and page faults
+该计划
+  [图]
+  Dune 是 Linux 的“可加载内核模块”
+  普通进程可以切换到“沙丘模式”
+  沙丘模式过程仍然是一个过程
+    有内存，可以进行Linux系统调用（通过VMCALL）
+  隔离机械有点不同
+    VT-x 非根管理员模式
+    通过 EPT 页表进行内存保护
+    定时器中断进入Linux，而不是进程，因此Linux控制调度
+  Dune 为流程提供了附加功能
+    读写自己的页表，包括PTE D（脏）位
+      比 Linux mprotect() 系统调用更快
+    处理自己的页面错误
+      比让 Linux 将故障转化为上行调用更快
+    切换到（访客）用户模式
+    拦截来宾用户系统调用和页面错误
 
-Example: sandboxed execution (paper section 5.1)
-  suppose your web browser wants to run a 3rd-party plug-in
-    e.g. a video decoder or ad blocker
-    the plug-in might be malicious or buggy
-  browser needs a "sandbox"
-    execute the plug-in, but limit syscalls / memory accesses
-  assume browser runs as a Dune process:
-    [diagram: browser in guest supervisor mode, plug-in guest user mode]
-    create page table with PTE_U mappings for memory plug-in can use
-      and non-PTE_U mappings for rest of browser's memory
-    set %cr3
-    sret into untrusted code, in guest user mode
-    plug-in can read/write image memory via page table
-    plug-in can execute system call instruction
-      but its system calls trap into the browser (not the underlying kernel)
-      and the browser can decide whether to allow each one
+示例：沙盒执行（论文第 5.1 节）
+  假设您的网络浏览器想要运行第三方插件
+    例如视频解码器或广告拦截器
+    该插件可能是恶意的或有错误的
+  浏览器需要“沙箱”
+    执行插件，但限制系统调用/内存访问
+  假设浏览器作为 Dune 进程运行：
+    [图：访客管理员模式下的浏览器、插件访客用户模式]
+    使用 PTE_U 映射创建页表供内存插件使用
+      以及浏览器内存其余部分的非 PTE_U 映射
+    设置%cr3
+    在访客用户模式下进入不受信任的代码
+    插件可以通过页表读取/写入图像内存
+    插件可以执行系统调用指令
+      但它的系统调用陷入浏览器（而不是底层内核）
+      并且浏览器可以决定是否允许每一个
 
-Example: garbage collection (GC)
-  (modified Boehm concurrent mark-and-sweep collector)
-  GC follows pointers to find all live (reachable) objects
-    starting at registers
-  But this GC is concurrent -- so program may modify an object after GC has traced it
-  GC needs a way to know which objects were modified,
-    so it can re-visit modified objects
-  How does Dune help?
-    Use PTE dirty bit (PTE_D) to detect written pages
-    Clear all dirty bits when GC is done
-    Dune allows direct access to PTEs
-      much faster than making Linux system calls to get at PTEs
+示例：垃圾收集 (GC)
+  （修改后的 Boehm 并发标记和清除收集器）
+  GC 按照指针查找所有活动（可到达）对象
+    从寄存器开始
+  但是这个 GC 是并发的——所以程序可能会在 GC 跟踪到对象后修改它
+  GC 需要一种方法来知道哪些对象被修改，
+    所以它可以重新访问修改过的对象
+  沙丘有什么帮助？
+    使用PTE脏位（PTE_D）检测写入页
+    GC 完成后清除所有脏位
+    Dune 允许直接访问 PTE
+      比通过 Linux 系统调用获取 PTE 快得多
 
-Fast user-level access to VM could help many programs
-  Appel and Li paper
+对虚拟机的快速用户级访问可以帮助许多程序
+  阿佩尔和李纸
 
-How might Dune hurt performance?
-  Table 2
-    sys call overhead higher due to VT-x entry/exit
-    faults to kernel slower, for same reason
-    TLB misses slower b/c of EPT
-  But they claim most apps aren't much affected
-    b/c they don't spend much time in short syscalls &c
-    Figure 3 shows Dune within 5% for most apss in SPEC2000 benchmark
-      exceptions take lots of TLB misses
+Dune 会如何影响性能？
+  表2
+    由于 VT-x 进入/退出，系统调用开销更高
+    出于同样的原因，内核故障速度较慢
+    TLB 错过了 EPT 较慢的 b/c
+  但他们声称大多数应用程序没有受到太大影响
+    b/c 他们不会在短系统调用上花费太多时间 &c
+    图 3 显示 SPEC2000 基准中大多数 apss 的 Dune 误差在 5% 以内
+      异常导致大量 TLB 未命中
 
-Of course it's not enough to merely not slow down apps much.
+当然，仅仅不降低应用程序速度是不够的。
 
-How much can clever use of Dune speed up real apps?
-  Table 6 -- GC
-  compare "Dune dirty" line to "Normal" line
-  overall benefit depends on how fast the program allocates
-  huge win on three allocation-intensive micro-benchmarks
-  not a win for applications that don't allocate much -- XML parser
-    EPT overhead does slow it down
-    but many real apps allocate more than this
+巧妙使用 Dune 可以在多大程度上加快实际应用程序的速度？
+  表 6——GC
+  将“沙丘脏”线与“正常”线进行比较
+  总体效益取决于程序分配的速度
+  在三个分配密集型微基准测试中取得巨大胜利
+  对于分配不多的应用程序来说，这不是一个胜利——XML 解析器
+    EPT 开销确实会减慢速度
+    但许多实际的应用程序分配的比这更多
 
-Dune summary
-  The key idea: use VT-x to give processes access to privileged hardware features
-  The bottom line: much faster in some situations than Linux system calls
+沙丘总结
+  关键思想：使用 VT-x 使进程能够访问特权硬件功能
+  底线：在某些情况下比 Linux 系统调用快得多

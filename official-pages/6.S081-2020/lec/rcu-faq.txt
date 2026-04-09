@@ -1,140 +1,143 @@
-FAQ for "RCU Usage In the Linux Kernel: One Decade Later", by
-McKenney, Boyd-Wickizer, and Walpole, 2012.
+[自动汉化说明]
+本文件为自动汉化版本，尽量保留原有结构与技术名词。代码、命令、路径与链接通常保持原样。
 
-Q: How is it possible that RCU increases performance when
-synchronize_rcu() can take as long as a few milliseconds?
+“Linux 内核中的 RCU 使用：十年后”的常见问题解答，作者：
+麦肯尼、博伊德-威克泽和沃波尔，2012 年。
 
-A: RCU can only improve parallel performance for data that is mostly
-read, and rarely written. That is, it should be used when the benefit
-of allowing many readers to avoid the cost of locking outweighs the
+问：RCU 如何提高性能
+Synchronize_rcu() 可能需要长达几毫秒？
+
+A：RCU只能提高大部分数据的并行性能
+读过，很少写。也就是说，当有好处时应该使用它
+让许多读者避免锁定的成本超过了
 cost of occasional writers spending a long time in synchronize_rcu().
 
-Q: What's the difference between synchronize_rcu() and call_rcu()?
+问：synchronize_rcu() 和 call_rcu() 有什么区别？
 
-A: synchronize_rcu() doesn't return until all cores have gone through
-at least one context switch. call_rcu(f,x) returns immediately, after
-adding <f,x> to a list of callbacks. The callback -- f(x) -- is called
-after all cores have gone through at least one context switch.
+答：synchronize_rcu() 在所有核心都完成后才会返回
+至少一个上下文切换。 call_rcu(f,x) 立即返回
+将 <f,x> 添加到回调列表中。回调函数——f(x)——被调用
+在所有核心都经历了至少一次上下文切换之后。
 
-call_rcu() is nice because it doesn't delay the writer. It can be
-dangerous if called a lot, though, because the list it appends to
-might grow very long. And the amount of unfreed memory referred to the
-by call_rcu() list might be large (i.e. it might cause the kernel to
-run out of memory).
+call_rcu() 很好，因为它不会延迟编写器。它可以是
+不过，如果多次调用就会很危险，因为它附加到的列表
+可能会长得很长。未释放的内存量指的是
+通过 call_rcu() 列表可能会很大（即它可能会导致内核
+内存不足）。
 
-Q: What do rcu_read_lock() and rcu_read_unlock() do?
+问：rcu_read_lock() 和 rcu_read_unlock() 的作用是什么？
 
-Q: Basically nothing. rcu_read_lock() prevents timer interrupts from
-forcing a pre-emptive context switch on the current CPU, and
-rcu_read_unlock() enables pre-emptive context switches. This
-enable/disable is very cheap (as in Figure 2).
+问：基本上没什么。 rcu_read_lock() 防止定时器中断
+强制在当前 CPU 上进行抢占式上下文切换，以及
+rcu_read_unlock() 启用抢占式上下文切换。这个
+启用/禁用的成本非常低（如图 2 所示）。
 
-Q: How do rcu_assign_pointer() and rcu_dereference() work?
+问：rcu_assign_pointer() 和 rcu_dereference() 如何工作？
 
-A: They are C macros that insert memory barrier compiler directives.
-rcu_assign_pointer(a,p) expands into something like:
+答：它们是插入内存屏障编译器指令的 C 宏。
+rcu_assign_pointer(a,p) 扩展为：
 
   __sync_synchronize();
   *a = p;
 
-and rcu_dereference(p) into something like:
+和 rcu_dereference(p) 成类似：
 
-inline
-rcu_dereference(p)
+内联
+rcu_取消引用(p)
 {
-  temp = p;
+  温度=p；
   __sync_synchronize();
-  return temp;
+  返回温度；
 }
 
-__sync_synchronize() itself tells the compiler not to move any memory
-references past it, and also causes the compiler to emit whatever
-machine instructions are needed to prevent the machine from moving
-loads/stores (a fence instruction on the RISC-V).
+__sync_synchronize() 本身告诉编译器不要移动任何内存
+引用过去，并且还会导致编译器发出任何内容
+需要机器指令来防止机器移动
+加载/存储（RISC-V 上的栅栏指令）。
 
-Q: How does RCU prevent two writers from interfering with each other?
+问：RCU 如何防止两个写入者互相干扰？
 
-A: It doesn't. Writers need to make their own arrangements to avoid
-interfering, typically spin-locks.
+答：没有。作者需要做出自己的安排以避免
+干扰，通常是自旋锁。
 
-Q: Is RCU likely to be more bug-prone than locking?
+问：RCU 是否比锁定更容易出现错误？
 
-A: That may well be the case. It is a price the Linux developers are
-often willing to pay to get higher multi-core performance for
-read-heavy data. Here's a list of common problems that arise due to
-RCU: https://www.kernel.org/doc/Documentation/RCU/checklist.txt
+答：很可能是这样。这是 Linux 开发者的代价
+通常愿意付出代价以获得更高的多核性能
+读取大量数据。以下列出了由于以下原因而出现的常见问题
+RCU：https://www.kernel.org/doc/Documentation/RCU/checklist.txt
 
-Q: What does the paper mean when it suggests that RCU can be used
-instead of reference counts?
+问：论文中建议可以使用RCU是什么意思
+而不是引用计数？
 
-A: I think what the paper means by reference counting is deciding
-whether any threads are actively using the object, e.g. have a
-transient pointer to an object. The goal is to delay freeing an object
-until all threads have stopped using it. "Garbage collection" might be
-a better term here than "reference counting", since the paper's RCU
-doesn't actually count references.
+A：我认为论文中提到的引用计数的意思是决定
+是否有任何线程正在主动使用该对象，例如有一个
+指向对象的瞬态指针。目标是延迟释放对象
+直到所有线程都停止使用它。 “垃圾收集”可能是
+这是一个比“引用计数”更好的术语，因为该论文的 RCU
+实际上并不计算参考文献。
 
-For objects that have long-term references to them, for example xv6's
-struct file, one still needs to maintain explicit reference counts.
+对于长期引用它们的对象，例如 xv6
+struct 文件中，仍然需要维护显式引用计数。
 
-Q: What is an NMI?
+问：什么是 NMI？
 
-A: An NMI is an interrupt; it stands for non-maskable interrupt. NMIs
-can be caused by hardware errors, by timers used to drive CPU
-profiling or debugging, and by watchdog timers to catch a hung
-operating system. NMIs cannot be disabled.
+A：NMI是一个中断；它代表不可屏蔽中断。国家管理机构
+可能是由硬件错误、用于驱动 CPU 的定时器引起的
+分析或调试，并通过看门狗定时器捕获挂起
+操作系统。 NMI 无法禁用。
 
-Q: Could RCU readers see old data, even after it has been replaced by
-new data?
+问：RCU 读者能否看到旧数据，即使它已被替换
+新数据？
 
-A: If a writer has just replaced data with a new version, a reader may
-still subsequently see the old data. And if a reader looks twice at
-the data, it may see that the data has changed. This makes RCU
-different from ordinary locking. Programmers who use RCU need to
-convince themselves that this lack of freshness and atomicity is OK.
+A：如果作者刚刚用新版本替换了数据，读者可能会
+仍然随后看到旧数据。如果读者再看一遍
+数据，可能会看到数据发生了变化。这使得RCU
+与普通锁不同。使用RCU的程序员需要
+说服自己，缺乏新鲜感和原子性是可以接受的。
 
-For the examples I have been able to think of, a little staleness is
-not a problem. One factor is that RCU readers don't write the
-RCU-protected data. So you cannot run into trouble with lost updates,
-e.g. a thread that increments a counter, but reads a stale old value,
-and thus writes an incorrect new value. That's a read/write access,
-not read, so you couldn't use RCU anyway.
+对于我能想到的例子来说，有点陈旧是
+不是问题。一个因素是 RCU 读者不写
+RCU 保护的数据。因此您不会遇到丢失更新的麻烦，
+例如一个线程递增计数器，但读取过时的旧值，
+从而写入不正确的新值。这是读/写访问，
+没有读过，所以你无论如何也不能使用 RCU。
 
-For what it's worth, the window of time in which a reader may see old
-data is relatively short (nanoseconds or microseconds).
+无论如何，读者可以看到旧事物的时间窗口
+数据相对较短（纳秒或微秒）。
 
-Q: Why doesn't xv6 use RCU?
+问：为什么xv6不使用RCU？
 
-A: xv6 uses spinlocks because they are powerful and general and
-probably the most commonly used mutual exclusion scheme. In addition
-it's hard to sensibly apply optimizations like RCU to xv6, because
-it's difficult to judge their performance effect under qemu.
+答：xv6 使用自旋锁，因为它们功能强大且通用，并且
+可能是最常用的互斥方案。另外
+很难明智地将 RCU 等优化应用于 xv6，因为
+在qemu下很难判断它们的性能效果。
 
-Q: How does synchronize_rcu() work?
+问：synchronize_rcu() 是如何工作的？
 
-A: Have a look at Section 4 of this paper for an efficient implementation:
+答：请查看本文第 4 节以了解有效的实现方式：
 
     http://www2.rdrop.com/users/paulmck/RCU/rclockpdcsproof.pdf
 
-The basic idea is that each CPU keeps a count of how many context
-switches it has performed. synchronize_rcu() periodically checks these
+基本思想是每个 CPU 都会记录有多少上下文
+它已执行的开关。 Synchronize_rcu() 定期检查这些
 counters.
 
-Q: How can RCU be effective even though rcu_read_lock() doesn't
-actually seem to do anything to lock out writers?
+问：即使 rcu_read_lock() 不起作用，RCU 如何才能有效
+实际上似乎做了什么来阻止作家？
 
-A: Mostly RCU is a set of rules that writers must follow that ensure
-that the data structure can always be safely read, even while it's in
-the middle of being changed. These are rules that programmers must
-follow, not functions to be called. The place that RCU provides the
-most useful code is synchronize_rcu().
+答：大多数情况下，RCU 是作者必须遵循的一组规则，以确保
+数据结构始终可以安全地读取，即使它位于
+中间被改变。这些是程序员必须遵守的规则
+跟随，而不是要调用的函数。 RCU提供的地方
+最有用的代码是synchronize_rcu()。
 
-Q: For what kinds of shared data would you NOT want to use RCU?
+问：对于哪些类型的共享数据，您不想使用 RCU？
 
-A: If writes are common; if you need to hold pointers across context
-switches; if you need to update objects in place; if the data
-structure can't be updated with a single committing pointer write; if
-synchronize_rcu() (which can block) would need to be called at
-interrupt time. More generally, RCU needs to be used in a system in
-which context switches are frequent, and RCU can learn about them;
-this is easy in the kernel, but harder in user space.
+A：如果写操作很常见；如果您需要跨上下文保存指针
+开关；如果您需要就地更新对象；如果数据
+无法通过单个提交指针写入来更新结构；如果
+需要调用synchronize_rcu()（可以阻塞）
+中断时间。更一般地说，RCU 需要在系统中使用
+哪些上下文切换是频繁的，RCU可以了解它们；
+这在内核中很容易，但在用户空间中更难。

@@ -1,231 +1,127 @@
-<html>
-<head>
-<title>Lab: System calls</title>
-<link rel="stylesheet" href="labs.css" type="text/css" />
-<script src="https://pdos.csail.mit.edu/6.S081/2020/labs/js/jquery-1.10.2.min.js"></script> 
+<html lang="zh-CN">
+<head><meta charset="utf-8"/>
+<title>实验：系统调用</title>
+<link href="labs.css" rel="stylesheet" type="text/css"/>
+<script src="https://pdos.csail.mit.edu/6.S081/2020/labs/js/jquery-1.10.2.min.js"></script>
 <script src="guidance.js"></script>
 </head>
-<body>
-
-<h1>Lab: system calls</h1>
-
-<p>In the last lab you used systems calls to write a few utilities. In
-this lab you will add some new system calls to xv6, which will help
-you understand how they work and will expose you to some of the
-internals of the xv6 kernel.  You will add more system calls in later
-labs.
+<body><div id="codex-zh-translation-note" style="background:#fff3cd;border:1px solid #e0c56e;padding:10px 14px;margin:12px;color:#6b5300;font-size:14px;line-height:1.5;">本页为自动汉化版本，保留原链接、代码块与文件结构。技术术语和细节翻译可能不完全统一，请以原文和源码为准。</div>
+<h1>实验：系统调用</h1>
+<p>在上一个实验中，您使用系统调用编写了一些实用程序。在本实验中，您将向 xv6 添加一些新的系统调用，这将帮助您了解它们的工作原理，并向您展示 xv6 内核的一些内部结构。您将在后面的实验中添加更多系统调用。
 
 <div class="prereq">
-<p>Before you start coding, read Chapter 2 of
-    the <a href="../xv6/book-riscv-rev1.pdf">xv6 book</a>, and
-    Sections 4.3 and 4.4 of Chapter 4, and
-  related source files:
+<p>在开始编码之前，请阅读本书的第 2 章 <a href="../xv6/book-riscv-rev1.pdf">xv6 书</a>，以及第 4 章的 4.3 和 4.4 节，以及相关源文件：
   
   <ul>
-    
-    <li> The user-space code for systems calls is
-      in <tt>user/user.h</tt> and <tt>user/usys.pl</tt>.</li>
-    
-    <li> The kernel-space code
-    is <tt>kernel/syscall.h</tt>, </tt>kernel/syscall.c</tt>.
+<li> 系统调用的用户空间代码位于 <tt>user/user.h</tt> 和 <tt>user/usys.pl</tt>.</li>
+<li> 内核空间代码是 <tt>kernel/syscall.h</tt>, kernel/syscall.c.
 
-    <li> The process-related code is <tt>kernel/proc.h</tt> and <tt>kernel/proc.c</tt>.
+    <li> 流程相关代码为 <tt>kernel/proc.h</tt> 和 <tt>kernel/proc.c</tt>.
   
-  </ul>
-</div>
-
-<p>To start the lab, switch to the syscall branch:
+  </li></li></ul>
+</p></div>
+<p>要开始实验，请切换到系统调用分支：
   <pre>
   $ <kbd>git fetch</kbd>
   $ <kbd>git checkout syscall</kbd>
   $ <kbd>make clean</kbd>
   </pre>
-
-<p>If you run, make grade, you will see that the grading script cannot
-exec
-  <tt>trace</tt> and <tt>sysinfotest</tt>.  Your job is to add the
-  necessary system calls and stubs to make them work.
+<p>如果你运行makegrade，你会看到评分脚本无法执行
+  <tt>trace</tt> 和 <tt>sysinfotest</tt>。您的工作是添加必要的系统调用和存根以使它们正常工作。
   
-<h2>System call tracing <script>g("moderate")</script></h2>
-
+<h2>系统调用追踪 <script>g("moderate")</script></h2>
 <p>
 <div class="required">
-  In this assignment you will add a system call tracing feature that
-  may help you when debugging later labs.  You'll create a
-  new <tt>trace</tt> system call that will control tracing. It should
-  take one argument, an integer "mask", whose bits specify which
-  system calls to trace.  For example, to trace the fork system call,
-  a program calls <tt>trace(1 << SYS_fork)</tt>, where <tt>SYS_fork</tt> is a
-  syscall number from <tt>kernel/syscall.h</tt>. You have to modify
-  the xv6 kernel to print out a line when each system call is about to
-  return, if the system call's number is set in the mask.
-  The line should contain the
-  process id, the name of the system call and the
-  return value; you don't need to print the system call
-  arguments. The <tt>trace</tt> system call should enable tracing 
-  for the process that calls it and any children that it subsequently forks,
-  but should not affect other processes.
+  在此作业中，您将添加系统调用跟踪功能，该功能可以在调试后续实验时为您提供帮助。您将创建一个新的 <tt>trace</tt> 将控制跟踪的系统调用。它应该采用一个参数，一个整数“掩码”，其位指定要跟踪哪些系统调用。例如，为了跟踪 fork 系统调用，程序调用 <tt>trace(1 &lt;&lt; SYS_fork)</tt>, 其中 <tt>SYS_fork</tt> 是来自的系统调用号 <tt>kernel/syscall.h</tt>。如果掩码中设置了系统调用的编号，则必须修改 xv6 内核，以便在每个系统调用即将返回时打印一行。该行应包含进程 ID、系统调用名称和返回值；您不需要打印系统调用参数。的 <tt>trace</tt> 系统调用应该启用对调用它的进程及其随后派生的任何子进程的跟踪，但不应影响其他进程。
 </div>
-
-<p>We provide a <tt>trace</tt> user-level program that runs another
-  program with tracing enabled (see <tt>user/trace.c</tt>). When you're
-  done, you should see output like this:
+<p>我们提供一个 <tt>trace</tt> 运行另一个启用跟踪的程序的用户级程序（请参阅 <tt>user/trace.c</tt>）。完成后，您应该看到如下输出：
 
 <pre>
 $ trace 32 grep hello README
-3: syscall read -> 1023
-3: syscall read -> 966
-3: syscall read -> 70
-3: syscall read -> 0
+3: syscall read -&gt; 1023
+3: syscall read -&gt; 966
+3: syscall read -&gt; 70
+3: syscall read -&gt; 0
 $
 $ trace 2147483647 grep hello README
-4: syscall trace -> 0
-4: syscall exec -> 3
-4: syscall open -> 3
-4: syscall read -> 1023
-4: syscall read -> 966
-4: syscall read -> 70
-4: syscall read -> 0
-4: syscall close -> 0
+4: syscall trace -&gt; 0
+4: syscall exec -&gt; 3
+4: syscall open -&gt; 3
+4: syscall read -&gt; 1023
+4: syscall read -&gt; 966
+4: syscall read -&gt; 70
+4: syscall read -&gt; 0
+4: syscall close -&gt; 0
 $
 $ grep hello README
 $
 $ trace 2 usertests forkforkfork
 usertests starting
-test forkforkfork: 407: syscall fork -> 408
-408: syscall fork -> 409
-409: syscall fork -> 410
-410: syscall fork -> 411
-409: syscall fork -> 412
-410: syscall fork -> 413
-409: syscall fork -> 414
-411: syscall fork -> 415
+test forkforkfork: 407: syscall fork -&gt; 408
+408: syscall fork -&gt; 409
+409: syscall fork -&gt; 410
+410: syscall fork -&gt; 411
+409: syscall fork -&gt; 412
+410: syscall fork -&gt; 413
+409: syscall fork -&gt; 414
+411: syscall fork -&gt; 415
 ...
 $   
 </pre>
+<p>在上面的第一个示例中，trace 仅调用 read 系统调用 grep 跟踪。 32 是 <tt>1&lt;&lt;SYS_read</tt>。在第二个示例中，trace 在跟踪所有系统调用的同时运行 grep； 2147583647 已设置所有 31 个低位。在第三个示例中，未跟踪程序，因此不会打印跟踪输出。在第四个示例中，fork 系统调用了所有后代 <tt>forkforkfork</tt> 测试在 <tt>usertests</tt> 正在被追踪。如果您的程序的行为如上所示（尽管进程 ID 可能不同），则您的解决方案是正确的。
 
-<p>In the first example above, trace invokes grep tracing just the
-read system call. The 32 is <tt>1&lt;&lt;SYS_read</tt>. In the second
-example, trace runs grep while tracing all system calls; the
-2147583647 has all 31 low bits set. In the third example, the program
-isn't traced, so no trace output is printed. In the fourth example,
-the fork system calls of all the descendants of the <tt>forkforkfork</tt> test
-in <tt>usertests</tt> are being traced. Your solution is correct if your
-program behaves as shown above (though the process IDs may be
-different).
-
-<p>Some hints:
+<p>一些提示：
   <ul>
+<li><p>添加 <tt>$U/_trace</tt> 到 Makefile 中的 UPROGS
 
-    <li><p>Add <tt>$U/_trace</tt> to UPROGS in Makefile
-
-    <li><p>Run <kbd>make qemu</kbd> and you will see that the
-	compiler cannot compile <tt>user/trace.c</tt>, because the
-	user-space stubs for the system call don't exist yet: add a
-	prototype for the system call to <tt>user/user.h</tt>, a stub
-	to <tt>user/usys.pl</tt>, and a syscall number
-	to <tt>kernel/syscall.h</tt>.  The Makefile invokes the perl
-	script <tt>user/usys.pl</tt>, which produces <tt>user/usys.S</tt>, 
-	the actual system call stubs, which use the
-	RISC-V <tt>ecall</tt> instruction to transition to the
-	kernel. Once you fix the compilation issues, 
-	run <kbd>trace 32 grep hello README</kbd>; it will fail
-	because you haven't implemented the system call in the kernel
-	yet.
+    <li><p>运行 <kbd>make qemu</kbd> 你会看到编译器无法编译 <tt>user/trace.c</tt>，因为系统调用的用户空间存根尚不存在：将系统调用的原型添加到 <tt>user/user.h</tt>，一个存根 <tt>user/usys.pl</tt>，以及一个系统调用号 <tt>kernel/syscall.h</tt>。 Makefile 调用 perl 脚本 <tt>user/usys.pl</tt>，这会产生 <tt>user/usys.S</tt>，实际的系统调用存根，使用 RISC-V <tt>ecall</tt> 指令转换到内核。解决编译问题后，运行 <kbd>trace 32 grep hello README</kbd>;它会失败，因为你还没有在内核中实现系统调用。
     
-    <li><p>Add a <tt>sys_trace()</tt> function
-	in <tt>kernel/sysproc.c</tt> that implements the new system
-	call by remembering its argument in a new variable in
-	the <tt>proc</tt> structure (see <tt>kernel/proc.h</tt>). The
-	functions to retrieve system call arguments from user space are
-	in <tt>kernel/syscall.c</tt>, and you can see examples
-        of their use in <tt>kernel/sysproc.c</tt>.
-   </li>
-
-    <li><p>Modify <tt>fork()</tt> (see <tt>kernel/proc.c</tt>) to copy
-    the trace mask from the parent to the child process. </li>
-
-    <li><p>Modify the <tt>syscall()</tt> function
-	in <tt>kernel/syscall.c</tt> to print the trace output. You will need to add an array of syscall names to index into.</li>
-
-  </ul>
-
-<h2>Sysinfo <script>g("moderate")</script></h2>
-
+    <li><p>添加一个 <tt>sys_trace()</tt> 函数于 <tt>kernel/sysproc.c</tt> 通过在新变量中记住其参数来实现新的系统调用 <tt>proc</tt> 结构（见 <tt>kernel/proc.h</tt>）。从用户空间检索系统调用参数的函数位于 <tt>kernel/syscall.c</tt>，您可以在中查看它们的使用示例 <tt>kernel/sysproc.c</tt>.
+   </p></li>
+<li><p>修改 <tt>fork()</tt> （见 <tt>kernel/proc.c</tt>) 将跟踪掩码从父进程复制到子进程。 </p></li>
+<li><p>修改 <tt>syscall()</tt> 函数于 <tt>kernel/syscall.c</tt> 打印跟踪输出。您将需要添加要索引的系统调用名称数组。</p></li>
+</p></li></p></li></ul>
+<h2>系统信息 <script>g("moderate")</script></h2>
 <p>
 <div class="required">
-  In this assignment you will add a system call, <tt>sysinfo</tt>,
-  that collects information about the running system.  The system call
-  takes one argument: a pointer to a <tt>struct sysinfo</tt>
-  (see <tt>kernel/sysinfo.h</tt>). The kernel should fill out the
-  fields of this struct: the <tt>freemem</tt> field should be set
-  to the number of bytes of free memory, and the <tt>nproc</tt>
-  field should be set to the number of processes whose <tt>state</tt>
-  is not <tt>UNUSED</tt>.
-  We provide a test program <tt>sysinfotest</tt>; you pass this
-  assignment if it prints "sysinfotest: OK".
+  在此作业中，您将添加一个系统调用， <tt>sysinfo</tt>，收集有关正在运行的系统的信息。系统调用需要一个参数：一个指向 <tt>struct sysinfo</tt>
+  （见 <tt>kernel/sysinfo.h</tt>）。内核应该填写这个结构体的字段： <tt>freemem</tt> 字段应设置为可用内存的字节数，并且 <tt>nproc</tt>
+  字段应设置为其进程的数量 <tt>state</tt>
+  不是 <tt>UNUSED</tt>。我们提供测试程序 <tt>sysinfotest</tt>;如果打印出“sysinfotest: OK”，则说明您通过了此作业。
 </div>
-
-<p>Some hints:
+<p>一些提示：
 <ul>
-
-<li><p>Add <tt>$U/_sysinfotest</tt> to UPROGS in Makefile
+<li><p>添加 <tt>$U/_sysinfotest</tt> 到 Makefile 中的 UPROGS
   
-<li><p>Run <kbd>make qemu</kbd>; <tt>user/sysinfotest.c</tt> will
-  fail to compile. Add the system call sysinfo, following the same
-  steps as in the previous assignment. To declare the prototype for
-  sysinfo() <tt>in user/user.h</tt> you need predeclare the existence
-  of <tt>struct sysinfo</tt>:
+<li><p>运行 <kbd>make qemu</kbd>; <tt>user/sysinfotest.c</tt> 将无法编译。添加系统调用 sysinfo，遵循与之前作业相同的步骤。声明 sysinfo() 的原型 <tt>in user/user.h</tt> 你需要预先声明的存在 <tt>struct sysinfo</tt>:
   <pre>
     struct sysinfo;
     int sysinfo(struct sysinfo *);
   </pre>
-Once you fix the compilation issues, run
-  <kbd>sysinfotest</kbd>; it will fail because you haven't
-  implemented the system call in the kernel yet.
-</li>
+解决编译问题后，运行
+  <kbd>sysinfotest</kbd>;它会失败，因为你还没有在内核中实现系统调用。
+</p></li>
+<li><p>sysinfo 需要复制一个 <tt>struct sysinfo</tt> 回到用户空间；看到 <tt>sys_fstat()</tt> (<tt>kernel/sysfile.c</tt>）和 <tt>filestat()</tt> (<tt>kernel/file.c</tt>）了解如何使用的示例 <tt>copyout()</tt>.
+</p></li>
+<li><p>要收集可用内存量，请添加一个函数 <tt>kernel/kalloc.c</tt>
+</p></li>
+<li><p>要收集进程数，请添加一个函数 <tt>kernel/proc.c</tt>
+</p></li>
+</p></li></ul>
+<p><a name="submit">
+<h2>提交实验室</h2>
+<p><b>至此实验室就完成了。</b> 确保您通过所有制造等级测试。如果本实验室有问题，请不要忘记在答案中写下您对问题的答案 -<i>lab-name</i>.txt。提交您的更改（包括添加答案 -<i>lab-name</i>.txt）并在实验室目录中输入 make handin 以提交您的实验室。
 
-<li><p>sysinfo needs to copy a <tt>struct sysinfo</tt> back to user
-  space; see <tt>sys_fstat()</tt> (<tt>kernel/sysfile.c</tt>)
-  and <tt>filestat()</tt> (<tt>kernel/file.c</tt>) for examples of how
-  to do that using <tt>copyout()</tt>.
-</li>
+<h3>花费时间</h3>
+<p>创建一个新文件， <tt>time.txt</tt>，并在其中输入一个整数，即您在实验室上花费的小时数。别忘了 <tt>git add</tt> 和
+<tt>git commit</tt> 文件。
 
-<li><p>To collect the amount of free memory, add a
-  function to <tt>kernel/kalloc.c</tt>
-</li>
+<h3>提交</h3>
 
-<li><p>To collect the number of processes, add a
-  function to <tt>kernel/proc.c</tt>
-</li>
-
-</ul>
-
-<p><a name="submit"></>
-<h2>Submit the lab</h2>
-
-<p><b>This completes the lab.</b> Make sure you pass all of the make
-grade tests. If this lab had questions, don't forget to write up your
-answers to the questions in answers-<i>lab-name</i>.txt. Commit your changes
-(including adding answers-<i>lab-name</i>.txt) and type make handin in the lab
-  directory to hand in your lab.
-
-<h3>Time spent</h3>
-
-<p>Create a new file, <tt>time.txt</tt>, and put in it a single integer, the
-number of hours you spent on the lab. Don't forget to <tt>git add</tt> and
-<tt>git commit</tt> the file.
-
-<h3>Submit</h3>
-
-You will turn in your assignments using
-the <a href="https://6828.scripts.mit.edu/2020/handin.py/">submission
-website</a>.  You need to request once an API key from the submission
-website before you can turn in any assignments or labs.
+您将使用以下方式提交作业 <a href="https://6828.scripts.mit.edu/2020/handin.py/">提交网站</a>。您需要先从提交网站请求一次 API 密钥，然后才能提交任何作业或实验。
 </p>
-
-<p>After committing your final changes to the lab, type <kbd>make
-handin</kbd> to submit your lab.
+<p>将最终更改提交到实验室后，输入 <kbd>make
+handin</kbd> 提交您的实验室。
 <pre>
 $ <kbd>git commit -am "ready to submit my lab"</kbd>
 [util c2e3c8b] ready to submit my lab
@@ -240,58 +136,36 @@ Please enter your API key: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 100 79258  100   239  100 79019    853   275k --:--:-- --:--:-- --:--:--  276k
 $
 </pre>
-<kbd>make handin</kbd> will store your API key in <i>myapi.key</i>. If you need
-to change your API key, just remove this file and let <kbd>make handin</kbd>
-generate it again (<i>myapi.key</i> must not include newline characters).
+<kbd>make handin</kbd> 会将您的 API 密钥存储在 <i>myapi.key</i>。如果您需要更改 API 密钥，只需删除此文件并让 <kbd>make handin</kbd>
+再次生成它（<i>myapi.key</i> 不得包含换行符）。
 </p>
-
 <p>
-If you run <kbd>make handin</kbd> and you have either uncomitted changes or
-untracked files, you will see output similar to the following:
+如果你跑 <kbd>make handin</kbd> 并且您有未提交的更改或未跟踪的文件，您将看到类似于以下内容的输出：
 <pre>
  M hello.c
 ?? bar.c
 ?? foo.pyc
 Untracked files will not be handed in.  Continue? [y/N]
 </pre>
-Inspect the above lines and make sure all files that your lab solution needs
-are tracked i.e. not listed in a line that begins with <kbd>??</kbd>.
-You can cause <tt>git</tt> to track a new file that you create using
+检查上述行并确保跟踪您的实验室解决方案所需的所有文件，即未在以以下开头的行中列出 <kbd>??</kbd>。你可以引起 <tt>git</tt> 跟踪您使用创建的新文件
 <tt>git add filename</tt>.
 </p>
-
 <p>
-If <kbd>make handin</kbd> does not work properly, 
-try fixing the problem with the curl or Git commands.
-Or you can run <kbd>make tarball</kbd>.
-This will make a tar file for you, which you can
-then upload via our 
-<a href="https://6828.scripts.mit.edu/2020/handin.py/">web interface</a>.
+如果 <kbd>make handin</kbd> 无法正常工作，请尝试使用curl 或Git 命令修复问题。或者你可以运行 <kbd>make tarball</kbd>。这将为您创建一个 tar 文件，然后您可以通过我们的上传 
+<a href="https://6828.scripts.mit.edu/2020/handin.py/">网络界面</a>.
 </p>
-
 <p>
 <div class="warning">
 <ul>
-  <li>Please run `make grade` to ensure that your code passes all of the tests</li>
-  <li>Commit any modified source code before running `make handin`</li>
-  <li>You can inspect the status of your submission and download the submitted code at <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
+<li>请运行“makegrade”以确保您的代码通过所有测试</li>
+<li>在运行“make handin”之前提交任何修改的源代码</li>
+<li>您可以检查提交的状态并下载提交的代码： <a href="https://6828.scripts.mit.edu/2020/handin.py/">https://6828.scripts.mit.edu/2020/handin.py/</a> </li>
 </ul>
 </div>
-
-
-
-
-<h2>Optional challenge exercises</h2>
-
+<h2>可选的挑战练习</h2>
 <ul>
-
-  <li>Print the system call arguments for traced system
-  calls <script>g("easy")</script>.</li>
-
-  <li>Compute the load average and export it through
-  sysinfo<script>g("moderate")</script>.</li>
-
+<li>打印跟踪的系统调用的系统调用参数 <script>g("easy")</script>.</li>
+<li>计算负载平均值并通过sysinfo导出<script>g("moderate")</script>.</li>
 </ul>
-
-</body>
+</p></p></a></p></p></p></p></p></p></p></p></p></p></body>
 </html>
