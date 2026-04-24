@@ -36,13 +36,11 @@ strcmp(const char *p, const char *q)
   return (uchar)*p - (uchar)*q;
 }
 
-uint
-strlen(const char *s)
+uint strlen(const char *s)
 {
   int n;
 
-  for(n = 0; s[n]; n++)
-    ;
+  for(n = 0; s[n]; n++);
   return n;
 }
 
@@ -98,8 +96,7 @@ stat(const char *n, struct stat *st)
   return r;
 }
 
-int
-atoi(const char *s)
+int atoi(const char *s)
 {
   int n;
 
